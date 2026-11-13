@@ -340,11 +340,9 @@ local function aimDirection(input: Vector3, preferSurface: boolean): Vector3
 	return Vector3.new(facing, 0, 0)
 end
 
--- Freies Zielen (360°) für Würfe:
---   * rechter Stick am Controller
---   * sonst Mauszeiger (Richtung vom Kopf zum Zeiger)
---   * sonst Tasten-Richtung, leicht angehoben
-local function throwAim(input: Vector3): Vector3
+-- Freies Zielen (360°): rechter Stick am Controller, sonst Mauszeiger (Richtung vom Kopf zum Zeiger).
+-- nil, wenn weder Stick noch Maus benutzt werden.
+local function freeAim(): Vector3?
 	if UserInputService:GetGamepadConnected(Enum.UserInputType.Gamepad1) then
 		for _, state in UserInputService:GetGamepadState(Enum.UserInputType.Gamepad1) do
 			if state.KeyCode == Enum.KeyCode.Thumbstick2 then
@@ -372,8 +370,12 @@ local function throwAim(input: Vector3): Vector3
 			end
 		end
 	end
+	return nil
+end
 
-	return GrenadePhysics.liftKeyboardAim(aimDirection(input, false))
+-- Zielen für Würfe: frei (Maus/Stick), sonst Tasten-Richtung leicht angehoben (Bogen)
+local function throwAim(input: Vector3): Vector3
+	return freeAim() or GrenadePhysics.liftKeyboardAim(aimDirection(input, false))
 end
 
 local function abilityReady(head: Model, id: string): boolean
@@ -451,7 +453,8 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 
 	if id == "Dash" then
 		if now >= dashReadyAt then
-			dashDirection = if input.Magnitude > 0.1 then input.Unit else Vector3.new(facing, 0, 0)
+			-- In Mausrichtung (bzw. rechter Stick), sonst gedrückte Richtung oder Blickrichtung
+			dashDirection = freeAim() or aimDirection(input, false)
 			dashUntil = now + Constants.DASH_TIME
 			dashReadyAt = now + Constants.DASH_COOLDOWN
 			-- Kurz nicht ankleben, damit man sich von der eigenen Fläche lösen kann
