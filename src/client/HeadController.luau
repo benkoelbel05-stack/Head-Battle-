@@ -72,6 +72,7 @@ local alongSpeed = 0 -- Geschwindigkeit entlang des Rings
 local lastShapeFrame: CFrame? = nil -- Lage der Plattform im letzten Frame (zum Mitfahren)
 local crawlDirection = 0 -- Laufrichtung entlang des Rings (+1 / -1), bleibt um Ecken erhalten
 local detachUntil = 0
+local detachedShape: PlatformShapes.Shape? = nil -- von dieser Plattform hat man sich gerade gelöst
 local lastSwitch = 0
 
 -- Springen
@@ -198,7 +199,10 @@ local function attachTo(shape: PlatformShapes.Shape, now: number)
 	position = frame:PointToWorldSpace(ringPoint)
 end
 
+-- Lösen. Für lockTime Sekunden klebt man nicht wieder an DIESER Plattform an (sonst würde man beim
+-- Absprung sofort wieder festkleben). Andere Plattformen greifen sofort.
 local function detach(now: number, lockTime: number)
+	detachedShape = attachedShape
 	attachedShape = nil
 	lastShapeFrame = nil
 	detachUntil = now + lockTime
@@ -217,11 +221,11 @@ local function moveWithCollisions(dt: number, shapes: { PlatformShapes.Shape }, 
 			local distance, closest = PlatformShapes.closest(shape.halfLength, localPoint)
 			local rho = ringRadius(shape)
 			if distance < rho then
-				if now >= detachUntil then
+				if now >= detachUntil or shape ~= detachedShape then
 					attachTo(shape, now)
 					return true
 				end
-				-- Kurz nach dem Absprung: nur herausschieben, nicht ankleben
+				-- Kurz nach dem Absprung von genau dieser Plattform: nur herausschieben, nicht ankleben
 				local localNormal = if distance > 0.001
 					then (Vector3.new(localPoint.X, localPoint.Y, 0) - closest) / distance
 					else Vector3.yAxis
@@ -606,6 +610,7 @@ local function trackHead(child: Instance)
 		position = if body then body.Position else Vector3.zero
 		velocity = Vector3.zero
 		attachedShape = nil
+		detachedShape = nil
 		lastShapeFrame = nil
 		detachUntil = 0
 		dashUntil = 0
