@@ -340,6 +340,42 @@ local function aimDirection(input: Vector3, preferSurface: boolean): Vector3
 	return Vector3.new(facing, 0, 0)
 end
 
+-- Freies Zielen (360°) für Würfe:
+--   * rechter Stick am Controller
+--   * sonst Mauszeiger (Richtung vom Kopf zum Zeiger)
+--   * sonst Tasten-Richtung, leicht angehoben
+local function throwAim(input: Vector3): Vector3
+	if UserInputService:GetGamepadConnected(Enum.UserInputType.Gamepad1) then
+		for _, state in UserInputService:GetGamepadState(Enum.UserInputType.Gamepad1) do
+			if state.KeyCode == Enum.KeyCode.Thumbstick2 then
+				local stick = Vector3.new(state.Position.X, state.Position.Y, 0)
+				if stick.Magnitude > STICK_DEADZONE then
+					return stick.Unit
+				end
+			end
+		end
+	end
+
+	local lastInput = UserInputService:GetLastInputType()
+	local usingGamepad = lastInput.Name:sub(1, 7) == "Gamepad"
+	if UserInputService.MouseEnabled and not usingGamepad then
+		-- Mauszeiger auf die Spielebene (Z = PLANE_Z) projizieren
+		local camera = Workspace.CurrentCamera
+		local mouse = UserInputService:GetMouseLocation()
+		local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
+		if math.abs(ray.Direction.Z) > 0.0001 then
+			local t = (Constants.PLANE_Z - ray.Origin.Z) / ray.Direction.Z
+			local point = ray.Origin + ray.Direction * t
+			local toMouse = Vector3.new(point.X - position.X, point.Y - position.Y, 0)
+			if toMouse.Magnitude > 0.5 then
+				return toMouse.Unit
+			end
+		end
+	end
+
+	return GrenadePhysics.liftKeyboardAim(aimDirection(input, false))
+end
+
 local function abilityReady(head: Model, id: string): boolean
 	local readyAt = head:GetAttribute(Abilities.readyAttribute(id))
 	return typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
@@ -426,7 +462,7 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 		useThruster(head, input)
 	elseif id == "Grenade" then
 		if abilityReady(head, "Grenade") then
-			local aim = aimDirection(input, false)
+			local aim = throwAim(input)
 			actionCounter += 1
 			local id = tostring(actionCounter)
 			-- Sofort selbst fliegen lassen, der Server rechnet die echte Granate
@@ -524,7 +560,7 @@ local function step(rawDt: number)
 
 	-- Zielstreifen, solange eine Granate aufgeladen wird
 	if chargingId == "Grenade" then
-		AimPreview.show(position, aimDirection(input, false), GrenadePhysics.chargeFromHold(now - chargingSince))
+		AimPreview.show(position, throwAim(input), GrenadePhysics.chargeFromHold(now - chargingSince))
 	end
 	body.AssemblyLinearVelocity = velocity
 	body.AssemblyAngularVelocity = Vector3.zero

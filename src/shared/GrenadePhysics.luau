@@ -8,15 +8,21 @@ local PlatformSim = require(script.Parent.PlatformSim)
 
 local GrenadePhysics = {}
 
--- Startpunkt und Startgeschwindigkeit. charge = 0..1 (wie lange die Taste gehalten wurde)
-function GrenadePhysics.launch(headPosition: Vector3, aim: Vector3, charge: number): (Vector3, Vector3)
-	local flat = Vector3.new(aim.X, aim.Y, 0)
+-- Startpunkt und Startgeschwindigkeit. direction = Wurfrichtung (beliebig, 360°), charge = 0..1
+-- (wie lange die Taste gehalten wurde). Die Granate startet am Kopfrand in Wurfrichtung.
+function GrenadePhysics.launch(headPosition: Vector3, direction: Vector3, charge: number): (Vector3, Vector3)
+	local flat = Vector3.new(direction.X, direction.Y, 0)
 	flat = if flat.Magnitude > 0.01 then flat.Unit else Vector3.xAxis
 	local speed = Constants.GRENADE_MIN_SPEED
 		+ (Constants.GRENADE_SPEED - Constants.GRENADE_MIN_SPEED) * math.clamp(charge, 0, 1)
-	local direction = (flat + Vector3.new(0, Constants.GRENADE_UPWARD, 0)).Unit
 	local start = headPosition + flat * (Constants.HEAD_RADIUS + Constants.GRENADE_RADIUS + 0.2)
-	return Vector3.new(start.X, start.Y, Constants.PLANE_Z), direction * speed
+	return Vector3.new(start.X, start.Y, Constants.PLANE_Z), flat * speed
+end
+
+-- Zielen mit Tasten (nur 8 Richtungen): leicht nach oben anheben, damit die Granate im Bogen fliegt.
+-- Mit Maus oder Stick wird genau in die gezielte Richtung geworfen.
+function GrenadePhysics.liftKeyboardAim(direction: Vector3): Vector3
+	return (Vector3.new(direction.X, direction.Y, 0).Unit + Vector3.new(0, Constants.GRENADE_UPWARD, 0)).Unit
 end
 
 -- Ladezustand 0..1 aus der Haltedauer
