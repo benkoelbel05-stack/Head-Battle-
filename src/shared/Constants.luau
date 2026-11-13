@@ -67,6 +67,7 @@ Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich ei
 Constants.PLATFORM_ANGULAR_SPRING = 10
 Constants.PLATFORM_ANGULAR_DAMPING = 6.3
 Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
+Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (Knete: wenig)
 
 -- Netzwerk-Abgleich der Plattformen (jeder Rechner simuliert selbst, der Server gleicht ab)
 Constants.SIM_RATE = 120 -- feste Physik-Schritte pro Sekunde

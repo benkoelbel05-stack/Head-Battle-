@@ -23,6 +23,7 @@ type LocalGrenade = {
 	part: BasePart,
 	position: Vector3,
 	velocity: Vector3,
+	accumulator: number,
 	explodeAt: number,
 }
 
@@ -155,6 +156,7 @@ local function spawnGrenade(id: string, start: Vector3, velocity: Vector3, start
 		part = part,
 		position = start,
 		velocity = velocity,
+		accumulator = 0,
 		explodeAt = startTime + Constants.GRENADE_FUSE,
 	}
 end
@@ -285,7 +287,7 @@ function PlatformClient.step(dt: number)
 			grenade.part:Destroy()
 			grenades[id] = nil
 		elseif now < grenade.explodeAt then
-			grenade.position, grenade.velocity = GrenadePhysics.step(grenade.position, grenade.velocity, dt, shapes)
+			GrenadePhysics.advance(grenade, dt, shapes)
 			grenade.part.CFrame = CFrame.new(grenade.position)
 		end
 	end

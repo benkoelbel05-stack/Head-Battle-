@@ -275,7 +275,7 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			local start, launchVelocity = GrenadePhysics.launch(motor.position, aim, charge)
 			head:SetAttribute(Abilities.readyAttribute("Grenade"), Workspace:GetServerTimeNow() + Constants.GRENADE_COOLDOWN)
 			PlatformClient.predictGrenade(actionId, start, launchVelocity)
-			throwGrenadeRemote:FireServer(aim, charge, actionId)
+			throwGrenadeRemote:FireServer(aim, charge, actionId, motor.position)
 		end
 	end
 end
@@ -337,15 +337,28 @@ local function step(rawDt: number)
 	if frozen then
 		motor.jumpPressedAt = -math.huge
 	end
-	HeadMotor.step(motor, dt, now, input, shapes)
 
-	body.CFrame = CFrame.new(motor.position)
+	-- Andere Köpfe als feste Kugeln (Spieler und Bots)
+	local others = {}
+	local headsFolder = Workspace:FindFirstChild(Constants.HEADS_FOLDER)
+	if headsFolder then
+		for _, other in headsFolder:GetChildren() do
+			local otherBody = if other ~= head and other:IsA("Model") then other.PrimaryPart else nil
+			if otherBody then
+				table.insert(others, otherBody.Position)
+			end
+		end
+	end
+
+	local alpha = HeadMotor.update(motor, dt, now, input, shapes, others)
+
+	body.CFrame = CFrame.new(HeadMotor.renderPosition(motor, alpha))
 	body.AssemblyLinearVelocity = motor.velocity
 	body.AssemblyAngularVelocity = Vector3.zero
 
 	-- Zielstreifen, solange eine Granate aufgeladen wird
 	if chargingId == "Grenade" then
-		AimPreview.show(motor.position, throwAim(input), GrenadePhysics.chargeFromHold(now - chargingSince))
+		AimPreview.show(motor.position, throwAim(input), GrenadePhysics.chargeFromHold(now - chargingSince), others)
 	end
 end
 

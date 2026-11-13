@@ -29,7 +29,7 @@ export type Context = {
 	setBotName: (string, string) -> (),
 	onAdded: (string) -> (),
 	onRemoved: (string) -> (),
-	throwGrenade: (Participant, Vector3, number, string) -> boolean,
+	throwGrenade: (Participant, Vector3, number, string, Vector3?) -> boolean,
 	grenadeReady: (Participant) -> boolean,
 	activeGrenades: () -> { Grenade },
 	placeThruster: (Participant, Model, Vector3, Vector3, string) -> boolean,
@@ -346,7 +346,14 @@ function BotController.step(dt: number)
 			think(bot, motor, now, shapes)
 		end
 
-		HeadMotor.step(motor, math.min(dt, 1 / 20), now, bot.input, shapes)
+		local others = {}
+		for participant, otherHead in context.getHeads() do
+			local otherBody = otherHead.PrimaryPart
+			if participant ~= bot.id and otherBody then
+				table.insert(others, otherBody.Position)
+			end
+		end
+		HeadMotor.update(motor, dt, now, bot.input, shapes, others)
 		body.CFrame = CFrame.new(motor.position)
 		body.AssemblyLinearVelocity = motor.velocity
 		body.AssemblyAngularVelocity = Vector3.zero

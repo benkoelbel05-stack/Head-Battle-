@@ -9,6 +9,11 @@
 --     behält seinen Schwung entlang der Fläche (gleitet weiter).
 --   * Dash: gerade Linie, klebt an, sobald er eine Plattform trifft.
 --
+--   * Andere Köpfe sind feste Kugeln: man prallt an ihnen ab bzw. wird an der Fläche gebremst.
+--
+-- Gerechnet wird in festen Schritten (SIM_RATE pro Sekunde), damit Sprunghöhen und Wege nicht von der
+-- Bildrate abhängen. Für die Anzeige wird in der Luft zwischen den Schritten überblendet.
+--
 -- Eingaben: input (Richtung), jumpPressedAt (Zeitpunkt des letzten Sprung-Drucks), jumpReleased.
 -- Zeit: beliebige gleichmäßige Uhr (os.clock), Hauptsache immer dieselbe.
 
@@ -18,9 +23,13 @@ local PlatformShapes = require(script.Parent.PlatformShapes)
 local R = Constants.HEAD_RADIUS
 local MAX_SUBSTEP = 0.4 -- so weit bewegt sich der Kopf pro Kollisionsprüfung höchstens (Studs)
 local SWITCH_COOLDOWN = 0.2 -- Mindestzeit zwischen zwei Plattform-Wechseln beim Entlanglaufen
+local STEP = 1 / Constants.SIM_RATE
+local HEAD_DISTANCE = R * 2 -- so nah kommen sich zwei Kopf-Mittelpunkte höchstens
 
 export type Motor = {
 	position: Vector3,
+	previousPosition: Vector3, -- Position vor dem letzten Schritt (zum Überblenden)
+	accumulator: number,
 	velocity: Vector3,
 	facing: number,
 
@@ -32,6 +41,8 @@ export type Motor = {
 	crawlDirection: number, -- Laufrichtung entlang des Rings (+1 / -1), bleibt um Ecken erhalten
 	detachUntil: number,
 	detachedShape: PlatformShapes.Shape?, -- von dieser Plattform hat man sich gerade gelöst
+	detachedNormal: Vector3, -- ... und zwar von dieser Seite
+	attachedAt: number, -- wann man zuletzt angeklebt ist
 	lastSwitch: number,
 
 	-- Springen (vom Steuernden gesetzt)
@@ -46,8 +57,11 @@ export type Motor = {
 local HeadMotor = {}
 
 function HeadMotor.new(position: Vector3): Motor
+	local start = Vector3.new(position.X, position.Y, Constants.PLANE_Z)
 	return {
-		position = Vector3.new(position.X, position.Y, Constants.PLANE_Z),
+		position = start,
+		previousPosition = start,
+		accumulator = 0,
 		velocity = Vector3.zero,
 		facing = 1,
 		attachedShape = nil,
@@ -57,6 +71,8 @@ function HeadMotor.new(position: Vector3): Motor
 		crawlDirection = 0,
 		detachUntil = 0,
 		detachedShape = nil,
+		detachedNormal = Vector3.yAxis,
+		attachedAt = 0,
 		lastSwitch = 0,
 		jumpPressedAt = -math.huge,
 		jumpReleased = false,
@@ -104,12 +120,14 @@ local function attachTo(motor: Motor, shape: PlatformShapes.Shape, now: number)
 	motor.attachedU = u
 	motor.lastShapeFrame = frame
 	motor.lastSwitch = now
+	motor.attachedAt = now
 	motor.position = frame:PointToWorldSpace(ringPoint)
 end
 
--- Lösen. Für lockTime Sekunden klebt man nicht wieder an DIESER Plattform an (sonst würde man beim
--- Absprung sofort wieder festkleben). Andere Plattformen greifen sofort.
+-- Lösen. Für lockTime Sekunden klebt man nicht wieder an DIESER Seite DIESER Plattform an (sonst würde
+-- man beim Absprung sofort wieder festkleben). Andere Plattformen und andere Seiten greifen sofort.
 function HeadMotor.detach(motor: Motor, now: number, lockTime: number)
+	motor.detachedNormal = HeadMotor.attachedNormal(motor) or Vector3.yAxis
 	motor.detachedShape = motor.attachedShape
 	motor.attachedShape = nil
 	motor.lastShapeFrame = nil
@@ -128,27 +146,54 @@ function HeadMotor.isDashing(motor: Motor, now: number): boolean
 	return now < motor.dashUntil
 end
 
+-- Überlappt der Kopf an dieser Stelle einen anderen Kopf? Gibt die Richtung weg vom anderen zurück.
+local function headOverlap(position: Vector3, others: { Vector3 }): (Vector3?, number)
+	for _, other in others do
+		local offset = Vector3.new(position.X - other.X, position.Y - other.Y, 0)
+		local distance = offset.Magnitude
+		if distance < HEAD_DISTANCE then
+			local away = if distance > 0.001 then offset / distance else Vector3.yAxis
+			return away, HEAD_DISTANCE - distance
+		end
+	end
+	return nil, 0
+end
+
+-- In der Luft: aus anderen Köpfen herausschieben und die Bewegung in sie hinein stoppen
+local function pushOutOfHeads(motor: Motor, others: { Vector3 })
+	local away, depth = headOverlap(motor.position, others)
+	if away then
+		motor.position += away * depth
+		local into = motor.velocity:Dot(away)
+		if into < 0 then
+			motor.velocity -= away * into
+		end
+	end
+end
+
 -- Kopf bewegen und dabei auf Plattformen prüfen. Gibt true zurück, wenn er angeklebt ist.
-local function moveWithCollisions(motor: Motor, dt: number, shapes: { PlatformShapes.Shape }, now: number): boolean
+local function moveWithCollisions(motor: Motor, dt: number, shapes: { PlatformShapes.Shape }, now: number, others: { Vector3 }): boolean
 	local delta = motor.velocity * dt
 	local steps = math.max(1, math.ceil(delta.Magnitude / MAX_SUBSTEP))
 
 	for _ = 1, steps do
 		motor.position += delta / steps
+		pushOutOfHeads(motor, others)
 		for _, shape in shapes do
 			local frame = PlatformShapes.frame(shape)
 			local localPoint = frame:PointToObjectSpace(motor.position)
 			local distance, closest = PlatformShapes.closest(shape.halfLength, localPoint)
 			local rho = ringRadius(shape)
 			if distance < rho then
-				if now >= motor.detachUntil or shape ~= motor.detachedShape then
-					attachTo(motor, shape, now)
-					return true
-				end
-				-- Kurz nach dem Absprung von genau dieser Plattform: nur herausschieben, nicht ankleben
 				local localNormal = if distance > 0.001
 					then (Vector3.new(localPoint.X, localPoint.Y, 0) - closest) / distance
 					else Vector3.yAxis
+				local sameSide = frame:VectorToWorldSpace(localNormal):Dot(motor.detachedNormal) > 0.5
+				if now >= motor.detachUntil or shape ~= motor.detachedShape or not sameSide then
+					attachTo(motor, shape, now)
+					return true
+				end
+				-- Kurz nach dem Absprung von genau dieser Seite: nur herausschieben, nicht ankleben
 				motor.position = frame:PointToWorldSpace(closest + localNormal * rho)
 				local normal = frame:VectorToWorldSpace(localNormal)
 				local into = motor.velocity:Dot(normal)
@@ -161,7 +206,7 @@ local function moveWithCollisions(motor: Motor, dt: number, shapes: { PlatformSh
 	return false
 end
 
-local function stepAttached(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape })
+local function stepAttached(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape }, others: { Vector3 })
 	local shape = motor.attachedShape :: PlatformShapes.Shape
 	local frame = PlatformShapes.frame(shape)
 	local rho = ringRadius(shape)
@@ -186,10 +231,26 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 	local target = motor.crawlDirection * Constants.MOVE_SPEED
 	local rate = if motor.crawlDirection ~= 0 then Constants.GROUND_ACCEL else Constants.GROUND_FRICTION
 	motor.alongSpeed = moveTowards(motor.alongSpeed, target, rate * dt)
+	local previousU = motor.attachedU
 	motor.attachedU += motor.alongSpeed * dt
 
 	local ringPoint, localNormal = PlatformShapes.boundaryPoint(L, rho, motor.attachedU)
 	local newPosition = frame:PointToWorldSpace(ringPoint)
+
+	-- Anderer Kopf im Weg: nicht hineinlaufen (zurück auf die alte Stelle, Schwung weg)
+	local blockedBy = headOverlap(newPosition, others)
+	if blockedBy and motor.alongSpeed ~= 0 then
+		local oldPoint, oldNormal = PlatformShapes.boundaryPoint(L, rho, previousU)
+		local oldPosition = frame:PointToWorldSpace(oldPoint)
+		local stillOverlap = headOverlap(oldPosition, others)
+		-- Nur blockieren, wenn man sich dem anderen Kopf nähert (sonst kann man sich wegbewegen)
+		if not stillOverlap or (newPosition - oldPosition):Dot(blockedBy) < 0 then
+			motor.attachedU = previousU
+			motor.alongSpeed = 0
+			ringPoint, localNormal = oldPoint, oldNormal
+			newPosition = oldPosition
+		end
+	end
 
 	-- Mitfahren: wie weit hat sich dieser Punkt der Plattform seit dem letzten Frame bewegt?
 	local platformVelocity = Vector3.zero
@@ -205,8 +266,11 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 	motor.position = newPosition
 	motor.velocity = worldTangent * motor.alongSpeed + platformVelocity
 
-	-- Absprung: weg von der Fläche, etwas Laufschwung mitnehmen
-	if now - motor.jumpPressedAt <= Constants.JUMP_BUFFER then
+	-- Absprung: weg von der Fläche, etwas Laufschwung mitnehmen.
+	-- An einer Decke zählt nur ein Druck NACH dem Ankleben (sonst fällt man sofort wieder herunter).
+	local onCeiling = worldNormal.Y < -0.5
+	local pressedInTime = now - motor.jumpPressedAt <= Constants.JUMP_BUFFER
+	if pressedInTime and (not onCeiling or motor.jumpPressedAt >= motor.attachedAt) then
 		motor.jumpPressedAt = -math.huge
 		local jumpDirection = worldNormal
 		if math.abs(worldNormal.X) > 0.5 then
@@ -234,7 +298,7 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 	end
 end
 
-local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape })
+local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape }, others: { Vector3 })
 	local velocity = motor.velocity
 	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
 	local vy = velocity.Y - Constants.GRAVITY * dt
@@ -243,11 +307,11 @@ local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, sh
 	end
 	vy = math.max(vy, -Constants.MAX_FALL_SPEED)
 	motor.velocity = Vector3.new(vx, vy, 0)
-	moveWithCollisions(motor, dt, shapes, now)
+	moveWithCollisions(motor, dt, shapes, now, others)
 end
 
--- Einen Frame weiterrechnen
-function HeadMotor.step(motor: Motor, dt: number, now: number, input: Vector3, shapes: { PlatformShapes.Shape })
+-- Einen festen Schritt weiterrechnen. others = Mittelpunkte der anderen Köpfe.
+function HeadMotor.step(motor: Motor, dt: number, now: number, input: Vector3, shapes: { PlatformShapes.Shape }, others: { Vector3 })
 	if math.abs(input.X) > 0.1 then
 		motor.facing = math.sign(input.X)
 	end
@@ -260,7 +324,7 @@ function HeadMotor.step(motor: Motor, dt: number, now: number, input: Vector3, s
 	if now < motor.dashUntil then
 		-- Dash: gerade Linie, keine Schwerkraft; klebt an, sobald er eine Plattform trifft
 		motor.velocity = motor.dashDirection * Constants.DASH_SPEED
-		if moveWithCollisions(motor, dt, shapes, now) then
+		if moveWithCollisions(motor, dt, shapes, now, others) then
 			motor.dashUntil = 0
 		end
 	else
@@ -270,13 +334,34 @@ function HeadMotor.step(motor: Motor, dt: number, now: number, input: Vector3, s
 			motor.velocity = motor.dashDirection * Constants.DASH_SPEED * Constants.DASH_END_KEEP
 		end
 		if motor.attachedShape then
-			stepAttached(motor, dt, input, now, shapes)
+			stepAttached(motor, dt, input, now, shapes, others)
 		else
-			stepAir(motor, dt, input, now, shapes)
+			stepAir(motor, dt, input, now, shapes, others)
 		end
 	end
 	motor.jumpReleased = false
 	motor.position = Vector3.new(motor.position.X, motor.position.Y, Constants.PLANE_Z)
+end
+
+-- Um dt weiterrechnen, in festen Schritten. Gibt den Überblend-Anteil (0..1) für die Anzeige zurück.
+function HeadMotor.update(motor: Motor, dt: number, now: number, input: Vector3, shapes: { PlatformShapes.Shape }, others: { Vector3 }): number
+	motor.accumulator = math.min(motor.accumulator + dt, 0.25)
+	local steps = math.floor(motor.accumulator / STEP)
+	motor.accumulator -= steps * STEP
+	for i = 1, steps do
+		motor.previousPosition = motor.position
+		HeadMotor.step(motor, STEP, now - (steps - i) * STEP, input, shapes, others)
+	end
+	return motor.accumulator / STEP
+end
+
+-- Position für die Anzeige. In der Luft weich zwischen den Schritten überblendet; an einer Plattform
+-- genau auf dem letzten Schritt, damit der Kopf exakt auf der (ebenfalls schrittweise bewegten) Plattform sitzt.
+function HeadMotor.renderPosition(motor: Motor, alpha: number): Vector3
+	if motor.attachedShape then
+		return motor.position
+	end
+	return motor.previousPosition:Lerp(motor.position, alpha)
 end
 
 return HeadMotor

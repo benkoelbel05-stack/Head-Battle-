@@ -18,6 +18,9 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Knet-Look: Squash & Stretch, Stop-Motion-Takt, Kopf dreht sich mit der Fläche
 - [x] Rundensystem: Countdown, ein Treffer = raus, letzter Überlebender bekommt einen Punkt, 5 Punkte gewinnen das Match
 - [x] Zerquetschen: Wer zwischen zwei Plattformen eingeklemmt wird, scheidet aus (Knetfladen-Effekt)
+- [x] Exakte Physik: feste 120-Hz-Schritte für Köpfe, Plattformen und Granaten (unabhängig von der Bildrate), Überblenden für flüssige Anzeige
+- [x] Hitboxen: Köpfe stoßen sich ab, Plattformen stoßen exakt aneinander (Masse, Drehung, leichtes Abprallen)
+- [x] An Decken bleibt man immer kleben
 - [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
 - [ ] Kopfnuss, weitere Fähigkeiten
 - [ ] Auswahl der Kleidung vor der Runde

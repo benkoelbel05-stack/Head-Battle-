@@ -8,6 +8,15 @@ local PlatformSim = require(script.Parent.PlatformSim)
 
 local GrenadePhysics = {}
 
+-- Feste Zeitschritte: Server, Clients und Zielstreifen rechnen exakt dieselbe Flugbahn
+GrenadePhysics.STEP = 1 / Constants.SIM_RATE
+
+export type FlightState = {
+	position: Vector3,
+	velocity: Vector3,
+	accumulator: number,
+}
+
 -- Startpunkt und Startgeschwindigkeit. direction = Wurfrichtung (beliebig, 360°), charge = 0..1
 -- (wie lange die Taste gehalten wurde). Die Granate startet am Kopfrand in Wurfrichtung.
 function GrenadePhysics.launch(headPosition: Vector3, direction: Vector3, charge: number): (Vector3, Vector3)
@@ -66,6 +75,15 @@ function GrenadePhysics.step(
 	end
 
 	return Vector3.new(position.X, position.Y, Constants.PLANE_Z), velocity, hitSomething
+end
+
+-- Um dt weiterrechnen, in festen Schritten (GrenadePhysics.STEP)
+function GrenadePhysics.advance(state: FlightState, dt: number, shapes: { PlatformShapes.Shape })
+	state.accumulator = math.min(state.accumulator + dt, 0.25)
+	while state.accumulator >= GrenadePhysics.STEP do
+		state.accumulator -= GrenadePhysics.STEP
+		state.position, state.velocity = GrenadePhysics.step(state.position, state.velocity, GrenadePhysics.STEP, shapes)
+	end
 end
 
 -- Explosion stößt Plattformen weg (am stärksten nah an der Explosion; neben der Mitte: sie drehen sich).

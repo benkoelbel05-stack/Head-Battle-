@@ -7,6 +7,7 @@
 --   * Thruster schieben die Plattform; sitzt der Thruster am Rand, dreht sie sich
 --   * Stöße (Explosionen, Landungen) und Kräfte (Gewicht der Köpfe)
 --   * Höchstens PLATFORM_MAX_OFFSET Studs Versatz und PLATFORM_MAX_ANGLE Kippen
+--   * Plattformen stoßen exakt (als Knetwürste) aneinander, mit Masse, Drehung und leichtem Abprallen
 --   * Feste Zeitschritte (SIM_RATE pro Sekunde), damit alle Rechner möglichst gleich rechnen
 
 local Constants = require(script.Parent.Constants)
@@ -27,6 +28,9 @@ export type PlatformState = {
 	home: CFrame,
 	mass: number, -- Fläche * Dichte
 	inertiaPerMass: number, -- Drehträgheit pro Masse
+	halfLength: number, -- Form (Knetwurst) für Zusammenstöße
+	radius: number,
+	shapeFrame: CFrame, -- Lage der Form relativ zur Wurzel
 	offset: Vector3, -- Versatz vom Startplatz (x, y)
 	angle: number, -- Drehung um Z gegenüber dem Startplatz
 	velocity: Vector3,
@@ -76,6 +80,12 @@ function PlatformSim.register(sim: Sim, model: Model): PlatformState?
 		home = home,
 		mass = math.max(area * (if typeof(density) == "number" then density else Constants.PLATFORM_DENSITY), 0.1),
 		inertiaPerMass = (width ^ 2 + height ^ 2) / 12,
+		halfLength = L,
+		radius = r,
+		shapeFrame = (function()
+			local frame = model:GetAttribute("ShapeFrame")
+			return if typeof(frame) == "CFrame" then frame else CFrame.identity
+		end)(),
 		offset = Vector3.zero,
 		angle = 0,
 		velocity = Vector3.zero,
@@ -181,24 +191,133 @@ local function stepPlatform(state: PlatformState, dt: number, now: number, pendi
 	state.angle = wrapAngle(state.angle + state.angularVelocity * dt)
 end
 
+---------------------------------------------------------------------------------------------------
+-- Zusammenstöße zwischen Plattformen
+---------------------------------------------------------------------------------------------------
+
+-- Nächste Punkte zweier Strecken (2D). Gibt beide Punkte zurück.
+local function closestPointsOnSegments(p1: Vector3, q1: Vector3, p2: Vector3, q2: Vector3): (Vector3, Vector3)
+	local d1, d2 = q1 - p1, q2 - p2
+	local r = p1 - p2
+	local a, e = d1:Dot(d1), d2:Dot(d2)
+	local f = d2:Dot(r)
+	local s, t
+	if a <= 1e-6 and e <= 1e-6 then
+		return p1, p2
+	end
+	if a <= 1e-6 then
+		s, t = 0, math.clamp(f / e, 0, 1)
+	else
+		local c = d1:Dot(r)
+		if e <= 1e-6 then
+			s, t = math.clamp(-c / a, 0, 1), 0
+		else
+			local b = d1:Dot(d2)
+			local denom = a * e - b * b
+			s = if denom > 1e-6 then math.clamp((b * f - c * e) / denom, 0, 1) else 0
+			t = (b * s + f) / e
+			if t < 0 then
+				t, s = 0, math.clamp(-c / a, 0, 1)
+			elseif t > 1 then
+				t, s = 1, math.clamp((b - c) / a, 0, 1)
+			end
+		end
+	end
+	return p1 + d1 * s, p2 + d2 * t
+end
+
+local function segmentOf(state: PlatformState): (Vector3, Vector3, Vector3)
+	local frame = PlatformSim.cframeOf(state)
+	local shape = frame * state.shapeFrame
+	local a = shape:PointToWorldSpace(Vector3.new(-state.halfLength, 0, 0))
+	local b = shape:PointToWorldSpace(Vector3.new(state.halfLength, 0, 0))
+	return Vector3.new(a.X, a.Y, 0), Vector3.new(b.X, b.Y, 0), Vector3.new(frame.X, frame.Y, 0)
+end
+
+local function cross2(a: Vector3, b: Vector3): number
+	return a.X * b.Y - a.Y * b.X
+end
+
+-- Zwei Plattformen, die sich überlappen: auseinanderschieben und Stoß austauschen
+local function resolvePair(a: PlatformState, b: PlatformState)
+	local a1, a2, centerA = segmentOf(a)
+	local b1, b2, centerB = segmentOf(b)
+	local pa, pb = closestPointsOnSegments(a1, a2, b1, b2)
+	local offset = pb - pa
+	local distance = offset.Magnitude
+	local penetration = a.radius + b.radius - distance
+	if penetration <= 0 then
+		return
+	end
+	local normal = if distance > 1e-4 then offset / distance else Vector3.yAxis -- von a nach b
+	local contact = (pa + normal * a.radius + pb - normal * b.radius) / 2
+
+	local inverseMassA, inverseMassB = 1 / a.mass, 1 / b.mass
+	local inertiaA, inertiaB = a.mass * a.inertiaPerMass, b.mass * b.inertiaPerMass
+
+	-- Auseinanderschieben, schwere Plattformen bewegen sich weniger
+	local share = penetration / (inverseMassA + inverseMassB)
+	a.offset -= normal * share * inverseMassA
+	b.offset += normal * share * inverseMassB
+
+	-- Stoß an der Berührstelle (mit Drehung)
+	local ra, rb = contact - centerA, contact - centerB
+	local velocityA = a.velocity + Vector3.new(-a.angularVelocity * ra.Y, a.angularVelocity * ra.X, 0)
+	local velocityB = b.velocity + Vector3.new(-b.angularVelocity * rb.Y, b.angularVelocity * rb.X, 0)
+	local approach = (velocityB - velocityA):Dot(normal)
+	if approach >= 0 then
+		return -- bewegen sich schon auseinander
+	end
+	local raN, rbN = cross2(ra, normal), cross2(rb, normal)
+	local impulse = -(1 + Constants.PLATFORM_BOUNCE) * approach
+		/ (inverseMassA + inverseMassB + raN * raN / inertiaA + rbN * rbN / inertiaB)
+	a.velocity -= normal * impulse * inverseMassA
+	a.angularVelocity -= raN * impulse / inertiaA
+	b.velocity += normal * impulse * inverseMassB
+	b.angularVelocity += rbN * impulse / inertiaB
+end
+
+local function resolveCollisions(states: { PlatformState })
+	for i = 1, #states do
+		for j = i + 1, #states do
+			resolvePair(states[i], states[j])
+		end
+	end
+end
+
 -- Simulation um dt weiterrechnen (in festen Schritten). now = aktuelle Serverzeit.
 function PlatformSim.step(sim: Sim, dt: number, now: number)
 	sim.accumulator = math.min(sim.accumulator + dt, 0.25)
 	local steps = math.floor(sim.accumulator / SIM_STEP)
 	sim.accumulator -= steps * SIM_STEP
 
+	-- Feste Reihenfolge (nach Name), damit alle Rechner Zusammenstöße gleich auflösen
+	local states: { PlatformState } = {}
 	for model, state in sim.platforms do
 		if not model.Parent then
 			sim.platforms[model] = nil
 		else
-			-- Kräfte der Köpfe gelten für alle Teilschritte dieses Frames
-			local pendingAcceleration, pendingAngular = state.pendingAcceleration, state.pendingAngular
-			state.pendingAcceleration, state.pendingAngular = Vector3.zero, 0
-			for i = 1, steps do
-				local stepTime = now - (steps - i) * SIM_STEP
-				stepPlatform(state, SIM_STEP, stepTime, pendingAcceleration, pendingAngular)
-			end
+			table.insert(states, state)
 		end
+	end
+	table.sort(states, function(a, b)
+		return a.model.Name < b.model.Name
+	end)
+
+	-- Kräfte der Köpfe gelten für alle Teilschritte dieses Frames
+	local pending: { [PlatformState]: { acceleration: Vector3, angular: number } } = {}
+	for _, state in states do
+		pending[state] = { acceleration = state.pendingAcceleration, angular = state.pendingAngular }
+		state.pendingAcceleration, state.pendingAngular = Vector3.zero, 0
+	end
+
+	for i = 1, steps do
+		local stepTime = now - (steps - i) * SIM_STEP
+		for _, state in states do
+			local forces = pending[state]
+			stepPlatform(state, SIM_STEP, stepTime, forces.acceleration, forces.angular)
+		end
+		resolveCollisions(states)
 	end
 end
 

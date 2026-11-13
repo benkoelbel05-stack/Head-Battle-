@@ -23,6 +23,7 @@ export type Grenade = {
 	owner: Participant,
 	position: Vector3,
 	velocity: Vector3,
+	accumulator: number,
 	thrownAt: number,
 	explodeAt: number,
 }
@@ -66,7 +67,9 @@ local function explode(grenade: Grenade, shapes: { PlatformShapes.Shape })
 end
 
 -- Granate werfen. direction = Wurfrichtung (360°), charge = 0..1. Gibt true zurück, wenn geworfen.
-function Grenades.throw(participant: Participant, direction: Vector3, charge: number, id: string): boolean
+-- startHint: Kopfposition, wie der werfende Client sie sieht. Wird übernommen, wenn sie nah genug an der
+-- Server-Position liegt; so fliegt die Granate exakt wie der Zielstreifen des Spielers.
+function Grenades.throw(participant: Participant, direction: Vector3, charge: number, id: string, startHint: Vector3?): boolean
 	local flat = Vector3.new(direction.X, direction.Y, 0)
 	if flat.Magnitude < 0.1 then
 		return false
@@ -87,12 +90,17 @@ function Grenades.throw(participant: Participant, direction: Vector3, charge: nu
 	head:SetAttribute(Abilities.readyAttribute("Grenade"), readyAt[participant])
 
 	local grenadeId = `{context.keyOf(participant)}-{id}`
-	local start, launchVelocity = GrenadePhysics.launch(body.Position, flat, math.clamp(charge, 0, 1))
+	local headPosition = body.Position
+	if startHint and (startHint - body.Position).Magnitude <= 6 then
+		headPosition = startHint
+	end
+	local start, launchVelocity = GrenadePhysics.launch(headPosition, flat, math.clamp(charge, 0, 1))
 	table.insert(active, {
 		id = grenadeId,
 		owner = participant,
 		position = start,
 		velocity = launchVelocity,
+		accumulator = 0,
 		thrownAt = now,
 		explodeAt = now + Constants.GRENADE_FUSE,
 	})
@@ -102,10 +110,11 @@ end
 
 function Grenades.init(remote: RemoteEvent, grenadeContext: Context)
 	context = grenadeContext
-	remote.OnServerEvent:Connect(function(player: Player, direction: unknown, charge: unknown, id: unknown)
+	remote.OnServerEvent:Connect(function(player: Player, direction: unknown, charge: unknown, id: unknown, start: unknown)
 		if typeof(direction) == "Vector3" and typeof(id) == "string" and #(id :: string) <= 40 then
 			local chargeValue = if typeof(charge) == "number" then charge :: number else 1
-			Grenades.throw(player, direction :: Vector3, chargeValue, id :: string)
+			local startHint = if typeof(start) == "Vector3" then start :: Vector3 else nil
+			Grenades.throw(player, direction :: Vector3, chargeValue, id :: string, startHint)
 		end
 	end)
 end
@@ -140,7 +149,7 @@ function Grenades.step(dt: number)
 		elseif grenade.position.Y < Constants.FALL_LIMIT_Y then
 			table.remove(active, i)
 		else
-			grenade.position, grenade.velocity = GrenadePhysics.step(grenade.position, grenade.velocity, dt, shapes)
+			GrenadePhysics.advance(grenade, dt, shapes)
 			-- Aufprall auf einen Kopf: sofort explodieren
 			if hitsHead(grenade, now) then
 				table.remove(active, i)
