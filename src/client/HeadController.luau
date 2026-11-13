@@ -19,6 +19,8 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
+local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
+local AimPreview = require(script.Parent.AimPreview)
 
 local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
 local placeThrusterRemote = remotes:WaitForChild("PlaceThruster") :: RemoteEvent
@@ -77,7 +79,12 @@ local jumpReleased = false
 local lastJumpPressed = -math.huge
 
 -- Fähigkeiten
-local pendingAbilities: { string } = {}
+type PendingAbility = { id: string, charge: number }
+local pendingAbilities: { PendingAbility } = {}
+-- Aufladbare Fähigkeit (Granate): wird gehalten, beim Loslassen ausgelöst
+local chargingId: string? = nil
+local chargingSlot = 0
+local chargingSince = 0
 local dashUntil = 0
 local dashReadyAt = 0
 local dashDirection = Vector3.xAxis
@@ -373,7 +380,7 @@ local function useThruster(head: Model, input: Vector3)
 	placeThrusterRemote:FireServer(part, part.CFrame:PointToObjectSpace(hit.Position), part.CFrame:VectorToObjectSpace(normal))
 end
 
-local function useAbility(id: string, input: Vector3, now: number)
+local function useAbility(id: string, charge: number, input: Vector3, now: number)
 	local head = myHead
 	if not head then
 		return
@@ -392,20 +399,40 @@ local function useAbility(id: string, input: Vector3, now: number)
 		useThruster(head, input)
 	elseif id == "Grenade" then
 		if abilityReady(head, "Grenade") then
-			throwGrenadeRemote:FireServer(aimDirection(input, false))
+			throwGrenadeRemote:FireServer(aimDirection(input, false), charge)
 		end
 	end
 end
 
--- Fähigkeit im Slot merken (ausgelöst wird im nächsten Frame, mit der aktuellen Eingabe)
-local function useSlot(slot: number)
+-- Slot-Taste gedrückt: Fähigkeit merken (ausgelöst im nächsten Frame, mit der aktuellen Eingabe).
+-- Aufladbare Fähigkeiten starten stattdessen das Aufladen.
+local function pressSlot(slot: number)
 	local head = myHead
 	if not head then
 		return
 	end
 	local id = Abilities.parseLoadout(head:GetAttribute("Loadout"))[slot]
-	if id then
-		table.insert(pendingAbilities, id)
+	if not id then
+		return
+	end
+	if Abilities.list[id].chargeable then
+		if abilityReady(head, id) and not chargingId then
+			chargingId = id
+			chargingSlot = slot
+			chargingSince = os.clock()
+		end
+	else
+		table.insert(pendingAbilities, { id = id, charge = 1 })
+	end
+end
+
+-- Slot-Taste losgelassen: aufgeladene Fähigkeit auslösen
+local function releaseSlot(slot: number)
+	if chargingId and chargingSlot == slot then
+		local charge = GrenadePhysics.chargeFromHold(os.clock() - chargingSince)
+		table.insert(pendingAbilities, { id = chargingId, charge = charge })
+		chargingId = nil
+		AimPreview.hide()
 	end
 end
 
@@ -433,8 +460,8 @@ local function step(rawDt: number)
 		detach(now, 0)
 	end
 
-	for _, id in pendingAbilities do
-		useAbility(id, input, now)
+	for _, pending in pendingAbilities do
+		useAbility(pending.id, pending.charge, input, now)
 	end
 	table.clear(pendingAbilities)
 
@@ -460,6 +487,11 @@ local function step(rawDt: number)
 
 	position = Vector3.new(position.X, position.Y, Constants.PLANE_Z)
 	body.CFrame = CFrame.new(position)
+
+	-- Zielstreifen, solange eine Granate aufgeladen wird
+	if chargingId == "Grenade" then
+		AimPreview.show(position, aimDirection(input, false), GrenadePhysics.chargeFromHold(now - chargingSince))
+	end
 	body.AssemblyLinearVelocity = velocity
 	body.AssemblyAngularVelocity = Vector3.zero
 end
@@ -479,7 +511,7 @@ local function onInputBegan(input: InputObject, gameProcessed: boolean)
 	end
 	local slot = SLOT_MOUSE[input.UserInputType] or SLOT_KEYS[input.KeyCode]
 	if slot then
-		useSlot(slot)
+		pressSlot(slot)
 	end
 end
 
@@ -487,6 +519,10 @@ local function onInputEnded(input: InputObject, _gameProcessed: boolean)
 	if JUMP_KEYS[input.KeyCode] and jumpHeld then
 		jumpHeld = false
 		jumpReleased = true
+	end
+	local slot = SLOT_MOUSE[input.UserInputType] or SLOT_KEYS[input.KeyCode]
+	if slot then
+		releaseSlot(slot)
 	end
 end
 
@@ -502,6 +538,8 @@ local function trackHead(child: Instance)
 		dashUntil = 0
 		dashReadyAt = 0
 		table.clear(pendingAbilities)
+		chargingId = nil
+		AimPreview.hide()
 		print("[HeadBattle] Eigener Kopf gefunden")
 	end
 end

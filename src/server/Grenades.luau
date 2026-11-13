@@ -1,6 +1,6 @@
 --!strict
 -- Fähigkeit Granate (Granatengürtel).
--- Der Client schickt eine Wurfrichtung. Der Server wirft eine Knet-Granate im Bogen, lässt sie an
+-- Der Client schickt eine Wurfrichtung und die Wurfkraft (0..1, je nach Haltedauer). Der Server wirft eine Knet-Granate im Bogen, lässt sie an
 -- Plattformen abprallen (exakte Form aus PlatformShapes) und nach GRENADE_FUSE Sekunden explodieren:
 --   * Köpfe im GRENADE_BLAST_RADIUS scheiden aus
 --   * Plattformen im GRENADE_PUSH_RADIUS werden weggestoßen (neben der Mitte getroffen: sie drehen sich)
@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local PlatformPhysics = require(script.Parent.PlatformPhysics)
 
 type Grenade = {
@@ -107,41 +108,17 @@ local function explode(position: Vector3)
 	end
 end
 
--- Granate bewegen, an Plattformen abprallen lassen
+-- Granate bewegen, an Plattformen abprallen lassen (gleiche Rechnung wie der Zielstreifen)
 local function stepGrenade(grenade: Grenade, dt: number, shapes: { PlatformShapes.Shape })
-	grenade.velocity -= Vector3.new(0, Constants.GRENADE_GRAVITY * dt, 0)
-	local delta = grenade.velocity * dt
-	local steps = math.max(1, math.ceil(delta.Magnitude / 0.3))
-
-	for _ = 1, steps do
-		grenade.position += delta / steps
-		for _, shape in shapes do
-			local frame = PlatformShapes.frame(shape)
-			local p = frame:PointToObjectSpace(grenade.position)
-			local distance, c = PlatformShapes.closest(shape.halfLength, p)
-			local minDistance = shape.radius + Constants.GRENADE_RADIUS
-			if distance < minDistance then
-				local localNormal = if distance > 0.001 then (Vector3.new(p.X, p.Y, 0) - c) / distance else Vector3.yAxis
-				local normal = frame:VectorToWorldSpace(localNormal)
-				grenade.position = frame:PointToWorldSpace(c + localNormal * minDistance)
-				local intoSurface = grenade.velocity:Dot(normal)
-				if intoSurface < 0 then
-					-- Abprallen, entlang der Fläche etwas bremsen (Knete ist nicht sehr springfreudig)
-					local tangential = grenade.velocity - normal * intoSurface
-					grenade.velocity = tangential * 0.8 - normal * intoSurface * Constants.GRENADE_BOUNCE
-				end
-			end
-		end
-	end
-
-	grenade.position = Vector3.new(grenade.position.X, grenade.position.Y, Constants.PLANE_Z)
+	grenade.position, grenade.velocity = GrenadePhysics.step(grenade.position, grenade.velocity, dt, shapes)
 	grenade.part.CFrame = CFrame.new(grenade.position)
 end
 
-local function onThrow(player: Player, direction: unknown)
+local function onThrow(player: Player, direction: unknown, chargeValue: unknown)
 	if typeof(direction) ~= "Vector3" then
 		return
 	end
+	local charge = if typeof(chargeValue) == "number" then math.clamp(chargeValue, 0, 1) else 1
 	local aim = direction :: Vector3
 	local flat = Vector3.new(aim.X, aim.Y, 0)
 	if flat.Magnitude < 0.1 then
@@ -162,12 +139,11 @@ local function onThrow(player: Player, direction: unknown)
 	readyAt[player] = now + Constants.GRENADE_COOLDOWN
 	head:SetAttribute(Abilities.readyAttribute("Grenade"), readyAt[player])
 
-	local throwDirection = (flat + Vector3.new(0, Constants.GRENADE_UPWARD, 0)).Unit
-	local start = body.Position + flat * (Constants.HEAD_RADIUS + Constants.GRENADE_RADIUS + 0.2)
+	local start, launchVelocity = GrenadePhysics.launch(body.Position, flat, charge)
 	table.insert(active, {
 		part = makeGrenadePart(start),
 		position = start,
-		velocity = throwDirection * Constants.GRENADE_SPEED,
+		velocity = launchVelocity,
 		explodeAt = now + Constants.GRENADE_FUSE,
 	})
 end

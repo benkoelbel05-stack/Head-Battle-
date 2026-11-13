@@ -41,7 +41,9 @@ Constants.THRUSTER_COOLDOWN = 6
 Constants.THRUSTER_COLOR = Color3.fromRGB(222, 96, 48)
 
 -- Granate (Granatengürtel)
-Constants.GRENADE_SPEED = 55 -- Wurfgeschwindigkeit
+Constants.GRENADE_MIN_SPEED = 18 -- Wurfgeschwindigkeit bei kurzem Antippen
+Constants.GRENADE_SPEED = 62 -- Wurfgeschwindigkeit voll aufgeladen
+Constants.GRENADE_CHARGE_TIME = 0.9 -- so lange halten = volle Wurfkraft
 Constants.GRENADE_UPWARD = 0.35 -- leicht nach oben werfen, damit sie im Bogen fliegt
 Constants.GRENADE_GRAVITY = 120
 Constants.GRENADE_RADIUS = 0.7

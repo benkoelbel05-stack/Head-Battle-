@@ -10,7 +10,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Fähigkeiten = Kleidungsstücke, 3 Slots auf den Maustasten
   - Fliegerkappe (Hut): Dash
   - Schweißerbrille (Brille): Thruster an Plattform kleben, schiebt und dreht sie
-  - Granatengürtel (Gürtel): Granate werfen, prallt ab, explodiert nach 1,6 s
+  - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt ab, explodiert nach 1,6 s
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
 - [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
 - [x] 2D-Kamera, zeigt immer die ganze Arena
@@ -42,6 +42,7 @@ src/
     Abilities.luau      alle Fähigkeiten (= Kleidungsstücke), Ausrüstung mit 3 Slots
     PlatformShapes.luau exakte Form der Plattformen (Bewegung, Kollision, Granaten)
     ThrusterVisual.luau Aussehen des Thrusters (Server und Client)
+    GrenadePhysics.luau Flugbahn der Granate (Server und Zielstreifen)
   server/   ServerScriptService.Server
     init.server.luau    Einstieg
     Arena.luau          baut die Arena
@@ -55,6 +56,7 @@ src/
     HeadController.luau Steuerung des eigenen Kopfes
     CameraController.luau
     ClayAnimator.luau   Knet-/Stop-Motion-Animation
+    AimPreview.luau     Zielstreifen für die Granate
 ```
 
 ## Einrichtung mit Rojo

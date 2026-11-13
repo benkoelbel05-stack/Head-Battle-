@@ -27,6 +27,7 @@ export type AbilityInfo = {
 	size: Vector3, -- Größe des Kleidungsstücks (bei "Top": X = Dicke, Y/Z = Durchmesser;
 	-- bei Bändern: Z = Tiefe, muss so groß sein, dass das Band vorne aus dem Kopf herausschaut)
 	color: Color3,
+	chargeable: boolean?, -- Taste halten lädt auf, Loslassen löst aus (z. B. Granate)
 }
 
 local Abilities = {}
@@ -58,6 +59,7 @@ Abilities.list = {
 		id = "Grenade",
 		itemName = "Granatengürtel",
 		cooldown = Constants.GRENADE_COOLDOWN,
+		chargeable = true,
 		wearAt = "Bottom",
 		shape = Enum.PartType.Block,
 		size = Vector3.new(R * 2.05, R * 0.38, R * 1.9),
