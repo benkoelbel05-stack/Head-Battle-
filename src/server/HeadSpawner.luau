@@ -5,14 +5,14 @@
 --   Body      unsichtbare Physik-Kugel, gesteuert vom Client des Spielers
 --   Visual    sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
---   Hat1      erster Hut (Fliegerkappe = Dash), lokal animiert
---   Hat2      zweiter Hut (Thruster), lokal animiert
+--   Hat1–Hat3 ein Hut pro ausgerüsteter Fähigkeit (Attribut "Ability"), lokal animiert
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
 local HeadSpawner = {}
 
@@ -21,6 +21,7 @@ local spawnPoints: { Vector3 } = {}
 local heads: { [Player]: Model } = {}
 local colorSlots: { [Player]: number } = {}
 local respawning: { [Player]: boolean } = {}
+local loadouts: { [Player]: { string } } = {}
 
 local function decorativePart(name: string, shape: Enum.PartType, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
@@ -57,6 +58,10 @@ local function getColorSlot(player: Player): number
 	return 1
 end
 
+local function getLoadout(player: Player): { string }
+	return loadouts[player] or table.clone(Abilities.DEFAULT_LOADOUT)
+end
+
 local function createHead(player: Player, color: Color3): Model
 	local diameter = Constants.HEAD_RADIUS * 2
 	local model = Instance.new("Model")
@@ -64,6 +69,8 @@ local function createHead(player: Player, color: Color3): Model
 	model:SetAttribute("UserId", player.UserId)
 	-- Immer an alle Clients senden (wir haben keine Roblox-Figur, um die herum gestreamt wird)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+	local loadout = getLoadout(player)
+	model:SetAttribute("Loadout", Abilities.formatLoadout(loadout))
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
@@ -89,23 +96,18 @@ local function createHead(player: Player, color: Color3): Model
 	decorativePart("EyeLeft", Enum.PartType.Ball, eyeSize, eyeColor, model)
 	decorativePart("EyeRight", Enum.PartType.Ball, eyeSize, eyeColor, model)
 
-	-- Hut 1: Fliegerkappe (Dash). Eine flache Knet-Scheibe oben auf dem Kopf.
-	decorativePart(
-		"Hat1",
-		Enum.PartType.Cylinder,
-		Vector3.new(Constants.HEAD_RADIUS * 0.5, diameter * 0.8, diameter * 0.8),
-		Constants.HAT_COLOR,
-		model
-	)
-
-	-- Hut 2: Thruster-Hut, sitzt auf Hut 1
-	decorativePart(
-		"Hat2",
-		Enum.PartType.Cylinder,
-		Vector3.new(Constants.HEAD_RADIUS * 0.6, diameter * 0.5, diameter * 0.5),
-		Constants.HAT2_COLOR,
-		model
-	)
+	-- Ein Hut pro ausgerüsteter Fähigkeit, gestapelt in Slot-Reihenfolge (Hat1 unten)
+	for slot, id in loadout do
+		local info = Abilities.list[id]
+		local hat = decorativePart(
+			`Hat{slot}`,
+			Enum.PartType.Cylinder,
+			Vector3.new(info.hatThickness, info.hatDiameter, info.hatDiameter),
+			info.hatColor,
+			model
+		)
+		hat:SetAttribute("Ability", id)
+	end
 
 	return model
 end
@@ -123,6 +125,11 @@ end
 
 function HeadSpawner.getHead(player: Player): Model?
 	return heads[player]
+end
+
+-- Ausrüstung ändern (max. 3 Fähigkeiten). Wird beim nächsten Erscheinen des Kopfes sichtbar.
+function HeadSpawner.setLoadout(player: Player, loadout: { string })
+	loadouts[player] = Abilities.parseLoadout(Abilities.formatLoadout(loadout))
 end
 
 function HeadSpawner.despawn(player: Player)
@@ -158,6 +165,7 @@ function HeadSpawner.removePlayer(player: Player)
 	HeadSpawner.despawn(player)
 	colorSlots[player] = nil
 	respawning[player] = nil
+	loadouts[player] = nil
 end
 
 -- Prüft jeden Frame, ob ein Kopf aus der Arena gefallen ist.

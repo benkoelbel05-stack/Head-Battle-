@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local placeThrusterRemote = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER):WaitForChild("PlaceThruster") :: RemoteEvent
 
 local player = Players.LocalPlayer
@@ -22,19 +23,20 @@ local JUMP_KEYS: { [Enum.KeyCode]: boolean } = {
 	[Enum.KeyCode.Space] = true,
 	[Enum.KeyCode.ButtonA] = true,
 }
--- Hut 1 (Fliegerkappe = Dash)
-local DASH_KEYS: { [Enum.KeyCode]: boolean } = {
-	[Enum.KeyCode.One] = true,
-	[Enum.KeyCode.K] = true,
-	[Enum.KeyCode.LeftShift] = true,
-	[Enum.KeyCode.ButtonL1] = true,
+-- Fähigkeiten-Slots: linke Maustaste = 1, Mausrad-Klick = 2, rechte Maustaste = 3
+local SLOT_MOUSE: { [Enum.UserInputType]: number } = {
+	[Enum.UserInputType.MouseButton1] = 1,
+	[Enum.UserInputType.MouseButton3] = 2,
+	[Enum.UserInputType.MouseButton2] = 3,
 }
--- Hut 2 (Thruster)
-local THRUSTER_KEYS: { [Enum.KeyCode]: boolean } = {
-	[Enum.KeyCode.Two] = true,
-	[Enum.KeyCode.L] = true,
-	[Enum.KeyCode.E] = true,
-	[Enum.KeyCode.ButtonR1] = true,
+-- Alternativ Zahlentasten und Controller
+local SLOT_KEYS: { [Enum.KeyCode]: number } = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+	[Enum.KeyCode.ButtonX] = 1,
+	[Enum.KeyCode.ButtonY] = 2,
+	[Enum.KeyCode.ButtonB] = 3,
 }
 local STICK_DEADZONE = 0.25
 
@@ -71,6 +73,7 @@ local dashUntil = 0
 local dashReadyAt = 0
 local dashDirection = Vector3.xAxis
 local thrusterPressed = false
+local useSlot: (slot: number) -> ()
 
 local jumpHeld = false
 local jumpReleased = false
@@ -213,7 +216,7 @@ local function step(rawDt: number)
 			dashReadyAt = now + Constants.DASH_COOLDOWN
 			detachUntil = dashUntil
 			surfaceNormal = nil
-			head:SetAttribute("DashReadyAt", Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
+			head:SetAttribute(Abilities.readyAttribute("Dash"), Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
 		end
 	end
 
@@ -221,7 +224,7 @@ local function step(rawDt: number)
 	-- sonst in Blickrichtung. Ob etwas getroffen wird, entscheidet der Server.
 	if thrusterPressed then
 		thrusterPressed = false
-		local readyAt = head:GetAttribute("ThrusterReadyAt")
+		local readyAt = head:GetAttribute(Abilities.readyAttribute("Thruster"))
 		local ready = typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
 		if ready then
 			local aim = if input.Magnitude > 0.1
@@ -298,6 +301,14 @@ local function step(rawDt: number)
 		local target = crawlDirection * Constants.MOVE_SPEED
 		along = moveTowards(along, target, Constants.GROUND_ACCEL * dt)
 		newVelocity = tangent * along - normal * Constants.STICK_SPEED + platformVelocity
+
+		-- Kopf genau auf die Oberfläche setzen. Andrücken allein reicht in Kurven (runde Enden)
+		-- nicht, dort würde er nach außen wegrutschen. So klebt er auch auf bewegten Plattformen.
+		local snapLength = Constants.HEAD_RADIUS + Constants.STICK_DISTANCE + 0.5
+		local snapHit = Workspace:Raycast(position, -normal * snapLength, raycastParams)
+		if snapHit then
+			position = snapHit.Position + normal * (Constants.HEAD_RADIUS + 0.02)
+		end
 	else
 		-- 2c. In der Luft: eigene Schwerkraft, etwas Luftsteuerung
 		local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
@@ -317,6 +328,21 @@ local function step(rawDt: number)
 	body.AssemblyAngularVelocity = Vector3.zero
 end
 
+-- Fähigkeit im Slot auslösen (welche das ist, steht im Attribut "Loadout" am eigenen Kopf)
+useSlot = function(slot: number)
+	local head = myHead
+	if not head then
+		return
+	end
+	local id = Abilities.parseLoadout(head:GetAttribute("Loadout"))[slot]
+	if id == "Dash" then
+		dashPressed = true
+	elseif id == "Thruster" then
+		thrusterPressed = true
+	end
+	-- Leerer Slot: nichts passiert
+end
+
 local function onInputBegan(input: InputObject, gameProcessed: boolean)
 	if gameProcessed then
 		return
@@ -324,10 +350,12 @@ local function onInputBegan(input: InputObject, gameProcessed: boolean)
 	if JUMP_KEYS[input.KeyCode] then
 		jumpHeld = true
 		lastJumpPressed = os.clock()
-	elseif DASH_KEYS[input.KeyCode] then
-		dashPressed = true
-	elseif THRUSTER_KEYS[input.KeyCode] then
-		thrusterPressed = true
+		return
+	end
+
+	local slot = SLOT_MOUSE[input.UserInputType] or SLOT_KEYS[input.KeyCode]
+	if slot then
+		useSlot(slot)
 	end
 end
 

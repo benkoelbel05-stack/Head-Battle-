@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
 type HeadState = {
 	angle: number, -- Drehung um die Kamera-Achse (0 = aufrecht), nur im Stop-Motion-Takt geändert
@@ -28,11 +29,6 @@ local TURN_PER_POSE = 0.6 -- pro Stop-Motion-Bild so viel der restlichen Drehung
 local SURFACE_SEARCH = Constants.HEAD_RADIUS + 0.8
 local HAT_UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht stellen
 
--- Hut-Stapel von unten nach oben: Teilname, Attribut mit dem Bereit-Zeitpunkt (Serverzeit), Farbe
-local HATS = {
-	{ name = "Hat1", readyAttribute = "DashReadyAt", color = Constants.HAT_COLOR },
-	{ name = "Hat2", readyAttribute = "ThrusterReadyAt", color = Constants.HAT2_COLOR },
-}
 
 local DIAGONAL = math.sqrt(0.5)
 local DIRECTIONS = {
@@ -181,16 +177,18 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	local now = Workspace:GetServerTimeNow()
 	local height = radius * scale.Y * 0.9
 	local tilt = CFrame.Angles(0, 0, -state.facing * math.rad(10))
-	for _, info in HATS do
-		local hat = head:FindFirstChild(info.name) :: BasePart?
-		if hat then
+	for slot = 1, Abilities.MAX_SLOTS do
+		local hat = head:FindFirstChild(`Hat{slot}`) :: BasePart?
+		local id = hat and hat:GetAttribute("Ability")
+		local info = if typeof(id) == "string" then Abilities.list[id] else nil
+		if hat and info then
 			local thickness = hat.Size.X
 			hat.CFrame = headFrame * tilt * CFrame.new(0, height, 0) * HAT_UPRIGHT
 			height += thickness * 0.85
 
-			local readyAt = head:GetAttribute(info.readyAttribute)
+			local readyAt = head:GetAttribute(Abilities.readyAttribute(info.id))
 			local coolingDown = typeof(readyAt) == "number" and now < readyAt
-			hat.Color = if coolingDown then Constants.HAT_COOLDOWN_COLOR else info.color
+			hat.Color = if coolingDown then Constants.HAT_COOLDOWN_COLOR else info.hatColor
 		end
 	end
 end

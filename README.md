@@ -26,8 +26,11 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 | --- | --- | --- |
 | Laufen / Klettern | A / D / W / S oder Pfeiltasten | Linker Stick |
 | Springen (weg von der Fläche) | Leertaste | A |
-| Dash (Hut 1) | 1, K oder Shift | LB |
-| Thruster (Hut 2) | 2, L oder E | RB |
+| Fähigkeit in Slot 1 | Linke Maustaste (oder 1) | X |
+| Fähigkeit in Slot 2 | Mausrad-Klick (oder 2) | Y |
+| Fähigkeit in Slot 3 | Rechte Maustaste (oder 3) | B |
+
+Jeder Spieler hat höchstens 3 Fähigkeiten (Hüte) ausgerüstet. Vorerst: Slot 1 = Dash, Slot 2 = Thruster, Slot 3 frei.
 
 Kurz drücken = kleiner Sprung, lang drücken = hoher Sprung. An Wänden klettert man mit W/S, an der Decke läuft man mit A/D. Der Dash geht in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
 Der Thruster geht in die gedrückte Richtung; ohne Eingabe an die Plattform, auf der man gerade klebt. Er schiebt die Plattform von sich weg – sitzt er am Ende, dreht sie sich.
@@ -39,6 +42,7 @@ src/
   shared/   Code für Server und Client (ReplicatedStorage.Shared)
     Constants.luau      alle Spielwerte zum Tunen
     ArenaLayouts.luau   Arenen als Daten
+    Abilities.luau      alle Fähigkeiten/Hüte, Ausrüstung mit 3 Slots
   server/   ServerScriptService.Server
     init.server.luau    Einstieg
     Arena.luau          baut die Arena

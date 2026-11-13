@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
 local Thrusters = {}
 
@@ -96,6 +97,10 @@ local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, dire
 	if not head or not body or not arena then
 		return
 	end
+	-- Nur wer den Thruster ausgerüstet hat, darf ihn benutzen
+	if not table.find(Abilities.parseLoadout(head:GetAttribute("Loadout")), "Thruster") then
+		return
+	end
 
 	raycastParams.FilterDescendantsInstances = { arena }
 	local reach = Constants.HEAD_RADIUS + Constants.THRUSTER_RANGE
@@ -115,7 +120,7 @@ local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, dire
 	end
 
 	readyAt[player] = now + Constants.THRUSTER_COOLDOWN
-	head:SetAttribute("ThrusterReadyAt", readyAt[player])
+	head:SetAttribute(Abilities.readyAttribute("Thruster"), readyAt[player])
 	attachThruster(part, hit.Position, normal.Unit)
 end
 
