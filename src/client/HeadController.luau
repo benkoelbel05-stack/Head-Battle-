@@ -160,6 +160,7 @@ end
 local function trackHead(child: Instance)
 	if child:IsA("Model") and child:GetAttribute("UserId") == player.UserId then
 		myHead = child
+		print("[HeadBattle] Eigener Kopf gefunden")
 		raycastParams.FilterDescendantsInstances = { child }
 	end
 end

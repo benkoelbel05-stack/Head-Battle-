@@ -25,3 +25,5 @@ for _, player in Players:GetPlayers() do
 end
 
 RunService.Heartbeat:Connect(HeadSpawner.checkFalls)
+
+print("[HeadBattle] Server gestartet, Arena gebaut")
