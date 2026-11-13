@@ -23,12 +23,15 @@ type HeadState = {
 	facing: number,
 	previousSpeed: number,
 	squashTimer: number,
+	lastFrameVelocity: Vector3, -- Geschwindigkeit im letzten Bild (für sofortige Reaktion)
 }
 
 local IMPACT_SQUASH_TIME = 0.15
 local IMPACT_SPEED_DROP = 30 -- so stark muss die Geschwindigkeit einbrechen, damit gequetscht wird
 local TURN_PER_POSE = 0.6 -- pro Stop-Motion-Bild so viel der restlichen Drehung ausführen
 local SURFACE_SEARCH = 0.4 -- so weit darf ein Kopf von der Fläche weg sein und gilt noch als "dran"
+local INSTANT_POSE_CHANGE = 20 -- ändert sich die Geschwindigkeit so stark (Absprung, Landung, Dash),
+-- gibt es sofort ein neues Knet-Bild statt erst beim nächsten Stop-Motion-Takt
 local CYLINDER_UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht stellen (für Hüte)
 
 local ClayAnimator = {}
@@ -49,6 +52,7 @@ local function getState(head: Model): HeadState
 			facing = 1,
 			previousSpeed = 0,
 			squashTimer = 0,
+			lastFrameVelocity = Vector3.zero,
 		}
 		states[head] = state
 	end
@@ -187,7 +191,8 @@ function ClayAnimator.start()
 		end
 	end)
 
-	RunService.RenderStepped:Connect(function(dt: number)
+	-- Nach Steuerung und Kamera, direkt vor dem Rendern
+	RunService:BindToRenderStep("HeadBattleClay", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
 		frameTimer += dt
 		local newPose = frameTimer >= frameTime
 		if newPose then
@@ -200,7 +205,10 @@ function ClayAnimator.start()
 				local body = child:FindFirstChild("Body")
 				if body and body:IsA("BasePart") then
 					local state = getState(child)
-					if newPose then
+					local velocity = body.AssemblyLinearVelocity
+					local suddenChange = (velocity - state.lastFrameVelocity).Magnitude > INSTANT_POSE_CHANGE
+					state.lastFrameVelocity = velocity
+					if newPose or suddenChange then
 						stopMotionStep(body, state, frameTime)
 					end
 					placeParts(child, body, state)

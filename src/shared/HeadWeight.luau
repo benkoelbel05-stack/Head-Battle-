@@ -1,16 +1,13 @@
 --!strict
--- Köpfe beeinflussen die Plattformen, auf denen sie kleben:
+-- Köpfe beeinflussen die Plattformen, an denen sie kleben:
 --   * Gewicht: zieht die Plattform leicht nach unten; steht ein Kopf am Ende, kippt sie (Wippe)
 --   * Landen: ein harter Aufprall stößt die Plattform kurz weg
 --   * Laufen: schiebt die Plattform leicht in Gegenrichtung (wie beim Laufen auf einem Boot)
--- Der Server rechnet das aus den Kopf-Positionen, damit alle Spieler dieselbe Bewegung sehen.
+-- Läuft auf Server und Clients gleich (jeder simuliert die Plattformen selbst).
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-
-local Constants = require(ReplicatedStorage.Shared.Constants)
-local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
-local PlatformPhysics = require(script.Parent.PlatformPhysics)
+local Constants = require(script.Parent.Constants)
+local PlatformShapes = require(script.Parent.PlatformShapes)
+local PlatformSim = require(script.Parent.PlatformSim)
 
 type Contact = {
 	shape: PlatformShapes.Shape,
@@ -18,10 +15,16 @@ type Contact = {
 	point: Vector3, -- Berührpunkt auf der Plattform-Oberfläche (Welt)
 }
 
+export type Tracker = {
+	wasAttached: { [Model]: boolean },
+	previousVelocity: { [Model]: Vector3 },
+}
+
 local HeadWeight = {}
 
-local wasAttached: { [Model]: boolean } = {}
-local previousVelocity: { [Model]: Vector3 } = {}
+function HeadWeight.newTracker(): Tracker
+	return { wasAttached = {}, previousVelocity = {} }
+end
 
 -- Plattform, an der der Kopf klebt (oder nil)
 local function findContact(shapes: { PlatformShapes.Shape }, position: Vector3): Contact?
@@ -45,14 +48,18 @@ local function findContact(shapes: { PlatformShapes.Shape }, position: Vector3):
 	return best
 end
 
--- Plattform-Geschwindigkeit an einem Punkt (für relatives Laufen)
-local function platformVelocityAt(shape: PlatformShapes.Shape, point: Vector3): Vector3
-	local v = shape.root:GetVelocityAtPosition(point)
-	return Vector3.new(v.X, v.Y, 0)
+-- Geschwindigkeit der Plattform an einem Punkt (aus der Simulation)
+local function platformVelocityAt(sim: PlatformSim.Sim, model: Model, point: Vector3): Vector3
+	local state = PlatformSim.get(sim, model)
+	if not state then
+		return Vector3.zero
+	end
+	local r = point - PlatformSim.cframeOf(state).Position
+	return state.velocity + Vector3.new(-state.angularVelocity * r.Y, state.angularVelocity * r.X, 0)
 end
 
-function HeadWeight.step(heads: { [Player]: Model })
-	local shapes = PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER))
+-- heads: Liste der Kopf-Models (mit PrimaryPart "Body")
+function HeadWeight.step(tracker: Tracker, sim: PlatformSim.Sim, shapes: { PlatformShapes.Shape }, heads: { Model })
 	local seen: { [Model]: boolean } = {}
 
 	for _, head in heads do
@@ -64,36 +71,35 @@ function HeadWeight.step(heads: { [Player]: Model })
 
 			if contact then
 				local model = contact.shape.model
-				local relative = velocity - platformVelocityAt(contact.shape, contact.point)
+				local relative = velocity - platformVelocityAt(sim, model, contact.point)
 
 				-- Gewicht: immer nach unten, am Berührpunkt (am Ende einer Plattform kippt sie)
-				PlatformPhysics.addForce(model, contact.point, Vector3.new(0, -Constants.PLATFORM_HEAD_WEIGHT, 0))
+				PlatformSim.addForce(sim, model, contact.point, Vector3.new(0, -Constants.PLATFORM_HEAD_WEIGHT, 0))
 
 				-- Laufen: Gegenschub entlang der Fläche
 				local tangent = PlatformShapes.tangent(contact.normal)
 				local along = relative:Dot(tangent)
-				PlatformPhysics.addForce(model, contact.point, -tangent * along * Constants.PLATFORM_WALK_PUSH)
+				PlatformSim.addForce(sim, model, contact.point, -tangent * along * Constants.PLATFORM_WALK_PUSH)
 
 				-- Landen: Aufprall in die Fläche hinein als kurzer Stoß
-				if not wasAttached[head] then
-					local before = previousVelocity[head] or velocity
+				if not tracker.wasAttached[head] then
+					local before = tracker.previousVelocity[head] or velocity
 					local impact = -before:Dot(contact.normal)
 					if impact > 0 then
-						PlatformPhysics.addImpulse(model, contact.point, -contact.normal * impact * Constants.PLATFORM_LANDING_PUSH)
+						PlatformSim.addImpulse(sim, model, contact.point, -contact.normal * impact * Constants.PLATFORM_LANDING_PUSH)
 					end
 				end
 			end
 
-			wasAttached[head] = contact ~= nil
-			previousVelocity[head] = velocity
+			tracker.wasAttached[head] = contact ~= nil
+			tracker.previousVelocity[head] = velocity
 		end
 	end
 
-	-- Aufräumen für Köpfe, die es nicht mehr gibt
-	for head in wasAttached do
+	for head in tracker.wasAttached do
 		if not seen[head] then
-			wasAttached[head] = nil
-			previousVelocity[head] = nil
+			tracker.wasAttached[head] = nil
+			tracker.previousVelocity[head] = nil
 		end
 	end
 end

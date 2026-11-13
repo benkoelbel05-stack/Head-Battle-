@@ -1,12 +1,20 @@
 --!strict
 -- Head Battle – Client-Einstieg
+--
+-- Ablauf in jedem Bild (vor dem Rendern, in dieser Reihenfolge):
+--   1. PlatformClient  Plattformen weiterrechnen (eigene Simulation)
+--   2. HeadController  eigenen Kopf bewegen, Fähigkeiten
+--   3. CameraController
+--   4. ClayAnimator    Knet-Look aller Köpfe
 
 print("[HeadBattle] Client startet")
 
+local PlatformClient = require(script.PlatformClient)
 local HeadController = require(script.HeadController)
 local CameraController = require(script.CameraController)
 local ClayAnimator = require(script.ClayAnimator)
 
+PlatformClient.start()
 task.spawn(CameraController.start)
 task.spawn(ClayAnimator.start)
 task.spawn(HeadController.start)

@@ -1,7 +1,7 @@
 --!strict
 -- Baut eine Arena aus einem Layout auf (Knet-Modelle kommen später).
 -- Jede Plattform ist ein eigenes, bewegliches Model ("Knetwurst" aus Mittelteil + zwei runden Enden).
--- Die Physik der Plattformen (Schweben, 2D, Rückstellfeder) steckt in PlatformPhysics.luau.
+-- Die Physik der Plattformen steckt in PlatformSim.luau (läuft auf Server und Clients).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -68,13 +68,17 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		weld.Parent = root
 	end
 	for _, part in parts do
-		part.Anchored = false
-		-- Keine Roblox-Kollisionen: Köpfe und Granaten rechnen mit der exakten Form (PlatformShapes),
-		-- Plattformen gehen durcheinander durch statt zu verhaken. Raycasts treffen sie trotzdem.
+		-- Nur die Wurzel ist verankert, der Rest hängt per Schweißnaht daran. Bewegt wird die Plattform
+		-- über die Wurzel: auf jedem Client lokal durch die Plattform-Simulation (PlatformSim).
+		-- Der Server bewegt die Parts nie, er rechnet nur mit.
+		part.Anchored = part == root
+		-- Keine Roblox-Kollisionen: Köpfe und Granaten rechnen mit der exakten Form (PlatformShapes).
+		-- Raycasts treffen die Plattformen trotzdem.
 		part.CanCollide = false
 		part.CanTouch = false
 	end
 	model.PrimaryPart = root
+	model:SetAttribute("HomeCFrame", root.CFrame)
 
 	-- Exakte Form für PlatformShapes: Strecke entlang X mit Radius, relativ zur Wurzel
 	model:SetAttribute("HalfLength", math.max(middleLength, 0) / 2)
@@ -85,7 +89,7 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 end
 
 -- Baut die Arena. Gibt die Spawnpunkte (in 3D) und die Plattform-Models zurück.
--- Die Plattformen sind danach noch nicht bei PlatformPhysics angemeldet.
+-- Die Plattformen sind danach noch nicht bei der Simulation angemeldet.
 function Arena.build(layout: ArenaLayouts.Layout): ({ Vector3 }, { Model })
 	local old = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
 	if old then

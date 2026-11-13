@@ -56,9 +56,18 @@ function PlatformShapes.collect(arena: Instance?): { Shape }
 	return shapes
 end
 
+-- Woher die aktuelle Lage einer Plattform kommt. Server und Client setzen hier ihre
+-- Plattform-Simulation ein (PlatformSim); ohne Angabe gilt die Lage der Wurzel-Part.
+local frameProvider: ((Model) -> CFrame?)? = nil
+
+function PlatformShapes.setFrameProvider(provider: (Model) -> CFrame?)
+	frameProvider = provider
+end
+
 -- Aktuelle Lage der Form in der Welt
 function PlatformShapes.frame(shape: Shape): CFrame
-	return shape.root.CFrame * shape.localFrame
+	local rootFrame = if frameProvider then frameProvider(shape.model) else nil
+	return (rootFrame or shape.root.CFrame) * shape.localFrame
 end
 
 -- Länge des Rings (Bahn des Kopf-Mittelpunkts)

@@ -41,23 +41,30 @@ src/
     ArenaLayouts.luau   Arenen als Daten
     Abilities.luau      alle Fähigkeiten (= Kleidungsstücke), Ausrüstung mit 3 Slots
     PlatformShapes.luau exakte Form der Plattformen (Bewegung, Kollision, Granaten)
-    ThrusterVisual.luau Aussehen des Thrusters (Server und Client)
-    GrenadePhysics.luau Flugbahn der Granate (Server und Zielstreifen)
-  server/   ServerScriptService.Server
-    init.server.luau    Einstieg
-    Arena.luau          baut die Arena
-    HeadSpawner.luau    erzeugt Köpfe, Respawn
-    PlatformPhysics.luau  Plattformen schweben, 2D-Ebene, Rückstellfeder
-    Thrusters.luau      Fähigkeit Thruster
-    Grenades.luau       Fähigkeit Granate
+    PlatformSim.luau    Physik der Plattformen (läuft auf Server UND jedem Client)
     HeadWeight.luau     Köpfe drücken auf Plattformen (Gewicht, Landen, Laufen)
+    GrenadePhysics.luau Flugbahn und Explosion der Granate
+    ThrusterVisual.luau Aussehen des Thrusters
+  server/   ServerScriptService.Server
+    init.server.luau    Einstieg, Netzwerk-Events, Abgleich der Plattformen
+    Arena.luau          baut die Arena
+    HeadSpawner.luau    erzeugt Köpfe, Ausscheiden, Respawn
+    Thrusters.luau      Fähigkeit Thruster (prüfen und verteilen)
+    Grenades.luau       Fähigkeit Granate (echte Granate, entscheidet wer ausscheidet)
   client/   StarterPlayerScripts.Client
-    init.client.luau    Einstieg
-    HeadController.luau Steuerung des eigenen Kopfes
+    init.client.luau    Einstieg (Reihenfolge pro Bild)
+    PlatformClient.luau Plattformen lokal rechnen, Thruster/Granaten/Explosionen anzeigen
+    HeadController.luau Steuerung des eigenen Kopfes, Fähigkeiten
     CameraController.luau
-    ClayAnimator.luau   Knet-/Stop-Motion-Animation
+    ClayAnimator.luau   Knet-/Stop-Motion-Animation, Kleidung
     AimPreview.luau     Zielstreifen für die Granate
 ```
+
+### Netzwerk-Prinzip
+
+Jeder Rechner simuliert die Plattformen selbst (`PlatformSim`). Ausgetauscht werden nur Ereignisse
+(„Thruster gesetzt“, „Granate geworfen“, „Explosion“) und alle 0,2 s ein Abgleich, an den sich die Clients weich angleichen.
+Eigene Aktionen wirken sofort, ohne auf den Server zu warten. Der Server entscheidet, wer ausscheidet.
 
 ## Einrichtung mit Rojo
 

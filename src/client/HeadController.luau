@@ -8,6 +8,7 @@
 --   * In der Luft: eigene Schwerkraft. Berührt der Kopf eine Plattform, klebt er an und
 --     behält seinen Schwung entlang der Fläche (gleitet weiter).
 -- Die Kugel gehört dem Client (Network Ownership), daher gibt es keine Eingabe-Verzögerung.
+-- Alles läuft direkt vor dem Rendern: erst die Plattformen (PlatformClient), dann der Kopf.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,9 +19,9 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
-local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local AimPreview = require(script.Parent.AimPreview)
+local PlatformClient = require(script.Parent.PlatformClient)
 
 local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
 local placeThrusterRemote = remotes:WaitForChild("PlaceThruster") :: RemoteEvent
@@ -88,6 +89,8 @@ local chargingSince = 0
 local dashUntil = 0
 local dashReadyAt = 0
 local dashDirection = Vector3.xAxis
+
+local actionCounter = 0 -- für eindeutige IDs von Thrustern und Granaten
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include
@@ -350,14 +353,14 @@ local function useThruster(head: Model, input: Vector3)
 		return
 	end
 
-	local part: BasePart
+	local model: Model? = nil
 	local contactPoint: Vector3
 	local normal: Vector3
 
 	local shape = attachedShape
 	local surfaceNormal = attachedNormal()
 	if shape and surfaceNormal then
-		part = shape.root
+		model = shape.model
 		normal = surfaceNormal
 		contactPoint = position - surfaceNormal * R
 	else
@@ -368,33 +371,40 @@ local function useThruster(head: Model, input: Vector3)
 		raycastParams.FilterDescendantsInstances = { arena }
 		local aim = aimDirection(input, true)
 		local hit = Workspace:Raycast(position, aim * (R + Constants.THRUSTER_RANGE), raycastParams)
-		if not hit or not hit.Instance:IsA("BasePart") then
+		if not hit then
 			return
 		end
 		local flatNormal = Vector3.new(hit.Normal.X, hit.Normal.Y, 0)
 		if flatNormal.Magnitude < 0.01 then
 			return
 		end
-		part = hit.Instance :: BasePart
+		-- Plattform-Model zum getroffenen Teil finden
+		local candidate: Instance? = hit.Instance
+		while candidate and candidate.Parent ~= arena do
+			candidate = candidate.Parent
+		end
+		if candidate and candidate:IsA("Model") then
+			model = candidate
+		end
 		normal = flatNormal.Unit
 		contactPoint = hit.Position
 	end
 
-	-- Sofort-Vorschau, bis der echte Thruster vom Server da ist (gegen Verzögerung)
-	local preview = ThrusterVisual.create(part, contactPoint, normal)
-	local connection: RBXScriptConnection
-	connection = part.ChildAdded:Connect(function(child)
-		if child.Name == "Thruster" and child:GetAttribute("OwnerUserId") == player.UserId then
-			preview:Destroy()
-			connection:Disconnect()
-		end
-	end)
-	task.delay(1, function()
-		preview:Destroy()
-		connection:Disconnect()
-	end)
+	local root = model and model.PrimaryPart
+	if not model or not root then
+		return
+	end
 
-	placeThrusterRemote:FireServer(part, part.CFrame:PointToObjectSpace(contactPoint), part.CFrame:VectorToObjectSpace(normal))
+	-- Relativ zur Plattform: so ist es auf jedem Rechner dieselbe Stelle, auch wenn sie sich bewegt
+	local localPosition = root.CFrame:PointToObjectSpace(contactPoint)
+	local localNormal = root.CFrame:VectorToObjectSpace(normal)
+	actionCounter += 1
+	local id = tostring(actionCounter)
+
+	-- Sofort in der eigenen Simulation wirken lassen, dann an den Server schicken
+	head:SetAttribute(Abilities.readyAttribute("Thruster"), Workspace:GetServerTimeNow() + Constants.THRUSTER_COOLDOWN)
+	PlatformClient.predictThruster(model, localPosition, localNormal, id)
+	placeThrusterRemote:FireServer(model, localPosition, localNormal, id)
 end
 
 local function useAbility(id: string, charge: number, input: Vector3, now: number)
@@ -416,7 +426,14 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 		useThruster(head, input)
 	elseif id == "Grenade" then
 		if abilityReady(head, "Grenade") then
-			throwGrenadeRemote:FireServer(aimDirection(input, false), charge)
+			local aim = aimDirection(input, false)
+			actionCounter += 1
+			local id = tostring(actionCounter)
+			-- Sofort selbst fliegen lassen, der Server rechnet die echte Granate
+			local start, launchVelocity = GrenadePhysics.launch(position, aim, charge)
+			head:SetAttribute(Abilities.readyAttribute("Grenade"), Workspace:GetServerTimeNow() + Constants.GRENADE_COOLDOWN)
+			PlatformClient.predictGrenade(id, start, launchVelocity)
+			throwGrenadeRemote:FireServer(aim, charge, id)
 		end
 	end
 end
@@ -570,7 +587,13 @@ function HeadController.start()
 
 	UserInputService.InputBegan:Connect(onInputBegan)
 	UserInputService.InputEnded:Connect(onInputEnded)
-	RunService.Heartbeat:Connect(step)
+
+	-- Direkt vor dem Rendern (nicht danach): Eingaben wirken im selben Bild.
+	-- Reihenfolge: Plattformen weiterrechnen, dann den Kopf darauf bewegen.
+	RunService:BindToRenderStep("HeadBattleMovement", Enum.RenderPriority.Input.Value + 1, function(dt: number)
+		PlatformClient.step(dt)
+		step(dt)
+	end)
 end
 
 return HeadController

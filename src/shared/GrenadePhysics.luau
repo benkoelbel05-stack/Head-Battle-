@@ -4,6 +4,7 @@
 
 local Constants = require(script.Parent.Constants)
 local PlatformShapes = require(script.Parent.PlatformShapes)
+local PlatformSim = require(script.Parent.PlatformSim)
 
 local GrenadePhysics = {}
 
@@ -59,6 +60,24 @@ function GrenadePhysics.step(
 	end
 
 	return Vector3.new(position.X, position.Y, Constants.PLANE_Z), velocity, hitSomething
+end
+
+-- Explosion stößt Plattformen weg (am stärksten nah an der Explosion; neben der Mitte: sie drehen sich).
+-- Läuft auf Server und Clients gleich, damit alle dieselbe Bewegung sehen.
+function GrenadePhysics.applyExplosion(sim: PlatformSim.Sim, shapes: { PlatformShapes.Shape }, position: Vector3)
+	for _, shape in shapes do
+		local frame = PlatformShapes.frame(shape)
+		local p = frame:PointToObjectSpace(position)
+		local distance, closest = PlatformShapes.closest(shape.halfLength, p)
+		local gap = math.max(distance - shape.radius, 0)
+		if gap < Constants.GRENADE_PUSH_RADIUS then
+			local localDirection = if distance > 0.001 then (closest - Vector3.new(p.X, p.Y, 0)) / distance else -Vector3.yAxis
+			local direction = frame:VectorToWorldSpace(localDirection)
+			local strength = Constants.GRENADE_PUSH * (1 - gap / Constants.GRENADE_PUSH_RADIUS)
+			local surfacePoint = frame:PointToWorldSpace(closest - localDirection * shape.radius)
+			PlatformSim.addImpulse(sim, shape.model, surfacePoint, direction * strength)
+		end
+	end
 end
 
 return GrenadePhysics

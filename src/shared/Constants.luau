@@ -64,6 +64,11 @@ Constants.PLATFORM_ANGULAR_SPRING = 10
 Constants.PLATFORM_ANGULAR_DAMPING = 6.3
 Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
 
+-- Netzwerk-Abgleich der Plattformen (jeder Rechner simuliert selbst, der Server gleicht ab)
+Constants.SIM_RATE = 120 -- feste Physik-Schritte pro Sekunde
+Constants.SNAPSHOT_INTERVAL = 0.2 -- so oft schickt der Server einen Abgleich (Sekunden)
+Constants.SNAPSHOT_BLEND = 0.25 -- so viel der Abweichung wird pro Abgleich korrigiert (weich, ohne Springen)
+
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
 Constants.PLATFORM_HEAD_WEIGHT = 5 -- Gewicht eines Kopfes (zieht die Plattform nach unten, am Ende: kippen)
 Constants.PLATFORM_LANDING_PUSH = 0.25 -- Anteil der Aufprall-Geschwindigkeit, der beim Landen auf die Plattform geht
@@ -99,6 +104,6 @@ Constants.CAMERA_SMOOTHNESS = 5
 Constants.HEADS_FOLDER = "Heads"
 Constants.ARENA_FOLDER = "Arena"
 Constants.REMOTES_FOLDER = "Remotes"
-Constants.EFFECTS_FOLDER = "Effects"
+Constants.EFFECTS_FOLDER = "Effects" -- nur lokal auf dem Client (Granaten, Explosionen)
 
 return Constants

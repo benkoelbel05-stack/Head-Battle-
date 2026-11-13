@@ -1,88 +1,94 @@
 --!strict
 -- Fähigkeit Thruster (Schweißerbrille).
--- Der Client sucht die Plattform in Zielrichtung und zeigt sofort eine Vorschau. Der Server prüft das,
--- klebt den echten Thruster an und schiebt die Plattform einige Sekunden lang von ihm weg.
--- Sitzt der Thruster nicht in der Mitte, dreht sich die Plattform.
+-- Der Client setzt den Thruster sofort selbst (in seiner eigenen Plattform-Simulation) und schickt ihn
+-- an den Server. Der Server prüft ihn, rechnet ihn in seine Simulation ein und verteilt ihn an alle
+-- Clients. Positionen sind immer relativ zur Plattform, damit es überall dieselbe Stelle ist.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
-local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
-local PlatformPhysics = require(script.Parent.PlatformPhysics)
+local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 
 local Thrusters = {}
 
 local readyAt: { [Player]: number } = {}
 
--- Gibt false zurück, wenn das getroffene Teil keine bewegliche Plattform ist
-local function attachThruster(part: BasePart, position: Vector3, normal: Vector3, ownerUserId: number): boolean
-	-- Schub in die Plattform hinein, also weg vom Thruster
-	if not PlatformPhysics.addThruster(part, position, -normal, Constants.THRUSTER_DURATION) then
-		return false
-	end
+export type Context = {
+	sim: PlatformSim.Sim,
+	getHead: (Player) -> Model?,
+	events: RemoteEvent, -- Server -> alle Clients
+}
 
-	local thruster = ThrusterVisual.create(part, position, normal)
-	thruster:SetAttribute("OwnerUserId", ownerUserId)
-
-	task.delay(Constants.THRUSTER_DURATION, function()
-		thruster:Destroy()
-	end)
-	return true
-end
-
--- Der Client schickt: getroffenes Plattform-Teil, Klebepunkt und Normale (beides relativ zum Teil).
--- So sitzt der Thruster genau dort, wo der Client ihn schon als Vorschau anzeigt, auch wenn sich
--- die Plattform inzwischen bewegt hat. Der Server prüft, ob das plausibel ist.
-local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, part: unknown, localPosition: unknown, localNormal: unknown)
-	if typeof(part) ~= "Instance" or typeof(localPosition) ~= "Vector3" or typeof(localNormal) ~= "Vector3" then
+local function onPlaceThruster(
+	context: Context,
+	player: Player,
+	modelValue: unknown,
+	localPositionValue: unknown,
+	localNormalValue: unknown,
+	idValue: unknown
+)
+	if
+		typeof(modelValue) ~= "Instance"
+		or typeof(localPositionValue) ~= "Vector3"
+		or typeof(localNormalValue) ~= "Vector3"
+		or typeof(idValue) ~= "string"
+	then
 		return
 	end
-	local hitPart = part :: Instance
-	local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
-	if not arena or not hitPart:IsA("BasePart") or not hitPart:IsDescendantOf(arena) then
+	local model = modelValue :: Instance
+	local localPosition = localPositionValue :: Vector3
+	local localNormal = localNormalValue :: Vector3
+	local id = idValue :: string
+	if not model:IsA("Model") or #id > 40 then
+		return
+	end
+	local state = PlatformSim.get(context.sim, model)
+	if not state then
 		return
 	end
 
 	local now = Workspace:GetServerTimeNow()
-	if (readyAt[player] or 0) > now then
+	if (readyAt[player] or 0) > now + 0.1 then -- etwas Spielraum für Uhren-Abweichung
 		return
 	end
-
-	local head = getHead(player)
+	local head = context.getHead(player)
 	local body = head and head.PrimaryPart
-	if not head or not body then
-		return
-	end
-	-- Nur wer den Thruster ausgerüstet hat, darf ihn benutzen
-	if not Abilities.hasEquipped(head, "Thruster") then
+	if not head or not body or not Abilities.hasEquipped(head, "Thruster") then
 		return
 	end
 
-	local position = hitPart.CFrame:PointToWorldSpace(localPosition :: Vector3)
-	local worldNormal = hitPart.CFrame:VectorToWorldSpace(localNormal :: Vector3)
-	local normal = Vector3.new(worldNormal.X, worldNormal.Y, 0)
-	if normal.Magnitude < 0.01 then
+	local flatNormal = Vector3.new(localNormal.X, localNormal.Y, 0)
+	if flatNormal.Magnitude < 0.01 or localPosition.Magnitude > 200 then
+		return
+	end
+	flatNormal = flatNormal.Unit
+
+	-- Reichweite prüfen (mit Spielraum für Netzwerk-Verzögerung)
+	local worldPoint = PlatformSim.cframeOf(state):PointToWorldSpace(localPosition)
+	local offset = Vector3.new(worldPoint.X - body.Position.X, worldPoint.Y - body.Position.Y, 0)
+	if offset.Magnitude > Constants.HEAD_RADIUS + Constants.THRUSTER_RANGE + 6 then
 		return
 	end
 
-	-- Reichweite prüfen (mit etwas Spielraum für Netzwerk-Verzögerung)
-	local reach = Constants.HEAD_RADIUS + Constants.THRUSTER_RANGE + 4
-	local flatOffset = Vector3.new(position.X - body.Position.X, position.Y - body.Position.Y, 0)
-	if flatOffset.Magnitude > reach then
-		return
-	end
-
-	if attachThruster(hitPart, position, normal.Unit, player.UserId) then
+	local thruster: PlatformSim.Thruster = {
+		id = `{player.UserId}-{id}`,
+		localPosition = Vector3.new(localPosition.X, localPosition.Y, 0),
+		localDirection = -flatNormal, -- Schub in die Plattform hinein, also weg vom Thruster
+		startTime = now,
+		endTime = now + Constants.THRUSTER_DURATION,
+	}
+	if PlatformSim.addThruster(context.sim, model, thruster) then
 		readyAt[player] = now + Constants.THRUSTER_COOLDOWN
 		head:SetAttribute(Abilities.readyAttribute("Thruster"), readyAt[player])
+		context.events:FireAllClients("Thruster", model, thruster, player.UserId)
 	end
 end
 
-function Thrusters.init(remote: RemoteEvent, getHead: (Player) -> Model?)
-	remote.OnServerEvent:Connect(function(player: Player, part: unknown, localPosition: unknown, localNormal: unknown)
-		onPlaceThruster(player, getHead, part, localPosition, localNormal)
+function Thrusters.init(remote: RemoteEvent, context: Context)
+	remote.OnServerEvent:Connect(function(player: Player, model: unknown, localPosition: unknown, localNormal: unknown, id: unknown)
+		onPlaceThruster(context, player, model, localPosition, localNormal, id)
 	end)
 end
 
