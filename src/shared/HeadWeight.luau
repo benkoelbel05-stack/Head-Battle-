@@ -74,19 +74,19 @@ function HeadWeight.step(tracker: Tracker, sim: PlatformSim.Sim, shapes: { Platf
 				local relative = velocity - platformVelocityAt(sim, model, contact.point)
 
 				-- Gewicht: immer nach unten, am Berührpunkt (am Ende einer Plattform kippt sie)
-				PlatformSim.addForce(sim, model, contact.point, Vector3.new(0, -Constants.PLATFORM_HEAD_WEIGHT, 0))
+				PlatformSim.addForce(sim, model, contact.point, Vector3.new(0, -Constants.HEAD_WEIGHT_FORCE, 0))
 
 				-- Laufen: Gegenschub entlang der Fläche
 				local tangent = PlatformShapes.tangent(contact.normal)
 				local along = relative:Dot(tangent)
-				PlatformSim.addForce(sim, model, contact.point, -tangent * along * Constants.PLATFORM_WALK_PUSH)
+				PlatformSim.addForce(sim, model, contact.point, -tangent * along * Constants.HEAD_WALK_FORCE)
 
 				-- Landen: Aufprall in die Fläche hinein als kurzer Stoß
 				if not tracker.wasAttached[head] then
 					local before = tracker.previousVelocity[head] or velocity
 					local impact = -before:Dot(contact.normal)
 					if impact > 0 then
-						PlatformSim.addImpulse(sim, model, contact.point, -contact.normal * impact * Constants.PLATFORM_LANDING_PUSH)
+						PlatformSim.addImpulse(sim, model, contact.point, -contact.normal * impact * Constants.HEAD_LANDING_IMPULSE)
 					end
 				end
 			end

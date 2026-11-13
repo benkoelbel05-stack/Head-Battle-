@@ -81,6 +81,7 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	model:SetAttribute("HomeCFrame", root.CFrame)
 
 	-- Exakte Form für PlatformShapes: Strecke entlang X mit Radius, relativ zur Wurzel
+	model:SetAttribute("Density", platform.density or Constants.PLATFORM_DENSITY)
 	model:SetAttribute("HalfLength", math.max(middleLength, 0) / 2)
 	model:SetAttribute("Radius", radius)
 	model:SetAttribute("ShapeFrame", root.CFrame:ToObjectSpace(center))

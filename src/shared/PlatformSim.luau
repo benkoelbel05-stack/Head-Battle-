@@ -25,7 +25,8 @@ export type PlatformState = {
 	model: Model,
 	root: BasePart,
 	home: CFrame,
-	inertiaPerMass: number,
+	mass: number, -- Fläche * Dichte
+	inertiaPerMass: number, -- Drehträgheit pro Masse
 	offset: Vector3, -- Versatz vom Startplatz (x, y)
 	angle: number, -- Drehung um Z gegenüber dem Startplatz
 	velocity: Vector3,
@@ -61,12 +62,20 @@ function PlatformSim.register(sim: Sim, model: Model): PlatformState?
 	if not root or typeof(home) ~= "CFrame" then
 		return nil
 	end
-	local size = model:GetExtentsSize()
+	-- Masse aus der Form: Stadion-Fläche (Rechteck + Kreis) * Dichte
+	local halfLength = model:GetAttribute("HalfLength")
+	local radius = model:GetAttribute("Radius")
+	local density = model:GetAttribute("Density")
+	local L = if typeof(halfLength) == "number" then halfLength else 1
+	local r = if typeof(radius) == "number" then radius else 1
+	local area = 4 * L * r + math.pi * r * r
+	local width, height = 2 * L + 2 * r, 2 * r
 	local state: PlatformState = {
 		model = model,
 		root = root,
 		home = home,
-		inertiaPerMass = (size.X ^ 2 + size.Y ^ 2) / 12,
+		mass = math.max(area * (if typeof(density) == "number" then density else Constants.PLATFORM_DENSITY), 0.1),
+		inertiaPerMass = (width ^ 2 + height ^ 2) / 12,
 		offset = Vector3.zero,
 		angle = 0,
 		velocity = Vector3.zero,
@@ -103,24 +112,24 @@ function PlatformSim.addThruster(sim: Sim, model: Model, thruster: Thruster): bo
 	return true
 end
 
--- Plötzlicher Stoß: change = Geschwindigkeitsänderung (Studs/s), angreifend an point (Welt)
-function PlatformSim.addImpulse(sim: Sim, model: Model, point: Vector3, change: Vector3)
+-- Plötzlicher Stoß (Kraftstoß), angreifend an point (Welt). Geschwindigkeitsänderung = Stoß / Masse.
+function PlatformSim.addImpulse(sim: Sim, model: Model, point: Vector3, impulse: Vector3)
 	local state = sim.platforms[model]
 	if not state then
 		return
 	end
-	local push = Vector3.new(change.X, change.Y, 0)
+	local push = Vector3.new(impulse.X, impulse.Y, 0) / state.mass
 	state.velocity += push
 	state.angularVelocity += torque(state, point, push)
 end
 
--- Kraft für den nächsten Frame (als Beschleunigung), angreifend an point (Welt)
-function PlatformSim.addForce(sim: Sim, model: Model, point: Vector3, acceleration: Vector3)
+-- Kraft für den nächsten Frame, angreifend an point (Welt). Beschleunigung = Kraft / Masse.
+function PlatformSim.addForce(sim: Sim, model: Model, point: Vector3, force: Vector3)
 	local state = sim.platforms[model]
 	if not state then
 		return
 	end
-	local push = Vector3.new(acceleration.X, acceleration.Y, 0)
+	local push = Vector3.new(force.X, force.Y, 0) / state.mass
 	state.pendingAcceleration += push
 	state.pendingAngular += torque(state, point, push)
 end
@@ -137,7 +146,7 @@ local function stepPlatform(state: PlatformState, dt: number, now: number, pendi
 			table.remove(state.thrusters, i)
 		elseif now >= thruster.startTime then
 			local strength = math.clamp(math.min(now - thruster.startTime, thruster.endTime - now) / Constants.THRUSTER_RAMP, 0, 1)
-			local push = cframe:VectorToWorldSpace(thruster.localDirection) * Constants.THRUSTER_ACCEL * strength
+			local push = cframe:VectorToWorldSpace(thruster.localDirection) * (Constants.THRUSTER_FORCE / state.mass) * strength
 			push = Vector3.new(push.X, push.Y, 0)
 			local lever = cframe:PointToWorldSpace(thruster.localPosition) - cframe.Position
 			acceleration += push

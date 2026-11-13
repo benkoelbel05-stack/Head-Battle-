@@ -79,7 +79,7 @@ function GrenadePhysics.applyExplosion(sim: PlatformSim.Sim, shapes: { PlatformS
 		if gap < Constants.GRENADE_PUSH_RADIUS then
 			local localDirection = if distance > 0.001 then (closest - Vector3.new(p.X, p.Y, 0)) / distance else -Vector3.yAxis
 			local direction = frame:VectorToWorldSpace(localDirection)
-			local strength = Constants.GRENADE_PUSH * (1 - gap / Constants.GRENADE_PUSH_RADIUS)
+			local strength = Constants.GRENADE_IMPULSE * (1 - gap / Constants.GRENADE_PUSH_RADIUS)
 			local surfacePoint = frame:PointToWorldSpace(closest - localDirection * shape.radius)
 			PlatformSim.addImpulse(sim, shape.model, surfacePoint, direction * strength)
 		end

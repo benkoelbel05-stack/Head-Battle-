@@ -13,6 +13,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt ab, explodiert nach 1,6 s
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
 - [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
+- [x] Masse je nach Größe und Dichte: große/schwere Plattformen bewegen und drehen sich weniger
 - [x] 2D-Kamera, zeigt immer die ganze Arena
 - [x] Knet-Look: Squash & Stretch, Stop-Motion-Takt, Kopf dreht sich mit der Fläche
 - [ ] Kopfnuss, weitere Fähigkeiten (Phase 2)

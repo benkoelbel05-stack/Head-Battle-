@@ -34,7 +34,7 @@ Constants.DASH_END_KEEP = 0.4 -- so viel Schwung bleibt nach dem Dash übrig
 
 -- Thruster (Schweißerbrille): klebt an eine Plattform und schiebt sie von sich weg
 Constants.THRUSTER_RANGE = 12 -- so weit darf die Plattform entfernt sein
-Constants.THRUSTER_ACCEL = 70 -- Schub (Beschleunigung der Plattform in Studs/s²)
+Constants.THRUSTER_FORCE = 2000 -- Schubkraft; Beschleunigung = Kraft / Masse der Plattform
 Constants.THRUSTER_DURATION = 2
 Constants.THRUSTER_RAMP = 0.2 -- Sekunden, in denen der Schub weich an- und ausläuft
 Constants.THRUSTER_COOLDOWN = 6
@@ -51,12 +51,15 @@ Constants.GRENADE_BOUNCE = 0.45 -- wie stark sie abprallt (0 = gar nicht, 1 = vo
 Constants.GRENADE_FUSE = 1.6 -- Sekunden bis zur Explosion
 Constants.GRENADE_BLAST_RADIUS = 7 -- Köpfe in diesem Radius scheiden aus
 Constants.GRENADE_PUSH_RADIUS = 14 -- Plattformen in diesem Radius werden weggestoßen
-Constants.GRENADE_PUSH = 28 -- Stoß auf Plattformen (Geschwindigkeit in Studs/s, nimmt mit Abstand ab)
+Constants.GRENADE_IMPULSE = 800 -- Stoß auf Plattformen; Geschwindigkeitsänderung = Stoß / Masse (nimmt mit Abstand ab)
 Constants.GRENADE_COOLDOWN = 5
 Constants.GRENADE_COLOR = Color3.fromRGB(86, 104, 62)
 
--- Plattform-Physik (eigene Feder, siehe PlatformPhysics.luau)
--- Gleichgewicht unter vollem Schub: THRUSTER_ACCEL / PLATFORM_SPRING Studs vom Startplatz
+-- Plattform-Physik (eigene Feder, siehe PlatformSim.luau)
+-- Masse einer Plattform = Fläche (Studs²) * Dichte. Schwere Plattformen bewegen und drehen sich weniger.
+-- Bezug: eine Plattform 14 x 2 hat Masse ~28; die Kräfte sind darauf abgestimmt.
+-- Gleichgewicht unter vollem Schub: THRUSTER_FORCE / (Masse * PLATFORM_SPRING) Studs vom Startplatz
+Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform änderbar)
 Constants.PLATFORM_SPRING = 6 -- wie stark die Plattform zum Startplatz zurückgezogen wird
 Constants.PLATFORM_DAMPING = 5 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfedern ohne Nachwackeln
 Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich eine Plattform nie
@@ -70,9 +73,9 @@ Constants.SNAPSHOT_INTERVAL = 0.2 -- so oft schickt der Server einen Abgleich (S
 Constants.SNAPSHOT_BLEND = 0.25 -- so viel der Abweichung wird pro Abgleich korrigiert (weich, ohne Springen)
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
-Constants.PLATFORM_HEAD_WEIGHT = 5 -- Gewicht eines Kopfes (zieht die Plattform nach unten, am Ende: kippen)
-Constants.PLATFORM_LANDING_PUSH = 0.25 -- Anteil der Aufprall-Geschwindigkeit, der beim Landen auf die Plattform geht
-Constants.PLATFORM_WALK_PUSH = 0.15 -- Laufen schiebt die Plattform leicht in Gegenrichtung
+Constants.HEAD_WEIGHT_FORCE = 140 -- Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
+Constants.HEAD_LANDING_IMPULSE = 7 -- Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
+Constants.HEAD_WALK_FORCE = 4.2 -- Gegenschub pro Studs/s Laufgeschwindigkeit
 Constants.PLATFORM_CONTACT_DISTANCE = 0.5 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
 
 -- Ausscheiden
