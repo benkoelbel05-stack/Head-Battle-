@@ -342,29 +342,46 @@ local function abilityReady(head: Model, id: string): boolean
 	return typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
 end
 
+-- Thruster setzen:
+--   * Klebt man an einer Plattform: genau an der Stelle, wo man steht (Berührpunkt unter dem Kopf)
+--   * In der Luft: an die nächste Plattform in Zielrichtung
 local function useThruster(head: Model, input: Vector3)
 	if not abilityReady(head, "Thruster") then
 		return
 	end
-	local arena = getArena()
-	if not arena then
-		return
+
+	local part: BasePart
+	local contactPoint: Vector3
+	local normal: Vector3
+
+	local shape = attachedShape
+	local surfaceNormal = attachedNormal()
+	if shape and surfaceNormal then
+		part = shape.root
+		normal = surfaceNormal
+		contactPoint = position - surfaceNormal * R
+	else
+		local arena = getArena()
+		if not arena then
+			return
+		end
+		raycastParams.FilterDescendantsInstances = { arena }
+		local aim = aimDirection(input, true)
+		local hit = Workspace:Raycast(position, aim * (R + Constants.THRUSTER_RANGE), raycastParams)
+		if not hit or not hit.Instance:IsA("BasePart") then
+			return
+		end
+		local flatNormal = Vector3.new(hit.Normal.X, hit.Normal.Y, 0)
+		if flatNormal.Magnitude < 0.01 then
+			return
+		end
+		part = hit.Instance :: BasePart
+		normal = flatNormal.Unit
+		contactPoint = hit.Position
 	end
-	raycastParams.FilterDescendantsInstances = { arena }
-	local aim = aimDirection(input, true)
-	local hit = Workspace:Raycast(position, aim * (R + Constants.THRUSTER_RANGE), raycastParams)
-	if not hit or not hit.Instance:IsA("BasePart") then
-		return
-	end
-	local part = hit.Instance :: BasePart
-	local normal = Vector3.new(hit.Normal.X, hit.Normal.Y, 0)
-	if normal.Magnitude < 0.01 then
-		return
-	end
-	normal = normal.Unit
 
 	-- Sofort-Vorschau, bis der echte Thruster vom Server da ist (gegen Verzögerung)
-	local preview = ThrusterVisual.create(part, hit.Position, normal)
+	local preview = ThrusterVisual.create(part, contactPoint, normal)
 	local connection: RBXScriptConnection
 	connection = part.ChildAdded:Connect(function(child)
 		if child.Name == "Thruster" and child:GetAttribute("OwnerUserId") == player.UserId then
@@ -377,7 +394,7 @@ local function useThruster(head: Model, input: Vector3)
 		connection:Disconnect()
 	end)
 
-	placeThrusterRemote:FireServer(part, part.CFrame:PointToObjectSpace(hit.Position), part.CFrame:VectorToObjectSpace(normal))
+	placeThrusterRemote:FireServer(part, part.CFrame:PointToObjectSpace(contactPoint), part.CFrame:VectorToObjectSpace(normal))
 end
 
 local function useAbility(id: string, charge: number, input: Vector3, now: number)

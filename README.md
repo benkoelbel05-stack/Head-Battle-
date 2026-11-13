@@ -30,7 +30,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 | Fähigkeit in Slot 3 | Rechte Maustaste (oder 3) | B |
 
 Zielen: Fähigkeiten gehen in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
-Der Thruster geht ohne Eingabe an die Plattform, an der man gerade klebt.
+Der Thruster klebt genau dort an die Plattform, wo man gerade steht. In der Luft geht er an die nächste Plattform in Zielrichtung.
 
 ## Projektstruktur
 
