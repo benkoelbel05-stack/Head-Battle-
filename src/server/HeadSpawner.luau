@@ -5,6 +5,7 @@
 --   Body      unsichtbare Physik-Kugel, gesteuert vom Client des Spielers
 --   Visual    sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
+--   Hat1      erster Hut (Fliegerkappe = Dash), lokal animiert
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -80,6 +81,15 @@ local function createHead(player: Player, color: Color3): Model
 	local eyeColor = Color3.fromRGB(30, 26, 28)
 	decorativePart("EyeLeft", Enum.PartType.Ball, eyeSize, eyeColor, model)
 	decorativePart("EyeRight", Enum.PartType.Ball, eyeSize, eyeColor, model)
+
+	-- Hut 1: Fliegerkappe (Dash). Eine flache Knet-Scheibe oben auf dem Kopf.
+	decorativePart(
+		"Hat1",
+		Enum.PartType.Cylinder,
+		Vector3.new(Constants.HEAD_RADIUS * 0.5, diameter * 0.8, diameter * 0.8),
+		Constants.HAT_COLOR,
+		model
+	)
 
 	return model
 end

@@ -2,7 +2,8 @@
 -- Knet-Look für alle Köpfe, lokal auf jedem Client:
 --   * Position folgt jeden Frame flüssig der Physik-Kugel
 --   * Form (Squash & Stretch, "Wabern") ändert sich nur 12-mal pro Sekunde -> Stop-Motion-Gefühl
---   * Augen schauen in Laufrichtung
+--   * Quetschen beim Aufprall in jede Richtung (Boden, Wand, Decke)
+--   * Augen schauen in Laufrichtung, Hut sitzt oben und wird grau, solange der Dash abklingt
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -12,14 +13,18 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 
 type HeadState = {
 	scale: Vector3, -- aktuelle Form (x, y, z), nur im Stop-Motion-Takt geändert
+	offset: Vector3, -- Verschiebung, damit die gequetschte Seite an der Fläche bleibt
 	eyeJitter: Vector3,
 	facing: number,
-	previousVY: number,
+	previousVelocity: Vector3,
 	squashTimer: number,
+	squashHorizontal: boolean,
+	impactDirection: Vector3,
 }
 
-local LANDING_SQUASH_TIME = 0.15
-local LANDING_SPEED = 30 -- ab dieser Fallgeschwindigkeit wird beim Landen gequetscht
+local IMPACT_SQUASH_TIME = 0.15
+local IMPACT_SPEED_DROP = 30 -- so stark muss die Geschwindigkeit einbrechen, damit gequetscht wird
+local HAT_UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht stellen
 
 local ClayAnimator = {}
 
@@ -32,10 +37,13 @@ local function getState(head: Model): HeadState
 	if not state then
 		state = {
 			scale = Vector3.one,
+			offset = Vector3.zero,
 			eyeJitter = Vector3.zero,
 			facing = 1,
-			previousVY = 0,
+			previousVelocity = Vector3.zero,
 			squashTimer = 0,
+			squashHorizontal = false,
+			impactDirection = Vector3.new(0, -1, 0),
 		}
 		states[head] = state
 	end
@@ -43,28 +51,44 @@ local function getState(head: Model): HeadState
 end
 
 -- Wird 12-mal pro Sekunde aufgerufen: neue "Knet-Pose" berechnen
-local function stopMotionStep(head: Model, body: BasePart, state: HeadState, frameTime: number)
+local function stopMotionStep(body: BasePart, state: HeadState, frameTime: number)
 	local velocity = body.AssemblyLinearVelocity
+	local previous = state.previousVelocity
 
 	if math.abs(velocity.X) > 1 then
 		state.facing = math.sign(velocity.X)
 	end
 
-	-- Landung erkennen: eben noch schnell gefallen, jetzt fast still
-	if state.previousVY < -LANDING_SPEED and math.abs(velocity.Y) < 5 then
-		state.squashTimer = LANDING_SQUASH_TIME
+	-- Aufprall erkennen: eben noch schnell, jetzt deutlich langsamer
+	if previous.Magnitude - velocity.Magnitude > IMPACT_SPEED_DROP then
+		state.squashTimer = IMPACT_SQUASH_TIME
+		state.squashHorizontal = math.abs(previous.X) > math.abs(previous.Y)
+		if state.squashHorizontal then
+			state.impactDirection = Vector3.new(math.sign(previous.X), 0, 0)
+		else
+			state.impactDirection = Vector3.new(0, math.sign(previous.Y), 0)
+		end
 	end
-	state.previousVY = velocity.Y
+	state.previousVelocity = velocity
 	state.squashTimer = math.max(0, state.squashTimer - frameTime)
 
-	local sx, sy
+	local sx, sy = 1, 1
+	local offset = Vector3.zero
 	if state.squashTimer > 0 then
-		-- Plattgedrückt nach der Landung
-		sx, sy = 1.25, 0.72
+		-- Plattgedrückt gegen die Fläche, die gequetschte Seite bleibt an der Fläche
+		local squash, bulge = 0.72, 1.25
+		if state.squashHorizontal then
+			sx, sy = squash, bulge
+		else
+			sx, sy = bulge, squash
+		end
+		offset = state.impactDirection * (1 - squash) * Constants.HEAD_RADIUS
 	else
-		-- In die Länge gezogen beim Steigen/Fallen
-		local stretch = math.clamp(math.abs(velocity.Y) * 0.004, 0, 0.25)
-		sx, sy = 1 - stretch * 0.6, 1 + stretch
+		-- In Bewegungsrichtung in die Länge gezogen (z. B. beim Springen oder Dashen)
+		local stretchX = math.clamp(math.abs(velocity.X) * 0.003, 0, 0.3)
+		local stretchY = math.clamp(math.abs(velocity.Y) * 0.004, 0, 0.3)
+		sx = 1 + stretchX - stretchY * 0.6
+		sy = 1 + stretchY - stretchX * 0.6
 	end
 
 	-- "Wabern": jede Pose ist minimal anders, wie echte Knete zwischen zwei Fotos
@@ -73,6 +97,7 @@ local function stopMotionStep(head: Model, body: BasePart, state: HeadState, fra
 	sy *= 1 + random:NextNumber(-boil, boil)
 	local sz = 1 + random:NextNumber(-boil, boil)
 	state.scale = Vector3.new(sx, sy, sz)
+	state.offset = offset
 
 	local eyeBoil = Constants.HEAD_RADIUS * 0.04
 	state.eyeJitter = Vector3.new(random:NextNumber(-eyeBoil, eyeBoil), random:NextNumber(-eyeBoil, eyeBoil), 0)
@@ -81,18 +106,17 @@ end
 -- Wird jeden Frame aufgerufen: Teile an die aktuelle Position setzen
 local function placeParts(head: Model, body: BasePart, state: HeadState)
 	local visual = head:FindFirstChild("Visual") :: BasePart?
-	local eyeLeft = head:FindFirstChild("EyeLeft") :: BasePart?
-	local eyeRight = head:FindFirstChild("EyeRight") :: BasePart?
 	if not visual then
 		return
 	end
+	local eyeLeft = head:FindFirstChild("EyeLeft") :: BasePart?
+	local eyeRight = head:FindFirstChild("EyeRight") :: BasePart?
+	local hat = head:FindFirstChild("Hat1") :: BasePart?
 
 	local radius = Constants.HEAD_RADIUS
 	local scale = state.scale
-	local position = body.Position
+	local center = body.Position + state.offset
 
-	-- Unterkante bleibt am Boden, auch wenn der Kopf plattgedrückt wird
-	local center = position + Vector3.new(0, (scale.Y - 1) * radius, 0)
 	visual.Size = Vector3.one * (radius * 2) * scale
 	visual.CFrame = CFrame.new(center)
 
@@ -106,6 +130,17 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	end
 	if eyeRight then
 		eyeRight.CFrame = CFrame.new(center + Vector3.new(lookOffset + spread, eyeY, eyeZ) + state.eyeJitter)
+	end
+
+	-- Hut oben auf dem Kopf, leicht in Blickrichtung gekippt
+	if hat then
+		local top = center + Vector3.new(0, radius * scale.Y * 0.9, 0)
+		hat.CFrame = CFrame.new(top) * CFrame.Angles(0, 0, -state.facing * math.rad(10)) * HAT_UPRIGHT
+
+		-- Abklingzeit des Dashs (nur beim eigenen Kopf bekannt): Hut grau
+		local readyAt = head:GetAttribute("DashReadyAt")
+		local coolingDown = typeof(readyAt) == "number" and os.clock() < readyAt
+		hat.Color = if coolingDown then Constants.HAT_COOLDOWN_COLOR else Constants.HAT_COLOR
 	end
 end
 
@@ -132,7 +167,7 @@ function ClayAnimator.start()
 				if body and body:IsA("BasePart") then
 					local state = getState(child)
 					if newPose then
-						stopMotionStep(child, body, state, frameTime)
+						stopMotionStep(body, state, frameTime)
 					end
 					placeParts(child, body, state)
 				end

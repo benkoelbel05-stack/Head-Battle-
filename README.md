@@ -6,11 +6,14 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 
 - [x] Knetkopf als Spielfigur (eigene Physik, keine Roblox-Figur)
 - [x] Laufen und Springen auf einer 2D-Ebene (mit Coyote Time, Sprung-Puffer, variabler Sprunghöhe)
-- [x] Seitliche Kamera, die alle Köpfe im Bild hält
+- [x] An Boden, Wand und Decke haften, an ihnen entlanglaufen und abspringen
+- [x] Erster Hut: Fliegerkappe = Dash (Abklingzeit 3 s, Hut wird solange grau)
+- [x] 2D-Kamera (kleines Sichtfeld, große Entfernung), zeigt immer die ganze Arena
+- [x] Runde Plattformen („Knetwürste“), um deren Enden man herumlaufen kann
 - [x] Knet-Look: Squash & Stretch, „Wabern“ im 12-fps-Stop-Motion-Takt, Augen in Laufrichtung
 - [x] Erste Arena „Basteltisch“ (graue Klötze)
 - [x] Absturz = Respawn nach 2 Sekunden
-- [ ] Kopfnuss und die ersten 4 Hüte (Phase 2)
+- [ ] Kopfnuss und die nächsten 3 Hüte (Phase 2)
 - [ ] Runden, Punkte, Hutwahl (Phase 3)
 - [ ] Touch-Steuerung für Handys (Phase 3)
 
@@ -18,10 +21,11 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 
 | Aktion | Tastatur | Controller |
 | --- | --- | --- |
-| Laufen | A / D oder Pfeiltasten | Linker Stick |
-| Springen | Leertaste, W oder Pfeil hoch | A |
+| Laufen / Klettern | A / D / W / S oder Pfeiltasten | Linker Stick |
+| Springen (weg von der Fläche) | Leertaste | A |
+| Dash (Hut 1) | 1, K oder Shift | LB |
 
-Kurz drücken = kleiner Sprung, lang drücken = hoher Sprung.
+Kurz drücken = kleiner Sprung, lang drücken = hoher Sprung. An Wänden klettert man mit W/S, an der Decke läuft man mit A/D. Der Dash geht in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
 
 ## Projektstruktur
 

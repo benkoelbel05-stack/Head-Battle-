@@ -11,6 +11,9 @@ local PLATFORM_DEPTH = 8 -- dicker als der Kopf, damit nichts durchrutscht
 
 local Arena = {}
 
+-- Zylinder liegen in Roblox entlang der X-Achse. So gedreht zeigt ihre runde Seite zur Kamera.
+local CYLINDER_TO_CAMERA = CFrame.Angles(0, math.rad(90), 0)
+
 local function makePart(name: string, size: Vector3, cframe: CFrame, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -45,14 +48,29 @@ function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
 	folder.Name = Constants.ARENA_FOLDER
 	folder.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
+	-- Jede Plattform ist eine "Knetwurst": ein Block in der Mitte und zwei runde Enden.
+	-- Die runden Enden lassen den Kopf um die Kante herumlaufen.
 	for index, platform in layout.platforms do
-		makePart(
-			`Platform{index}`,
-			Vector3.new(platform.size.X, platform.size.Y, PLATFORM_DEPTH),
-			CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z),
-			platform.color,
-			folder
-		)
+		local width, height = platform.size.X, platform.size.Y
+		local radius = math.min(height, width) / 2
+		local center = CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z)
+		local middleLength = width - radius * 2
+
+		if middleLength > 0.01 then
+			makePart(`Platform{index}`, Vector3.new(middleLength, height, PLATFORM_DEPTH), center, platform.color, folder)
+		end
+
+		for side = -1, 1, 2 do
+			local capCenter = center * CFrame.new(side * middleLength / 2, 0, 0)
+			local cap = makePart(
+				`Platform{index}Cap`,
+				Vector3.new(PLATFORM_DEPTH, height, height),
+				capCenter * CYLINDER_TO_CAMERA,
+				platform.color,
+				folder
+			)
+			cap.Shape = Enum.PartType.Cylinder
+		end
 	end
 
 	-- Hintergrund-Wand hinter der Arena
