@@ -38,8 +38,10 @@ function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
 		baseplate:Destroy()
 	end
 
-	local folder = Instance.new("Folder")
+	-- Ein Model mit "Persistent", damit die Arena trotz StreamingEnabled immer bei allen Clients ankommt
+	local folder = Instance.new("Model")
 	folder.Name = Constants.ARENA_FOLDER
+	folder.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
 	for index, platform in layout.platforms do
 		makePart(

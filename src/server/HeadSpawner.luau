@@ -60,6 +60,8 @@ local function createHead(player: Player, color: Color3): Model
 	local model = Instance.new("Model")
 	model.Name = player.Name
 	model:SetAttribute("UserId", player.UserId)
+	-- Immer an alle Clients senden (wir haben keine Roblox-Figur, um die herum gestreamt wird)
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
@@ -118,6 +120,8 @@ function HeadSpawner.spawn(player: Player)
 	-- Der Spieler steuert seine Kugel selbst: Bewegung ohne Verzögerung
 	local body = head.PrimaryPart :: BasePart
 	body:SetNetworkOwner(player)
+	-- Streaming-Mittelpunkt für diesen Spieler = sein Kopf
+	player.ReplicationFocus = body
 end
 
 function HeadSpawner.removePlayer(player: Player)
