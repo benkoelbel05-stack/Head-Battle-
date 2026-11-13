@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local placeThrusterRemote = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER):WaitForChild("PlaceThruster") :: RemoteEvent
 
 local player = Players.LocalPlayer
 
@@ -27,6 +28,13 @@ local DASH_KEYS: { [Enum.KeyCode]: boolean } = {
 	[Enum.KeyCode.K] = true,
 	[Enum.KeyCode.LeftShift] = true,
 	[Enum.KeyCode.ButtonL1] = true,
+}
+-- Hut 2 (Thruster)
+local THRUSTER_KEYS: { [Enum.KeyCode]: boolean } = {
+	[Enum.KeyCode.Two] = true,
+	[Enum.KeyCode.L] = true,
+	[Enum.KeyCode.E] = true,
+	[Enum.KeyCode.ButtonR1] = true,
 }
 local STICK_DEADZONE = 0.25
 
@@ -50,6 +58,7 @@ local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include -- nur die Arena zählt als Fläche
 
 local surfaceNormal: Vector3? = nil -- nil = in der Luft
+local surfacePart: BasePart? = nil -- die Plattform, an der man klebt (kann sich bewegen)
 local lastSurfaceNormal = Vector3.yAxis
 local lastAttached = -math.huge
 local detachUntil = 0
@@ -61,6 +70,7 @@ local dashPressed = false
 local dashUntil = 0
 local dashReadyAt = 0
 local dashDirection = Vector3.xAxis
+local thrusterPressed = false
 
 local jumpHeld = false
 local jumpReleased = false
@@ -133,9 +143,10 @@ end
 
 -- Sucht die Fläche, an der der Kopf haften soll.
 -- moveDir: Richtung, in die sich der Spieler bewegen will (bevorzugt z. B. die Wand, auf die man zuläuft).
-local function findSurface(position: Vector3, moveDir: Vector3): Vector3?
+local function findSurface(position: Vector3, moveDir: Vector3): (Vector3?, BasePart?)
 	local length = Constants.HEAD_RADIUS + Constants.STICK_DISTANCE
 	local best: Vector3? = nil
+	local bestPart: BasePart? = nil
 	local bestScore = -math.huge
 
 	-- Zusätzlich direkt zur aktuellen Fläche suchen, etwas weiter:
@@ -157,11 +168,21 @@ local function findSurface(position: Vector3, moveDir: Vector3): Vector3?
 			end
 			if score > bestScore then
 				best, bestScore = normal, score
+				bestPart = hit.Instance :: BasePart
 			end
 		end
 	end
 
-	return best
+	return best, bestPart
+end
+
+-- Geschwindigkeit der Plattform an dieser Stelle (damit man auf bewegten Plattformen mitfährt)
+local function surfaceVelocity(part: BasePart?, position: Vector3): Vector3
+	if not part or part.Anchored then
+		return Vector3.zero
+	end
+	local v = part:GetVelocityAtPosition(position)
+	return Vector3.new(v.X, v.Y, 0)
 end
 
 local function step(rawDt: number)
@@ -192,7 +213,22 @@ local function step(rawDt: number)
 			dashReadyAt = now + Constants.DASH_COOLDOWN
 			detachUntil = dashUntil
 			surfaceNormal = nil
-			head:SetAttribute("DashReadyAt", dashReadyAt)
+			head:SetAttribute("DashReadyAt", Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
+		end
+	end
+
+	-- Thruster setzen: in Eingaberichtung, ohne Eingabe auf die Fläche, an der man klebt,
+	-- sonst in Blickrichtung. Ob etwas getroffen wird, entscheidet der Server.
+	if thrusterPressed then
+		thrusterPressed = false
+		local readyAt = head:GetAttribute("ThrusterReadyAt")
+		local ready = typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
+		if ready then
+			local aim = if input.Magnitude > 0.1
+				then input.Unit
+				elseif surfaceNormal then -surfaceNormal
+				else Vector3.new(facing, 0, 0)
+			placeThrusterRemote:FireServer(aim)
 		end
 	end
 
@@ -214,10 +250,11 @@ local function step(rawDt: number)
 		if not surfaceNormal and velocity.Magnitude > 1 then
 			moveDir = velocity.Unit
 		end
-		surfaceNormal = findSurface(position, moveDir)
+		surfaceNormal, surfacePart = findSurface(position, moveDir)
 	else
-		surfaceNormal = nil
+		surfaceNormal, surfacePart = nil, nil
 	end
+	local platformVelocity = if surfaceNormal then surfaceVelocity(surfacePart, position) else Vector3.zero
 	if surfaceNormal then
 		lastAttached = now
 		lastSurfaceNormal = surfaceNormal
@@ -235,7 +272,7 @@ local function step(rawDt: number)
 			-- Von der Wand: schräg nach oben weg
 			jumpDir = (normal + Vector3.new(0, Constants.WALL_JUMP_LIFT, 0)).Unit
 		end
-		newVelocity = jumpDir * Constants.JUMP_VELOCITY
+		newVelocity = jumpDir * Constants.JUMP_VELOCITY + platformVelocity
 		surfaceNormal = nil
 		detachUntil = now + Constants.DETACH_TIME
 		lastJumpPressed = -math.huge
@@ -244,7 +281,7 @@ local function step(rawDt: number)
 		-- 2b. Haften: an der Fläche entlang laufen, leicht an sie gedrückt
 		local normal = surfaceNormal
 		local tangent = Vector3.new(normal.Y, -normal.X, 0)
-		local along = velocity:Dot(tangent)
+		local along = (velocity - platformVelocity):Dot(tangent) -- relativ zur (evtl. bewegten) Plattform
 
 		-- Laufrichtung bestimmen: Zeigt die Eingabe klar entlang der Fläche, gilt sie.
 		-- Steht sie quer zur Fläche (z. B. "rechts" an einer senkrechten Wand nach dem Herumlaufen
@@ -260,7 +297,7 @@ local function step(rawDt: number)
 
 		local target = crawlDirection * Constants.MOVE_SPEED
 		along = moveTowards(along, target, Constants.GROUND_ACCEL * dt)
-		newVelocity = tangent * along - normal * Constants.STICK_SPEED
+		newVelocity = tangent * along - normal * Constants.STICK_SPEED + platformVelocity
 	else
 		-- 2c. In der Luft: eigene Schwerkraft, etwas Luftsteuerung
 		local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
@@ -289,6 +326,8 @@ local function onInputBegan(input: InputObject, gameProcessed: boolean)
 		lastJumpPressed = os.clock()
 	elseif DASH_KEYS[input.KeyCode] then
 		dashPressed = true
+	elseif THRUSTER_KEYS[input.KeyCode] then
+		thrusterPressed = true
 	end
 end
 

@@ -34,6 +34,19 @@ Constants.DASH_TIME = 0.14
 Constants.DASH_COOLDOWN = 3
 Constants.DASH_END_KEEP = 0.4 -- so viel Schwung bleibt nach dem Dash übrig
 
+-- Thruster (Hut 2): klebt an eine Plattform und schiebt sie von sich weg
+Constants.THRUSTER_RANGE = 12 -- so weit darf die Plattform entfernt sein
+Constants.THRUSTER_ACCEL = 30 -- Schub (Beschleunigung der Plattform in Studs/s²)
+Constants.THRUSTER_DURATION = 3
+Constants.THRUSTER_COOLDOWN = 6
+
+-- Plattform-Physik
+Constants.PLATFORM_HOME_ACCEL = 12 -- wie stark die Feder die Plattform zurück an ihren Platz zieht
+Constants.PLATFORM_HOME_RESPONSIVENESS = 4
+Constants.PLATFORM_HOME_ANGULAR_ACCEL = 2 -- wie stark die Feder die Drehung zurückstellt (rad/s²)
+Constants.PLATFORM_LINEAR_DAMPING = 1 -- bremst Bewegung ab
+Constants.PLATFORM_ANGULAR_DAMPING = 1.5 -- bremst Drehung ab
+
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
 Constants.RESPAWN_DELAY = 2 -- nur im Prototyp; später gibt es Runden
@@ -50,6 +63,7 @@ Constants.PLAYER_COLORS = {
 	Color3.fromRGB(214, 146, 160), -- Altrosa
 }
 Constants.HAT_COLOR = Color3.fromRGB(120, 78, 50) -- Leder-Braun der Fliegerkappe
+Constants.HAT2_COLOR = Color3.fromRGB(222, 96, 48) -- Thruster-Hut: Raketen-Orange
 Constants.HAT_COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102)
 
 -- Kamera: sehr kleines Sichtfeld + großer Abstand = wirkt wie echtes 2D (fast keine Perspektive)
@@ -62,5 +76,6 @@ Constants.CAMERA_SMOOTHNESS = 5
 -- Namen im Workspace
 Constants.HEADS_FOLDER = "Heads"
 Constants.ARENA_FOLDER = "Arena"
+Constants.REMOTES_FOLDER = "Remotes"
 
 return Constants

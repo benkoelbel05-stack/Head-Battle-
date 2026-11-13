@@ -6,6 +6,7 @@
 --   Visual    sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
 --   Hat1      erster Hut (Fliegerkappe = Dash), lokal animiert
+--   Hat2      zweiter Hut (Thruster), lokal animiert
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -96,6 +97,15 @@ local function createHead(player: Player, color: Color3): Model
 		model
 	)
 
+	-- Hut 2: Thruster-Hut, sitzt auf Hut 1
+	decorativePart(
+		"Hat2",
+		Enum.PartType.Cylinder,
+		Vector3.new(Constants.HEAD_RADIUS * 0.6, diameter * 0.5, diameter * 0.5),
+		Constants.HAT2_COLOR,
+		model
+	)
+
 	return model
 end
 
@@ -108,6 +118,10 @@ function HeadSpawner.init(points: { Vector3 })
 	headsFolder = Instance.new("Folder")
 	headsFolder.Name = Constants.HEADS_FOLDER
 	headsFolder.Parent = Workspace
+end
+
+function HeadSpawner.getHead(player: Player): Model?
+	return heads[player]
 end
 
 function HeadSpawner.despawn(player: Player)

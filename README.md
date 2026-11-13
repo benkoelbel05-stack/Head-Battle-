@@ -10,6 +10,9 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Erster Hut: Fliegerkappe = Dash (Abklingzeit 3 s, Hut wird solange grau)
 - [x] 2D-Kamera (kleines Sichtfeld, große Entfernung), zeigt immer die ganze Arena
 - [x] Runde Plattformen („Knetwürste“), um deren Enden man herumlaufen kann
+- [x] Plattform-Physik: Plattformen schweben, lassen sich schieben und drehen, eine Feder zieht sie langsam zurück
+- [x] Zweiter Hut: Thruster, klebt an eine Plattform und schiebt sie 3 s lang weg (Abklingzeit 6 s)
+- [x] Mitfahren auf bewegten Plattformen
 - [x] Knet-Look: Squash & Stretch, „Wabern“ im 12-fps-Stop-Motion-Takt, Augen in Laufrichtung
 - [x] Erste Arena „Basteltisch“ (graue Klötze)
 - [x] Absturz = Respawn nach 2 Sekunden
@@ -24,8 +27,10 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 | Laufen / Klettern | A / D / W / S oder Pfeiltasten | Linker Stick |
 | Springen (weg von der Fläche) | Leertaste | A |
 | Dash (Hut 1) | 1, K oder Shift | LB |
+| Thruster (Hut 2) | 2, L oder E | RB |
 
 Kurz drücken = kleiner Sprung, lang drücken = hoher Sprung. An Wänden klettert man mit W/S, an der Decke läuft man mit A/D. Der Dash geht in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
+Der Thruster geht in die gedrückte Richtung; ohne Eingabe an die Plattform, auf der man gerade klebt. Er schiebt die Plattform von sich weg – sitzt er am Ende, dreht sie sich.
 
 ## Projektstruktur
 
@@ -38,6 +43,8 @@ src/
     init.server.luau    Einstieg
     Arena.luau          baut die Arena
     HeadSpawner.luau    erzeugt Köpfe, Respawn
+    PlatformPhysics.luau  Plattformen schweben, 2D-Ebene, Rückstellfeder
+    Thrusters.luau      Hut 2: Thruster an Plattformen kleben
   client/   StarterPlayerScripts.Client
     init.client.luau    Einstieg
     HeadController.luau Steuerung des eigenen Kopfes

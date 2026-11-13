@@ -29,8 +29,8 @@ local function getTarget(headsFolder: Instance): (Vector3, number)
 
 	local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
 	if arena then
-		for _, part in arena:GetChildren() do
-			if part:IsA("BasePart") and part.Name ~= "Background" then
+		for _, part in arena:GetDescendants() do
+			if part:IsA("BasePart") and part.Name ~= "Background" and part.Name ~= "Thruster" then
 				local half = part.Size / 2
 				include(part.Position - half, part.Position + half)
 			end

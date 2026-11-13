@@ -1,9 +1,9 @@
 --!strict
 -- Head Battle – Server-Einstieg
 
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
@@ -11,10 +11,14 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 local ArenaLayouts = require(ReplicatedStorage.Shared.ArenaLayouts)
 local Arena = require(script.Arena)
 local HeadSpawner = require(script.HeadSpawner)
+local PlatformPhysics = require(script.PlatformPhysics)
+local Thrusters = require(script.Thrusters)
 
 -- Keine normalen Roblox-Figuren: Jeder Spieler ist ein Knetkopf.
 Players.CharacterAutoLoads = false
--- Schwerkraft rechnet der Client selbst (wegen Haften an Wand und Decke)
+
+-- Schwerkraft rechnet der Client selbst (wegen Haften an Wand und Decke).
+-- Ohne Roblox-Schwerkraft schweben auch die Plattformen.
 Workspace.Gravity = 0
 
 -- Flaches, warmes Licht ohne Schatten: wirkt wie ein 2D-Bild
@@ -26,15 +30,34 @@ Lighting.EnvironmentDiffuseScale = 0
 Lighting.EnvironmentSpecularScale = 0
 Lighting.ClockTime = 12
 
-local spawnPoints = Arena.build(ArenaLayouts.Basteltisch)
+-- Netzwerk-Events zwischen Client und Server
+local remotes = Instance.new("Folder")
+remotes.Name = Constants.REMOTES_FOLDER
+local placeThruster = Instance.new("RemoteEvent")
+placeThruster.Name = "PlaceThruster"
+placeThruster.Parent = remotes
+remotes.Parent = ReplicatedStorage
+
+-- Arena bauen und Plattform-Physik anmelden
+local spawnPoints, platforms = Arena.build(ArenaLayouts.Basteltisch)
+for _, platform in platforms do
+	PlatformPhysics.register(platform)
+end
 HeadSpawner.init(spawnPoints)
+Thrusters.init(placeThruster, HeadSpawner.getHead)
 
 Players.PlayerAdded:Connect(HeadSpawner.spawn)
-Players.PlayerRemoving:Connect(HeadSpawner.removePlayer)
+Players.PlayerRemoving:Connect(function(player)
+	HeadSpawner.removePlayer(player)
+	Thrusters.removePlayer(player)
+end)
 for _, player in Players:GetPlayers() do
 	task.spawn(HeadSpawner.spawn, player)
 end
 
-RunService.Heartbeat:Connect(HeadSpawner.checkFalls)
+RunService.Heartbeat:Connect(function(dt)
+	HeadSpawner.checkFalls()
+	PlatformPhysics.step(dt)
+end)
 
 print("[HeadBattle] Server gestartet, Arena gebaut")

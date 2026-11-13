@@ -28,6 +28,12 @@ local TURN_PER_POSE = 0.6 -- pro Stop-Motion-Bild so viel der restlichen Drehung
 local SURFACE_SEARCH = Constants.HEAD_RADIUS + 0.8
 local HAT_UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht stellen
 
+-- Hut-Stapel von unten nach oben: Teilname, Attribut mit dem Bereit-Zeitpunkt (Serverzeit), Farbe
+local HATS = {
+	{ name = "Hat1", readyAttribute = "DashReadyAt", color = Constants.HAT_COLOR },
+	{ name = "Hat2", readyAttribute = "ThrusterReadyAt", color = Constants.HAT2_COLOR },
+}
+
 local DIAGONAL = math.sqrt(0.5)
 local DIRECTIONS = {
 	Vector3.new(0, -1, 0),
@@ -150,7 +156,6 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	end
 	local eyeLeft = head:FindFirstChild("EyeLeft") :: BasePart?
 	local eyeRight = head:FindFirstChild("EyeRight") :: BasePart?
-	local hat = head:FindFirstChild("Hat1") :: BasePart?
 
 	local radius = Constants.HEAD_RADIUS
 	local scale = state.scale
@@ -171,17 +176,22 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 		eyeRight.CFrame = headFrame * CFrame.new(Vector3.new(lookOffset + spread, eyeY, eyeZ) + state.eyeJitter)
 	end
 
-	-- Hut oben auf dem Kopf (also immer auf der Seite weg von der Fläche), leicht in Blickrichtung gekippt
-	if hat then
-		hat.CFrame = headFrame
-			* CFrame.new(0, radius * scale.Y * 0.9, 0)
-			* CFrame.Angles(0, 0, -state.facing * math.rad(10))
-			* HAT_UPRIGHT
+	-- Hüte gestapelt oben auf dem Kopf (also immer auf der Seite weg von der Fläche),
+	-- leicht in Blickrichtung gekippt. Solange ein Hut abklingt, ist er grau.
+	local now = Workspace:GetServerTimeNow()
+	local height = radius * scale.Y * 0.9
+	local tilt = CFrame.Angles(0, 0, -state.facing * math.rad(10))
+	for _, info in HATS do
+		local hat = head:FindFirstChild(info.name) :: BasePart?
+		if hat then
+			local thickness = hat.Size.X
+			hat.CFrame = headFrame * tilt * CFrame.new(0, height, 0) * HAT_UPRIGHT
+			height += thickness * 0.85
 
-		-- Abklingzeit des Dashs (nur beim eigenen Kopf bekannt): Hut grau
-		local readyAt = head:GetAttribute("DashReadyAt")
-		local coolingDown = typeof(readyAt) == "number" and os.clock() < readyAt
-		hat.Color = if coolingDown then Constants.HAT_COOLDOWN_COLOR else Constants.HAT_COLOR
+			local readyAt = head:GetAttribute(info.readyAttribute)
+			local coolingDown = typeof(readyAt) == "number" and now < readyAt
+			hat.Color = if coolingDown then Constants.HAT_COOLDOWN_COLOR else info.color
+		end
 	end
 end
 

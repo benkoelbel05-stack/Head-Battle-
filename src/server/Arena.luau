@@ -1,5 +1,7 @@
 --!strict
--- Baut eine Arena aus einem Layout auf (graue Klötze für den Prototyp, Knet-Modelle kommen später).
+-- Baut eine Arena aus einem Layout auf (Knet-Modelle kommen später).
+-- Jede Plattform ist ein eigenes, bewegliches Model ("Knetwurst" aus Mittelteil + zwei runden Enden).
+-- Die Physik der Plattformen (Schweben, 2D, Rückstellfeder) steckt in PlatformPhysics.luau.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -28,8 +30,54 @@ local function makePart(name: string, size: Vector3, cframe: CFrame, color: Colo
 	return part
 end
 
--- Baut die Arena und gibt die Spawnpunkte (in 3D) zurück.
-function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
+local function buildPlatform(index: number, platform: ArenaLayouts.Platform, parent: Instance): Model
+	local model = Instance.new("Model")
+	model.Name = `Platform{index}`
+
+	local width, height = platform.size.X, platform.size.Y
+	local radius = math.min(height, width) / 2
+	local center = CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z)
+	local middleLength = width - radius * 2
+
+	local parts: { BasePart } = {}
+	if middleLength > 0.01 then
+		table.insert(
+			parts,
+			makePart("Middle", Vector3.new(middleLength, height, PLATFORM_DEPTH), center, platform.color, model)
+		)
+	end
+	for side = -1, 1, 2 do
+		local capCenter = center * CFrame.new(side * middleLength / 2, 0, 0)
+		local cap = makePart(
+			"Cap",
+			Vector3.new(PLATFORM_DEPTH, height, height),
+			capCenter * CYLINDER_TO_CAMERA,
+			platform.color,
+			model
+		)
+		cap.Shape = Enum.PartType.Cylinder
+		table.insert(parts, cap)
+	end
+
+	-- Alle Teile fest zu einem Körper verbinden, das erste Teil ist die Wurzel
+	local root = parts[1]
+	for i = 2, #parts do
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = parts[i]
+		weld.Parent = root
+	end
+	for _, part in parts do
+		part.Anchored = false
+	end
+	model.PrimaryPart = root
+	model.Parent = parent
+	return model
+end
+
+-- Baut die Arena. Gibt die Spawnpunkte (in 3D) und die Plattform-Models zurück.
+-- Die Plattformen sind danach noch nicht bei PlatformPhysics angemeldet.
+function Arena.build(layout: ArenaLayouts.Layout): ({ Vector3 }, { Model })
 	local old = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
 	if old then
 		old:Destroy()
@@ -48,29 +96,9 @@ function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
 	folder.Name = Constants.ARENA_FOLDER
 	folder.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
-	-- Jede Plattform ist eine "Knetwurst": ein Block in der Mitte und zwei runde Enden.
-	-- Die runden Enden lassen den Kopf um die Kante herumlaufen.
+	local platforms = {}
 	for index, platform in layout.platforms do
-		local width, height = platform.size.X, platform.size.Y
-		local radius = math.min(height, width) / 2
-		local center = CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z)
-		local middleLength = width - radius * 2
-
-		if middleLength > 0.01 then
-			makePart(`Platform{index}`, Vector3.new(middleLength, height, PLATFORM_DEPTH), center, platform.color, folder)
-		end
-
-		for side = -1, 1, 2 do
-			local capCenter = center * CFrame.new(side * middleLength / 2, 0, 0)
-			local cap = makePart(
-				`Platform{index}Cap`,
-				Vector3.new(PLATFORM_DEPTH, height, height),
-				capCenter * CYLINDER_TO_CAMERA,
-				platform.color,
-				folder
-			)
-			cap.Shape = Enum.PartType.Cylinder
-		end
+		table.insert(platforms, buildPlatform(index, platform, folder))
 	end
 
 	-- Hintergrund-Wand hinter der Arena
@@ -91,7 +119,7 @@ function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
 	for _, point in layout.spawns do
 		table.insert(spawns, Vector3.new(point.X, point.Y, Constants.PLANE_Z))
 	end
-	return spawns
+	return spawns, platforms
 end
 
 return Arena
