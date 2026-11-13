@@ -72,6 +72,42 @@ local function explosionEffect(position: Vector3)
 	end)
 end
 
+local function fadeAndDestroy(part: BasePart, delay: number, duration: number)
+	task.delay(delay, function()
+		local tween = TweenService:Create(part, TweenInfo.new(duration), { Transparency = 1 })
+		tween:Play()
+		tween.Completed:Once(function()
+			part:Destroy()
+		end)
+	end)
+end
+
+-- Ein Kopf ist ausgeschieden: Knetfladen (zerquetscht) oder Knetbrocken (Explosion)
+local function eliminationEffect(position: Vector3, color: Color3, cause: string, direction: Vector3)
+	local R = Constants.HEAD_RADIUS
+	if cause == "Crush" then
+		-- Platter Fladen, quer zur Druckrichtung, zur Kamera hin sichtbar
+		local pancake = makeEffectPart("Pancake", Vector3.new(0.5, R * 3.2, R * 3.2), color, position)
+		pancake.Shape = Enum.PartType.Cylinder
+		pancake.CFrame = CFrame.fromMatrix(position, direction, Vector3.zAxis)
+		fadeAndDestroy(pancake, 1.2, 0.5)
+	elseif cause == "Blast" then
+		-- Brocken fliegen in alle Richtungen
+		for i = 1, 7 do
+			local angle = (i / 7) * math.pi * 2 + math.random() * 0.5
+			local outward = Vector3.new(math.cos(angle), math.sin(angle), 0)
+			local chunk = makeEffectPart("Chunk", Vector3.one * R * 0.55, color, position)
+			local tween = TweenService:Create(
+				chunk,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ CFrame = CFrame.new(position + outward * R * 3.5 + direction * 1.5) }
+			)
+			tween:Play()
+			fadeAndDestroy(chunk, 0.5, 0.3)
+		end
+	end
+end
+
 -- Thruster-Aussehen an der Plattform, verschwindet wenn der Schub endet
 local function showThruster(model: Model, thruster: PlatformSim.Thruster)
 	local state = PlatformSim.get(sim, model)
@@ -145,6 +181,11 @@ local function onEvent(kind: unknown, ...: any)
 		local id, start, velocity, startTime = ...
 		if typeof(id) == "string" and typeof(start) == "Vector3" and typeof(velocity) == "Vector3" and typeof(startTime) == "number" then
 			spawnGrenade(id, start, velocity, startTime)
+		end
+	elseif kind == "Eliminated" then
+		local position, color, cause, direction = ...
+		if typeof(position) == "Vector3" and typeof(color) == "Color3" and typeof(cause) == "string" and typeof(direction) == "Vector3" then
+			eliminationEffect(position, color, cause, direction)
 		end
 	elseif kind == "Reset" then
 		-- Neue Runde: Plattformen zurück, Thruster und Granaten weg

@@ -10,13 +10,14 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Fähigkeiten = Kleidungsstücke, 3 Slots auf den Maustasten
   - Fliegerkappe (Hut): Dash
   - Schweißerbrille (Brille): Thruster an Plattform kleben, schiebt und dreht sie
-  - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt ab, explodiert nach 1,6 s
+  - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
 - [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
 - [x] Masse je nach Größe und Dichte: große/schwere Plattformen bewegen und drehen sich weniger
 - [x] 2D-Kamera, zeigt immer die ganze Arena
 - [x] Knet-Look: Squash & Stretch, Stop-Motion-Takt, Kopf dreht sich mit der Fläche
 - [x] Rundensystem: Countdown, ein Treffer = raus, letzter Überlebender bekommt einen Punkt, 5 Punkte gewinnen das Match
+- [x] Zerquetschen: Wer zwischen zwei Plattformen eingeklemmt wird, scheidet aus (Knetfladen-Effekt)
 - [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
 - [ ] Kopfnuss, weitere Fähigkeiten
 - [ ] Auswahl der Kleidung vor der Runde

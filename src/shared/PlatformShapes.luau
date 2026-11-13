@@ -153,4 +153,33 @@ function PlatformShapes.nearestNormal(shapes: { Shape }, worldPosition: Vector3,
 	return bestNormal
 end
 
+-- Wird ein Kopf zwischen zwei Plattformen zerquetscht? Gibt die Richtung des Drucks zurück (oder nil).
+-- Gemessen wird der freie Platz zwischen zwei Oberflächen, die von gegenüberliegenden Seiten am Kopf sind.
+function PlatformShapes.findCrush(shapes: { Shape }, worldPosition: Vector3, headRadius: number, gapRatio: number): Vector3?
+	type Near = { gap: number, normal: Vector3 }
+	local near: { Near } = {}
+	for _, shape in shapes do
+		local frame = PlatformShapes.frame(shape)
+		local p = frame:PointToObjectSpace(worldPosition)
+		local distance, closest = PlatformShapes.closest(shape.halfLength, p)
+		local gap = distance - shape.radius -- Abstand Kopf-Mitte zur Oberfläche (negativ = Mitte steckt drin)
+		if gap < headRadius * 2 then
+			local localNormal = if distance > 0.001 then (Vector3.new(p.X, p.Y, 0) - closest) / distance else Vector3.yAxis
+			table.insert(near, { gap = gap, normal = frame:VectorToWorldSpace(localNormal) })
+		end
+	end
+
+	local limit = headRadius * 2 * gapRatio
+	for i = 1, #near do
+		for j = i + 1, #near do
+			local a, b = near[i], near[j]
+			-- Gegenüberliegende Seiten (Normalen zeigen gegeneinander) und zu wenig Platz dazwischen
+			if a.normal:Dot(b.normal) < -0.2 and a.gap + b.gap < limit then
+				return a.normal
+			end
+		end
+	end
+	return nil
+end
+
 return PlatformShapes

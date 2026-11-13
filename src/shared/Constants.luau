@@ -48,7 +48,8 @@ Constants.GRENADE_UPWARD = 0.35 -- leicht nach oben werfen, damit sie im Bogen f
 Constants.GRENADE_GRAVITY = 120
 Constants.GRENADE_RADIUS = 0.7
 Constants.GRENADE_BOUNCE = 0.45 -- wie stark sie abprallt (0 = gar nicht, 1 = voll)
-Constants.GRENADE_FUSE = 1.6 -- Sekunden bis zur Explosion
+Constants.GRENADE_FUSE = 1.6 -- Sekunden bis zur Explosion (oder früher, wenn sie einen Kopf trifft)
+Constants.GRENADE_OWNER_GRACE = 0.3 -- so lange nach dem Wurf trifft die Granate den Werfer selbst nicht
 Constants.GRENADE_BLAST_RADIUS = 7 -- Köpfe in diesem Radius scheiden aus
 Constants.GRENADE_PUSH_RADIUS = 14 -- Plattformen in diesem Radius werden weggestoßen
 Constants.GRENADE_IMPULSE = 800 -- Stoß auf Plattformen; Geschwindigkeitsänderung = Stoß / Masse (nimmt mit Abstand ab)
@@ -81,6 +82,10 @@ Constants.PLATFORM_CONTACT_DISTANCE = 0.5 -- so nah muss ein Kopf sein, damit er
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
 Constants.RESPAWN_DELAY = 2 -- nur außerhalb von Runden (z. B. allein beim Warten auf Mitspieler)
+
+-- Zerquetschen: Wird der Platz zwischen zwei Plattformen, die von gegenüberliegenden Seiten
+-- auf einen Kopf drücken, kleiner als dieser Anteil seines Durchmessers, ist der Kopf zerquetscht.
+Constants.CRUSH_GAP_RATIO = 0.75
 
 -- Rundensystem
 Constants.MIN_PARTICIPANTS = 2 -- ab so vielen Teilnehmern (Spieler + Bots) wird um Punkte gespielt

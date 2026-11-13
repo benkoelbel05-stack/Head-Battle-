@@ -17,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
+local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 
 export type Participant = Player | string
 
@@ -29,6 +30,7 @@ local colorSlots: { [Participant]: number } = {}
 local loadouts: { [Participant]: { string } } = {}
 local botNames: { [string]: string } = {}
 local onEliminated: ((Participant) -> ())? = nil
+local effectsRemote: RemoteEvent? = nil
 
 ---------------------------------------------------------------------------------------------------
 -- Teilnehmer
@@ -172,6 +174,11 @@ function HeadSpawner.setEliminatedCallback(callback: (Participant) -> ())
 	onEliminated = callback
 end
 
+-- Über dieses Event bekommen die Clients Bescheid, um einen Effekt zu zeigen (Knetfladen, Brocken)
+function HeadSpawner.setEffectsRemote(remote: RemoteEvent)
+	effectsRemote = remote
+end
+
 function HeadSpawner.getHead(participant: Participant): Model?
 	return heads[participant]
 end
@@ -217,10 +224,21 @@ function HeadSpawner.spawn(participant: Participant)
 	end
 end
 
--- Kopf scheidet aus
-function HeadSpawner.eliminate(participant: Participant)
-	if not heads[participant] then
+-- Kopf scheidet aus. cause: "Fall", "Blast" oder "Crush"; direction: z. B. Richtung des Drucks
+function HeadSpawner.eliminate(participant: Participant, cause: string?, direction: Vector3?)
+	local head = heads[participant]
+	if not head then
 		return
+	end
+	local body = head.PrimaryPart
+	if effectsRemote and body then
+		effectsRemote:FireAllClients(
+			"Eliminated",
+			body.Position,
+			HeadSpawner.getColor(participant),
+			cause or "Fall",
+			direction or Vector3.yAxis
+		)
 	end
 	HeadSpawner.despawn(participant)
 	if onEliminated then
@@ -243,8 +261,25 @@ function HeadSpawner.checkFalls()
 	for participant, head in heads do
 		local body = head.PrimaryPart
 		if body and body.Position.Y < Constants.FALL_LIMIT_Y then
-			HeadSpawner.eliminate(participant)
+			HeadSpawner.eliminate(participant, "Fall")
 		end
+	end
+end
+
+-- Prüft jeden Frame, ob ein Kopf zwischen zwei Plattformen zerquetscht wird
+function HeadSpawner.checkCrush(shapes: { PlatformShapes.Shape })
+	local crushed: { { participant: Participant, direction: Vector3 } } = {}
+	for participant, head in heads do
+		local body = head.PrimaryPart
+		if body then
+			local direction = PlatformShapes.findCrush(shapes, body.Position, Constants.HEAD_RADIUS, Constants.CRUSH_GAP_RATIO)
+			if direction then
+				table.insert(crushed, { participant = participant, direction = direction })
+			end
+		end
+	end
+	for _, entry in crushed do
+		HeadSpawner.eliminate(entry.participant, "Crush", entry.direction)
 	end
 end
 

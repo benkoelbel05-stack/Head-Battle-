@@ -69,6 +69,7 @@ PlatformShapes.setFrameProvider(function(model: Model): CFrame?
 end)
 
 HeadSpawner.init(spawnPoints)
+HeadSpawner.setEffectsRemote(platformEvents)
 
 ---------------------------------------------------------------------------------------------------
 -- Fähigkeiten, Runden, Bots
@@ -165,8 +166,10 @@ RunService.Heartbeat:Connect(function(dt)
 		table.insert(headList, head)
 	end
 	local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
-	HeadWeight.step(weightTracker, sim, PlatformShapes.collect(arena), headList)
+	local shapes = PlatformShapes.collect(arena)
+	HeadWeight.step(weightTracker, sim, shapes, headList)
 	PlatformSim.step(sim, dt, Workspace:GetServerTimeNow())
+	HeadSpawner.checkCrush(shapes)
 	Grenades.step(dt)
 
 	-- Regelmäßiger Abgleich an alle Clients
