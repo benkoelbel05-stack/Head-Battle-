@@ -14,18 +14,34 @@ local CameraController = {}
 local currentFocus = DEFAULT_FOCUS
 local currentDistance = Constants.CAMERA_MIN_DISTANCE
 
+-- Die Kamera zeigt immer die ganze Arena (alle Plattformen) und zusätzlich alle Köpfe,
+-- auch wenn einer z. B. hoch über die Arena springt.
 local function getTarget(headsFolder: Instance): (Vector3, number)
 	local minX, maxX = math.huge, -math.huge
 	local minY, maxY = math.huge, -math.huge
 	local count = 0
 
+	local function include(minPoint: Vector3, maxPoint: Vector3)
+		minX, maxX = math.min(minX, minPoint.X), math.max(maxX, maxPoint.X)
+		minY, maxY = math.min(minY, minPoint.Y), math.max(maxY, maxPoint.Y)
+		count += 1
+	end
+
+	local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
+	if arena then
+		for _, part in arena:GetChildren() do
+			if part:IsA("BasePart") and part.Name ~= "Background" then
+				local half = part.Size / 2
+				include(part.Position - half, part.Position + half)
+			end
+		end
+	end
+
 	for _, head in headsFolder:GetChildren() do
 		local body = head:FindFirstChild("Body")
-		if body and body:IsA("BasePart") then
-			local p = body.Position
-			minX, maxX = math.min(minX, p.X), math.max(maxX, p.X)
-			minY, maxY = math.min(minY, p.Y), math.max(maxY, p.Y)
-			count += 1
+		if body and body:IsA("BasePart") and body.Position.Y > Constants.FALL_LIMIT_Y + 10 then
+			local r = Vector3.one * Constants.HEAD_RADIUS
+			include(body.Position - r, body.Position + r)
 		end
 	end
 

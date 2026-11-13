@@ -32,10 +32,12 @@ function Arena.build(layout: ArenaLayouts.Layout): { Vector3 }
 		old:Destroy()
 	end
 
-	-- Standard-Baseplate von Roblox entfernen, falls vorhanden
-	local baseplate = Workspace:FindFirstChild("Baseplate")
-	if baseplate then
-		baseplate:Destroy()
+	-- Standard-Teile der Roblox-Vorlage entfernen (Baseplate, SpawnLocation)
+	for _, name in { "Baseplate", "SpawnLocation" } do
+		local part = Workspace:FindFirstChild(name)
+		if part then
+			part:Destroy()
+		end
 	end
 
 	-- Ein Model mit "Persistent", damit die Arena trotz StreamingEnabled immer bei allen Clients ankommt

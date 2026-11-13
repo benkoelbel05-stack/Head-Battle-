@@ -39,10 +39,11 @@ Constants.PLAYER_COLORS = {
 }
 
 -- Kamera
-Constants.CAMERA_FOV = 30
-Constants.CAMERA_MIN_DISTANCE = 70
-Constants.CAMERA_MAX_DISTANCE = 140
-Constants.CAMERA_PADDING = 12 -- Rand um alle Köpfe herum (Studs)
+-- Kleines Sichtfeld + großer Abstand = fast flaches 2D-Bild ohne starke Perspektive
+Constants.CAMERA_FOV = 18
+Constants.CAMERA_MIN_DISTANCE = 120
+Constants.CAMERA_MAX_DISTANCE = 400
+Constants.CAMERA_PADDING = 6 -- Rand um Arena und Köpfe (Studs)
 Constants.CAMERA_SMOOTHNESS = 5
 
 -- Namen im Workspace
