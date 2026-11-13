@@ -65,8 +65,9 @@ for _, skin in skinNames do
 	for _, animation in ANIMATIONS do
 		local frames = sprites[animation] or {}
 		local ids = {}
+		local overrides = (SpriteAssets.imageOverrides[skin] or {})[animation] or {}
 		for index, decalId in frames do
-			ids[index] = tostring(toImageId(decalId))
+			ids[index] = tostring(overrides[index] or toImageId(decalId))
 		end
 		table.insert(lines, `\t\t\t{animation} = \{ {table.concat(ids, ", ")} \},`)
 	end
