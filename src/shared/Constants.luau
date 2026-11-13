@@ -25,7 +25,7 @@ Constants.WALL_JUMP_LIFT = 0.8 -- wie steil man von einer Wand nach oben absprin
 
 -- Haften an Boden, Wand und Decke
 Constants.STICK_DISTANCE = 0.5 -- so nah muss eine Fläche sein, damit man klebt (zusätzlich zum Radius)
-Constants.STICK_SPEED = 6 -- wie stark der Kopf an die Fläche gedrückt wird
+Constants.STICK_SPEED = 2 -- wie stark der Kopf an die Fläche gedrückt wird (klein, sonst schiebt er Plattformen weg)
 Constants.DETACH_TIME = 0.15 -- nach dem Absprung so lange nicht wieder festkleben
 
 -- Dash (Hut: Fliegerkappe)
@@ -36,8 +36,8 @@ Constants.DASH_END_KEEP = 0.4 -- so viel Schwung bleibt nach dem Dash übrig
 
 -- Thruster (Hut 2): klebt an eine Plattform und schiebt sie von sich weg
 Constants.THRUSTER_RANGE = 12 -- so weit darf die Plattform entfernt sein
-Constants.THRUSTER_ACCEL = 30 -- Schub (Beschleunigung der Plattform in Studs/s²)
-Constants.THRUSTER_DURATION = 3
+Constants.THRUSTER_ACCEL = 70 -- Schub (Beschleunigung der Plattform in Studs/s²)
+Constants.THRUSTER_DURATION = 2
 Constants.THRUSTER_COOLDOWN = 6
 
 -- Plattform-Physik

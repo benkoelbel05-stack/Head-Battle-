@@ -72,8 +72,9 @@ local function createHead(player: Player, color: Color3): Model
 	body.Transparency = 1
 	body.Anchored = false
 	body.CanCollide = true
-	-- Dichte 1, keine Reibung, kein Abprallen: die Steuerung übernimmt der Client
-	body.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+	-- Federleicht (kleinste erlaubte Dichte), keine Reibung, kein Abprallen:
+	-- so schiebt der Kopf die schwebenden Plattformen nicht weg. Die Steuerung übernimmt der Client.
+	body.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0, 0, 100, 100)
 	body.Parent = model
 	model.PrimaryPart = body
 

@@ -72,14 +72,19 @@ function PlatformPhysics.step(dt: number)
 		if root.Parent then
 			local v = root.AssemblyLinearVelocity
 			local w = root.AssemblyAngularVelocity
-			root.AssemblyLinearVelocity = Vector3.new(v.X * linearKeep, v.Y * linearKeep, 0)
-			root.AssemblyAngularVelocity = Vector3.new(0, 0, w.Z * angularKeep)
 
-			-- Abweichung aus der Ebene korrigieren (nur Drehung um Z ist erlaubt)
+			-- Nur eingreifen, wenn sich die Plattform bewegt. Ruhende Plattformen nicht anfassen,
+			-- sonst wird die Roblox-Physik ständig geweckt und die Plattformen zittern.
+			if v.Magnitude > 0.05 or w.Magnitude > 0.005 then
+				root.AssemblyLinearVelocity = Vector3.new(v.X * linearKeep, v.Y * linearKeep, 0)
+				root.AssemblyAngularVelocity = Vector3.new(0, 0, w.Z * angularKeep)
+			end
+
+			-- Größere Abweichung aus der Ebene korrigieren (nur Drehung um Z ist erlaubt)
 			local cframe = root.CFrame
 			local relative = info.home.Rotation:ToObjectSpace(cframe.Rotation)
-			local tilted = math.abs(relative.LookVector.Z + 1) > 0.0005 -- LookVector sollte (0, 0, -1) bleiben
-			if tilted or math.abs(cframe.Z - Constants.PLANE_Z) > 0.01 then
+			local tilted = math.abs(relative.LookVector.Z + 1) > 0.002 -- LookVector sollte (0, 0, -1) bleiben
+			if tilted or math.abs(cframe.Z - Constants.PLANE_Z) > 0.05 then
 				local right = relative.RightVector
 				local angle = math.atan2(right.Y, right.X)
 				root.CFrame = CFrame.new(cframe.X, cframe.Y, Constants.PLANE_Z)
