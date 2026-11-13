@@ -26,6 +26,8 @@ type PlatformInfo = {
 	velocity: Vector3,
 	angularVelocity: number, -- um Z, rad/s
 	thrusters: { Thruster },
+	pendingAcceleration: Vector3, -- Kräfte für diesen Frame (z. B. Gewicht der Köpfe)
+	pendingAngular: number,
 }
 
 local PlatformPhysics = {}
@@ -58,6 +60,8 @@ function PlatformPhysics.register(model: Model)
 		velocity = Vector3.zero,
 		angularVelocity = 0,
 		thrusters = {},
+		pendingAcceleration = Vector3.zero,
+		pendingAngular = 0,
 	}
 end
 
@@ -92,6 +96,20 @@ function PlatformPhysics.addImpulse(model: Model, position: Vector3, change: Vec
 	info.angularVelocity += (lever.X * push.Y - lever.Y * push.X) / info.inertiaPerMass
 end
 
+-- Dauerhafte Kraft für den aktuellen Frame (z. B. Gewicht eines Kopfes), als Beschleunigung in Studs/s²,
+-- angreifend an position. Neben der Mitte angreifend dreht sie die Plattform.
+function PlatformPhysics.addForce(model: Model, position: Vector3, acceleration: Vector3)
+	local root = model.PrimaryPart
+	local info = root and platforms[root]
+	if not info then
+		return
+	end
+	local push = Vector3.new(acceleration.X, acceleration.Y, 0)
+	local lever = position - info.root.Position
+	info.pendingAcceleration += push
+	info.pendingAngular += (lever.X * push.Y - lever.Y * push.X) / info.inertiaPerMass
+end
+
 function PlatformPhysics.clear()
 	table.clear(platforms)
 end
@@ -123,6 +141,13 @@ local function stepPlatform(info: PlatformInfo, dt: number, now: number)
 		end
 	end
 
+	-- Kräfte von außen (Köpfe), gelten nur für diesen Frame
+	acceleration += info.pendingAcceleration
+	angularAcceleration += info.pendingAngular
+	local hadPending = info.pendingAcceleration.Magnitude > 0 or info.pendingAngular ~= 0
+	info.pendingAcceleration = Vector3.zero
+	info.pendingAngular = 0
+
 	-- 2. Feder zurück zum Startplatz + Dämpfung
 	local offset = position - homePosition
 	acceleration += -offset * Constants.PLATFORM_SPRING - info.velocity * Constants.PLATFORM_DAMPING
@@ -151,6 +176,7 @@ local function stepPlatform(info: PlatformInfo, dt: number, now: number)
 
 	-- Ruhende Plattform nicht anfassen (sonst weckt man ständig die Roblox-Physik)
 	local resting = #info.thrusters == 0
+		and not hadPending
 		and offset.Magnitude < 0.02
 		and math.abs(angleOffset) < 0.002
 		and info.velocity.Magnitude < 0.05

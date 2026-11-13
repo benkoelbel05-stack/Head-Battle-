@@ -62,6 +62,12 @@ Constants.PLATFORM_ANGULAR_SPRING = 10
 Constants.PLATFORM_ANGULAR_DAMPING = 6.3
 Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
 
+-- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
+Constants.PLATFORM_HEAD_WEIGHT = 5 -- Gewicht eines Kopfes (zieht die Plattform nach unten, am Ende: kippen)
+Constants.PLATFORM_LANDING_PUSH = 0.25 -- Anteil der Aufprall-Geschwindigkeit, der beim Landen auf die Plattform geht
+Constants.PLATFORM_WALK_PUSH = 0.15 -- Laufen schiebt die Plattform leicht in Gegenrichtung
+Constants.PLATFORM_CONTACT_DISTANCE = 0.5 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
+
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
 Constants.RESPAWN_DELAY = 2 -- nur im Prototyp; später gibt es Runden

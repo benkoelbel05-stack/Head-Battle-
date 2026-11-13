@@ -14,6 +14,7 @@ local HeadSpawner = require(script.HeadSpawner)
 local PlatformPhysics = require(script.PlatformPhysics)
 local Thrusters = require(script.Thrusters)
 local Grenades = require(script.Grenades)
+local HeadWeight = require(script.HeadWeight)
 
 -- Keine normalen Roblox-Figuren: Jeder Spieler ist ein Knetkopf.
 Players.CharacterAutoLoads = false
@@ -73,6 +74,7 @@ end
 
 RunService.Heartbeat:Connect(function(dt)
 	HeadSpawner.checkFalls()
+	HeadWeight.step(HeadSpawner.getHeads()) -- vor der Plattform-Physik: Köpfe drücken auf Plattformen
 	PlatformPhysics.step(dt)
 	Grenades.step(dt)
 end)

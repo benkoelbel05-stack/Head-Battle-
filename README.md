@@ -12,6 +12,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Schweißerbrille (Brille): Thruster an Plattform kleben, schiebt und dreht sie
   - Granatengürtel (Gürtel): Granate werfen, prallt ab, explodiert nach 1,6 s
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
+- [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
 - [x] 2D-Kamera, zeigt immer die ganze Arena
 - [x] Knet-Look: Squash & Stretch, Stop-Motion-Takt, Kopf dreht sich mit der Fläche
 - [ ] Kopfnuss, weitere Fähigkeiten (Phase 2)
@@ -48,6 +49,7 @@ src/
     PlatformPhysics.luau  Plattformen schweben, 2D-Ebene, Rückstellfeder
     Thrusters.luau      Fähigkeit Thruster
     Grenades.luau       Fähigkeit Granate
+    HeadWeight.luau     Köpfe drücken auf Plattformen (Gewicht, Landen, Laufen)
   client/   StarterPlayerScripts.Client
     init.client.luau    Einstieg
     HeadController.luau Steuerung des eigenen Kopfes
