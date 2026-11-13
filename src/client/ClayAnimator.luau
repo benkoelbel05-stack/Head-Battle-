@@ -6,6 +6,9 @@
 --   * Quetschen beim Aufprall gegen die Fläche
 --   * Augen schauen in Laufrichtung
 --   * Kleidung (= Fähigkeiten) sitzt an ihrer Stelle (oben, Augen, unten) und wird grau, solange sie abklingt
+--
+-- Sprite-Modus (Constants.USE_SPRITES und Image-IDs vorhanden): statt Knetkugel ein 2D-Charakterbild mit
+-- Animationen (idle, run, jump, land, respawn). Drehen, Spiegeln und Quetschen gelten genauso.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,6 +17,8 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local SpriteVisual = require(script.Parent.SpriteVisual)
 
 type HeadState = {
 	angle: number, -- Drehung um die Kamera-Achse (0 = aufrecht), nur im Stop-Motion-Takt geändert
@@ -24,6 +29,14 @@ type HeadState = {
 	previousSpeed: number,
 	squashTimer: number,
 	lastFrameVelocity: Vector3, -- Geschwindigkeit im letzten Bild (für sofortige Reaktion)
+
+	-- Sprite-Modus
+	sprite: SpriteVisual.Sprite?,
+	skin: string?,
+	animation: string, -- aktuelle Animation
+	animationStart: number,
+	onSurface: boolean,
+	spawnedAt: number,
 }
 
 local IMPACT_SQUASH_TIME = 0.15
@@ -53,10 +66,66 @@ local function getState(head: Model): HeadState
 			previousSpeed = 0,
 			squashTimer = 0,
 			lastFrameVelocity = Vector3.zero,
+			sprite = nil,
+			skin = nil,
+			animation = "respawn",
+			animationStart = os.clock(),
+			onSurface = false,
+			spawnedAt = os.clock(),
 		}
+		-- Sprite statt Knetkugel, wenn möglich
+		local skin = head:GetAttribute("Skin")
+		if Constants.USE_SPRITES and SpriteAssets.hasImages() and typeof(skin) == "string" then
+			state.skin = skin
+			state.sprite = SpriteVisual.create("Sprite", head)
+			-- Knetkugel, Augen und 3D-Kleidung lokal ausblenden
+			for _, child in head:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "Body" and child.Name ~= "Sprite" then
+					child.LocalTransparencyModifier = 1
+				end
+			end
+		end
 		states[head] = state
 	end
 	return state
+end
+
+-- Animationen, die einmal ablaufen (statt in Schleife)
+local ONE_SHOT = { jump = true, land = true, respawn = true, hit = true }
+local RESPAWN_TIME = 0.5 -- so lange läuft die Erscheinen-Animation
+
+local function setAnimation(state: HeadState, animation: string)
+	if state.animation ~= animation then
+		state.animation = animation
+		state.animationStart = os.clock()
+	end
+end
+
+-- Welche Animation passt gerade? (im Stop-Motion-Takt entschieden)
+local function chooseAnimation(state: HeadState, normal: Vector3?, localVelocity: Vector3)
+	local now = os.clock()
+	local wasOnSurface = state.onSurface
+	state.onSurface = normal ~= nil
+	local animationTime = now - state.animationStart
+	local frames = if state.skin then SpriteAssets.frameCount(state.skin, state.animation) else 1
+	local finished = animationTime >= frames / Constants.SPRITE_FPS
+
+	if now - state.spawnedAt < RESPAWN_TIME then
+		setAnimation(state, "respawn")
+	elseif not state.onSurface then
+		-- In der Luft: Sprung-Animation (bleibt auf dem letzten Bild stehen)
+		if wasOnSurface or (state.animation ~= "jump") then
+			setAnimation(state, "jump")
+		end
+	elseif not wasOnSurface and state.animation == "jump" then
+		setAnimation(state, "land")
+	elseif state.animation == "land" and not finished then
+		-- Landung zu Ende spielen
+	elseif math.abs(localVelocity.X) > 2 then
+		setAnimation(state, "run")
+	else
+		setAnimation(state, "idle")
+	end
 end
 
 local function wrapAngle(angle: number): number
@@ -78,6 +147,10 @@ local function stopMotionStep(body: BasePart, state: HeadState, frameTime: numbe
 	local localVelocity = rotation:VectorToObjectSpace(velocity)
 	if math.abs(localVelocity.X) > 1 then
 		state.facing = math.sign(localVelocity.X)
+	end
+
+	if state.sprite then
+		chooseAnimation(state, normal, localVelocity)
 	end
 
 	-- Aufprall erkennen: eben noch schnell, jetzt deutlich langsamer, und eine Fläche ist da
@@ -162,6 +235,24 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	local scale = state.scale
 	local headFrame = CFrame.new(body.Position + state.offset) * CFrame.Angles(0, 0, state.angle)
 
+	-- Sprite-Modus: Bild zur Kamera, vor den Plattformen, mit Drehung, Quetschen und Spiegeln
+	local sprite = state.sprite
+	if sprite and state.skin then
+		local size = Constants.SPRITE_SIZE
+		sprite.part.Size = Vector3.new(size * scale.X, size * scale.Y, 0.05)
+		local front = Vector3.new(0, 0, Constants.SPRITE_Z - headFrame.Z)
+		sprite.part.CFrame = (headFrame + front) * CFrame.new(0, Constants.SPRITE_OFFSET_Y * scale.Y, 0)
+
+		local elapsed = os.clock() - state.animationStart
+		local count = SpriteAssets.frameCount(state.skin, state.animation)
+		local index = math.floor(elapsed * Constants.SPRITE_FPS) + 1
+		if ONE_SHOT[state.animation] then
+			index = math.min(index, count)
+		end
+		SpriteVisual.setImage(sprite, SpriteAssets.frame(state.skin, state.animation, index), state.facing < 0)
+		return
+	end
+
 	visual.Size = Vector3.one * (radius * 2) * scale
 	visual.CFrame = headFrame
 
@@ -181,6 +272,9 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 end
 
 function ClayAnimator.start()
+	if Constants.USE_SPRITES and SpriteAssets.hasImages() then
+		SpriteVisual.preload()
+	end
 	Workspace:WaitForChild(Constants.ARENA_FOLDER)
 	local headsFolder = Workspace:WaitForChild(Constants.HEADS_FOLDER)
 	local frameTime = 1 / Constants.STOP_MOTION_FPS

@@ -106,13 +106,30 @@ Constants.BOT_AIM_ERROR = 2.5 -- wie ungenau Bots zielen (Studs Abweichung beim 
 Constants.STOP_MOTION_FPS = 12
 Constants.BOIL_AMOUNT = 0.03 -- wie stark die Form zwischen zwei Bildern "wabert"
 
--- Spielerfarben (Knet-Palette)
-Constants.PLAYER_COLORS = {
-	Color3.fromRGB(214, 110, 72), -- Terrakotta
-	Color3.fromRGB(226, 182, 64), -- Senfgelb
-	Color3.fromRGB(42, 122, 132), -- Petrol
-	Color3.fromRGB(214, 146, 160), -- Altrosa
+-- Charakter-Farben ("Skins"), passend zu den Sprites in SpriteAssets.luau. In dieser Reihenfolge
+-- bekommen die Teilnehmer ihre Farbe. color = Farbe für Anzeige, Effekte und den 3D-Ersatzkopf.
+Constants.SKINS = {
+	{ key = "blue", color = Color3.fromRGB(52, 120, 230) },
+	{ key = "red", color = Color3.fromRGB(225, 60, 60) },
+	{ key = "green", color = Color3.fromRGB(90, 200, 60) },
+	{ key = "yellow", color = Color3.fromRGB(245, 210, 40) },
+	{ key = "orange", color = Color3.fromRGB(240, 130, 40) },
+	{ key = "purple", color = Color3.fromRGB(140, 90, 220) },
+	{ key = "pink", color = Color3.fromRGB(240, 120, 190) },
+	{ key = "cyan", color = Color3.fromRGB(60, 210, 230) },
+	{ key = "teal", color = Color3.fromRGB(30, 160, 140) },
+	{ key = "white", color = Color3.fromRGB(235, 235, 235) },
+	{ key = "charcoal", color = Color3.fromRGB(70, 70, 78) },
+	{ key = "brown", color = Color3.fromRGB(140, 90, 50) },
 }
+
+-- Sprites (2D-Charaktere)
+Constants.USE_SPRITES = true -- false = 3D-Knetköpfe statt Sprites
+Constants.SPRITE_SIZE = 4.2 -- Kantenlänge des Sprite-Bilds in Studs (Kopf-Durchmesser ist 3)
+Constants.SPRITE_OFFSET_Y = 0.3 -- Bild etwas nach oben schieben, falls die Figur im Bild tiefer sitzt
+Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (zum Spiegeln nötig)
+Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
+Constants.SPRITE_Z = 4.2 -- Abstand zur Kamera-Ebene: vor den Plattformen (diese sind 8 Studs tief)
 Constants.COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102) -- Kleidung, deren Fähigkeit gerade abklingt
 
 -- Kamera: sehr kleines Sichtfeld + großer Abstand = wirkt wie echtes 2D (fast keine Perspektive)

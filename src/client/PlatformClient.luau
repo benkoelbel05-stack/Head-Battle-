@@ -17,6 +17,8 @@ local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local HeadWeight = require(ReplicatedStorage.Shared.HeadWeight)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
+local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local SpriteVisual = require(script.Parent.SpriteVisual)
 
 type LocalGrenade = {
 	id: string,
@@ -83,9 +85,38 @@ local function fadeAndDestroy(part: BasePart, delay: number, duration: number)
 	end)
 end
 
+-- Sprite-Treffer-Animation ("hit") an der Stelle des ausgeschiedenen Kopfes, danach ausblenden.
+-- Zerquetscht: platt gedrückt quer zur Druckrichtung.
+local function hitSprite(position: Vector3, skin: string, cause: string, direction: Vector3)
+	local sprite = SpriteVisual.create("HitSprite", effectsFolder)
+	local size = Constants.SPRITE_SIZE
+	local angle = if cause == "Crush" then math.atan2(-direction.X, direction.Y) else 0
+	local squash = if cause == "Crush" then Vector3.new(1.5, 0.35, 1) else Vector3.one
+	sprite.part.Size = Vector3.new(size * squash.X, size * squash.Y, 0.05)
+	sprite.part.CFrame = CFrame.new(position.X, position.Y, Constants.SPRITE_Z) * CFrame.Angles(0, 0, angle)
+
+	local frames = SpriteAssets.frameCount(skin, "hit")
+	task.spawn(function()
+		for index = 1, frames do
+			SpriteVisual.setImage(sprite, SpriteAssets.frame(skin, "hit", index), direction.X > 0)
+			task.wait(1 / Constants.SPRITE_FPS)
+		end
+		local tween = TweenService:Create(sprite.image, TweenInfo.new(0.4), { ImageTransparency = 1 })
+		tween:Play()
+		tween.Completed:Wait()
+		sprite.part:Destroy()
+	end)
+end
+
 -- Ein Kopf ist ausgeschieden: Knetfladen (zerquetscht) oder Knetbrocken (Explosion)
-local function eliminationEffect(position: Vector3, color: Color3, cause: string, direction: Vector3)
+local function eliminationEffect(position: Vector3, color: Color3, cause: string, direction: Vector3, skin: string?)
 	local R = Constants.HEAD_RADIUS
+	if skin and Constants.USE_SPRITES and SpriteAssets.hasImages() and cause ~= "Fall" then
+		hitSprite(position, skin, cause, direction)
+		if cause == "Crush" then
+			return -- der platte Sprite ist der Fladen
+		end
+	end
 	if cause == "Crush" then
 		-- Platter Fladen, quer zur Druckrichtung, zur Kamera hin sichtbar
 		local pancake = makeEffectPart("Pancake", Vector3.new(0.5, R * 3.2, R * 3.2), color, position)
@@ -185,9 +216,9 @@ local function onEvent(kind: unknown, ...: any)
 			spawnGrenade(id, start, velocity, startTime)
 		end
 	elseif kind == "Eliminated" then
-		local position, color, cause, direction = ...
+		local position, color, cause, direction, skin = ...
 		if typeof(position) == "Vector3" and typeof(color) == "Color3" and typeof(cause) == "string" and typeof(direction) == "Vector3" then
-			eliminationEffect(position, color, cause, direction)
+			eliminationEffect(position, color, cause, direction, if typeof(skin) == "string" then skin else nil)
 		end
 	elseif kind == "Reset" then
 		-- Neue Runde: Plattformen zurück, Thruster und Granaten weg

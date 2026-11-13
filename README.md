@@ -21,6 +21,8 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Exakte Physik: feste 120-Hz-Schritte für Köpfe, Plattformen und Granaten (unabhängig von der Bildrate), Überblenden für flüssige Anzeige
 - [x] Hitboxen: Köpfe stoßen sich ab, Plattformen stoßen exakt aneinander (Masse, Drehung, leichtes Abprallen)
 - [x] An Decken bleibt man immer kleben
+- [x] 2D-Charakter-Sprites (12 Farben, Animationen idle/run/jump/land/hit/respawn), Fallback auf 3D-Knetköpfe
+- [x] Anzeige der Fähigkeiten mit Abklingzeit unten in der Mitte
 - [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
 - [ ] Kopfnuss, weitere Fähigkeiten
 - [ ] Auswahl der Kleidung vor der Runde
@@ -54,6 +56,8 @@ src/
     HeadMotor.luau      Bewegung eines Kopfes (Spieler auf dem Client, Bots auf dem Server)
     GrenadePhysics.luau Flugbahn und Explosion der Granate
     ThrusterVisual.luau Aussehen des Thrusters
+    SpriteAssets.luau   Sprite-IDs (Decals) pro Farbe und Animation
+    SpriteImages.luau   Image-IDs, erzeugt mit tools/ConvertSprites.luau
   server/   ServerScriptService.Server
     init.server.luau    Einstieg, Netzwerk-Events, Abgleich der Plattformen
     Arena.luau          baut die Arena
@@ -67,7 +71,9 @@ src/
     PlatformClient.luau Plattformen lokal rechnen, Thruster/Granaten/Explosionen anzeigen
     HeadController.luau Steuerung des eigenen Kopfes, Fähigkeiten
     CameraController.luau
-    ClayAnimator.luau   Knet-/Stop-Motion-Animation, Kleidung
+    ClayAnimator.luau   Animation aller Köpfe (Sprites oder Knet), Kleidung
+    SpriteVisual.luau   Sprite-Bild in der Welt (Spiegeln, Vorladen, ID-Prüfung)
+    AbilityHUD.luau     Anzeige der Fähigkeiten und Abklingzeiten
     AimPreview.luau     Zielstreifen für die Granate
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```
@@ -77,6 +83,20 @@ src/
 Jeder Rechner simuliert die Plattformen selbst (`PlatformSim`). Ausgetauscht werden nur Ereignisse
 („Thruster gesetzt“, „Granate geworfen“, „Explosion“) und alle 0,2 s ein Abgleich, an den sich die Clients weich angleichen.
 Eigene Aktionen wirken sofort, ohne auf den Server zu warten. Der Server entscheidet, wer ausscheidet.
+
+## Sprites einrichten (Decal-IDs -> Image-IDs)
+
+Roblox legt beim Hochladen pro Bild ein **Decal** und ein **Image** an. `src/shared/SpriteAssets.luau` enthält die
+Decal-IDs; das Spiel braucht die Image-IDs. Die werden einmalig automatisch erzeugt:
+
+1. Studio mit Rojo verbinden.
+2. Inhalt von `tools/ConvertSprites.luau` in die **Befehlsleiste** (Ansicht → Befehlsleiste) einfügen, Enter.
+3. Warten bis im Output `FERTIG` steht.
+4. `ServerStorage → SpriteImages_Ergebnis` öffnen, alles kopieren, in `src/shared/SpriteImages.luau` einfügen (ersetzen), speichern.
+5. `git add -A`, `git commit -m "Sprite-Image-IDs"`, `git push`.
+
+Beim Spielstart in Studio prüft der Client alle Sprites und meldet kaputte im Output.
+Neue oder fehlende Sprites: Decal-ID in `SpriteAssets.luau` eintragen und Schritte 2–5 wiederholen.
 
 ## Einrichtung mit Rojo
 

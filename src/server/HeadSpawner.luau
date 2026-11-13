@@ -10,7 +10,7 @@
 --   Visual       sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
 --   Wear1–Wear3  ein Kleidungsstück pro ausgerüsteter Fähigkeit (Attribut "Ability"), lokal animiert
--- Attribute am Model: UserId (Spieler) oder BotId (Bot), Loadout, <Fähigkeit>ReadyAt
+-- Attribute am Model: UserId (Spieler) oder BotId (Bot), Skin (Charakter-Farbe), Loadout, <Fähigkeit>ReadyAt
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local function getColorSlot(participant: Participant): number
 	for _, slot in colorSlots do
 		used[slot] = true
 	end
-	for slot = 1, #Constants.PLAYER_COLORS do
+	for slot = 1, #Constants.SKINS do
 		if not used[slot] then
 			colorSlots[participant] = slot
 			return slot
@@ -79,7 +79,12 @@ local function getColorSlot(participant: Participant): number
 end
 
 function HeadSpawner.getColor(participant: Participant): Color3
-	return Constants.PLAYER_COLORS[getColorSlot(participant)]
+	return Constants.SKINS[getColorSlot(participant)].color
+end
+
+-- Name der Charakter-Farbe (Sprite-Satz), z. B. "blue"
+function HeadSpawner.getSkin(participant: Participant): string
+	return Constants.SKINS[getColorSlot(participant)].key
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -106,7 +111,7 @@ local function getLoadout(participant: Participant): { string }
 	return loadouts[participant] or table.clone(Abilities.DEFAULT_LOADOUT)
 end
 
-local function createHead(participant: Participant, color: Color3): Model
+local function createHead(participant: Participant, color: Color3, skin: string): Model
 	local diameter = Constants.HEAD_RADIUS * 2
 	local model = Instance.new("Model")
 	model.Name = HeadSpawner.displayName(participant)
@@ -119,6 +124,7 @@ local function createHead(participant: Participant, color: Color3): Model
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	local loadout = getLoadout(participant)
 	model:SetAttribute("Loadout", Abilities.formatLoadout(loadout))
+	model:SetAttribute("Skin", skin)
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
@@ -207,7 +213,7 @@ function HeadSpawner.spawn(participant: Participant)
 	end
 
 	local slot = getColorSlot(participant)
-	local head = createHead(participant, Constants.PLAYER_COLORS[slot])
+	local head = createHead(participant, Constants.SKINS[slot].color, Constants.SKINS[slot].key)
 	local spawnPoint = spawnPoints[((slot - 1) % #spawnPoints) + 1]
 
 	head:PivotTo(CFrame.new(spawnPoint))
@@ -237,7 +243,8 @@ function HeadSpawner.eliminate(participant: Participant, cause: string?, directi
 			body.Position,
 			HeadSpawner.getColor(participant),
 			cause or "Fall",
-			direction or Vector3.yAxis
+			direction or Vector3.yAxis,
+			HeadSpawner.getSkin(participant)
 		)
 	end
 	HeadSpawner.despawn(participant)
