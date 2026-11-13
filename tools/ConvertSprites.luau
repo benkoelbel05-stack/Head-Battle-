@@ -14,7 +14,12 @@ local InsertService = game:GetService("InsertService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
-local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+-- Frische Kopie laden (die Befehlsleiste merkt sich sonst die Version vom letzten Lauf)
+local fresh = ReplicatedStorage.Shared.SpriteAssets:Clone()
+fresh.Name = "SpriteAssets_Frisch"
+fresh.Parent = ReplicatedStorage.Shared
+local SpriteAssets = require(fresh)
+fresh:Destroy()
 
 local ANIMATIONS = { "idle", "run", "jump", "land", "hit", "stun", "respawn" }
 local failed = 0
@@ -65,7 +70,7 @@ for _, skin in skinNames do
 	for _, animation in ANIMATIONS do
 		local frames = sprites[animation] or {}
 		local ids = {}
-		local overrides = (SpriteAssets.imageOverrides[skin] or {})[animation] or {}
+		local overrides = ((SpriteAssets.imageOverrides or {})[skin] or {})[animation] or {}
 		for index, decalId in frames do
 			ids[index] = tostring(overrides[index] or toImageId(decalId))
 		end
