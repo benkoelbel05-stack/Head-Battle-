@@ -13,6 +13,7 @@ local Arena = require(script.Arena)
 local HeadSpawner = require(script.HeadSpawner)
 local PlatformPhysics = require(script.PlatformPhysics)
 local Thrusters = require(script.Thrusters)
+local Grenades = require(script.Grenades)
 
 -- Keine normalen Roblox-Figuren: Jeder Spieler ist ein Knetkopf.
 Players.CharacterAutoLoads = false
@@ -36,7 +37,16 @@ remotes.Name = Constants.REMOTES_FOLDER
 local placeThruster = Instance.new("RemoteEvent")
 placeThruster.Name = "PlaceThruster"
 placeThruster.Parent = remotes
+local throwGrenade = Instance.new("RemoteEvent")
+throwGrenade.Name = "ThrowGrenade"
+throwGrenade.Parent = remotes
 remotes.Parent = ReplicatedStorage
+
+-- Ordner für Effekte (Granaten, Explosionen); "Persistent", damit alle Clients sie sehen
+local effects = Instance.new("Model")
+effects.Name = Constants.EFFECTS_FOLDER
+effects.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+effects.Parent = Workspace
 
 -- Arena bauen und Plattform-Physik anmelden
 local spawnPoints, platforms = Arena.build(ArenaLayouts.Basteltisch)
@@ -45,11 +55,17 @@ for _, platform in platforms do
 end
 HeadSpawner.init(spawnPoints)
 Thrusters.init(placeThruster, HeadSpawner.getHead)
+Grenades.init(throwGrenade, {
+	getHead = HeadSpawner.getHead,
+	getHeads = HeadSpawner.getHeads,
+	eliminate = HeadSpawner.eliminate,
+}, effects)
 
 Players.PlayerAdded:Connect(HeadSpawner.spawn)
 Players.PlayerRemoving:Connect(function(player)
 	HeadSpawner.removePlayer(player)
 	Thrusters.removePlayer(player)
+	Grenades.removePlayer(player)
 end)
 for _, player in Players:GetPlayers() do
 	task.spawn(HeadSpawner.spawn, player)
@@ -58,6 +74,7 @@ end
 RunService.Heartbeat:Connect(function(dt)
 	HeadSpawner.checkFalls()
 	PlatformPhysics.step(dt)
+	Grenades.step(dt)
 end)
 
 print("[HeadBattle] Server gestartet, Arena gebaut")

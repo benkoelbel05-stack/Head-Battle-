@@ -1,11 +1,12 @@
 --!strict
--- Erzeugt für jeden Spieler einen Knetkopf und lässt ihn nach einem Absturz wieder erscheinen.
+-- Erzeugt für jeden Spieler einen Knetkopf und lässt ihn nach dem Ausscheiden wieder erscheinen.
 --
 -- Aufbau eines Kopfes (Model, Name = Spielername):
---   Body      unsichtbare Physik-Kugel, gesteuert vom Client des Spielers
+--   Body      unsichtbare Kugel, gesteuert vom Client des Spielers (keine Roblox-Kollisionen,
+--             die Bewegung rechnet der Client exakt gegen die Plattform-Formen)
 --   Visual    sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
---   Hat1–Hat3 ein Hut pro ausgerüsteter Fähigkeit (Attribut "Ability"), lokal animiert
+--   Wear1–Wear3  ein Kleidungsstück pro ausgerüsteter Fähigkeit (Attribut "Ability"), lokal animiert
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -78,9 +79,9 @@ local function createHead(player: Player, color: Color3): Model
 	body.Size = Vector3.one * diameter
 	body.Transparency = 1
 	body.Anchored = false
-	body.CanCollide = true
-	-- Federleicht (kleinste erlaubte Dichte), keine Reibung, kein Abprallen:
-	-- so schiebt der Kopf die schwebenden Plattformen nicht weg. Die Steuerung übernimmt der Client.
+	body.CanCollide = false
+	body.CanTouch = false
+	body.CanQuery = false
 	body.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0, 0, 100, 100)
 	body.Parent = model
 	model.PrimaryPart = body
@@ -96,17 +97,11 @@ local function createHead(player: Player, color: Color3): Model
 	decorativePart("EyeLeft", Enum.PartType.Ball, eyeSize, eyeColor, model)
 	decorativePart("EyeRight", Enum.PartType.Ball, eyeSize, eyeColor, model)
 
-	-- Ein Hut pro ausgerüsteter Fähigkeit, gestapelt in Slot-Reihenfolge (Hat1 unten)
+	-- Ein Kleidungsstück pro ausgerüsteter Fähigkeit (Hut, Brille, Gürtel ...), in Slot-Reihenfolge
 	for slot, id in loadout do
 		local info = Abilities.list[id]
-		local hat = decorativePart(
-			`Hat{slot}`,
-			Enum.PartType.Cylinder,
-			Vector3.new(info.hatThickness, info.hatDiameter, info.hatDiameter),
-			info.hatColor,
-			model
-		)
-		hat:SetAttribute("Ability", id)
+		local item = decorativePart(`Wear{slot}`, info.shape, info.size, info.color, model)
+		item:SetAttribute("Ability", id)
 	end
 
 	return model
@@ -168,20 +163,33 @@ function HeadSpawner.removePlayer(player: Player)
 	loadouts[player] = nil
 end
 
--- Prüft jeden Frame, ob ein Kopf aus der Arena gefallen ist.
+-- Kopf scheidet aus (gefallen, von Granate getroffen ...) und erscheint im Prototyp kurz danach wieder.
 -- TODO (Phase 3): statt Respawn scheidet der Kopf für die Runde aus.
+function HeadSpawner.eliminate(player: Player)
+	if respawning[player] or not heads[player] then
+		return
+	end
+	respawning[player] = true
+	HeadSpawner.despawn(player)
+	task.delay(Constants.RESPAWN_DELAY, function()
+		respawning[player] = nil
+		if player.Parent then
+			HeadSpawner.spawn(player)
+		end
+	end)
+end
+
+-- Alle Köpfe (für Explosionen usw.)
+function HeadSpawner.getHeads(): { [Player]: Model }
+	return heads
+end
+
+-- Prüft jeden Frame, ob ein Kopf aus der Arena gefallen ist.
 function HeadSpawner.checkFalls()
 	for player, head in heads do
 		local body = head.PrimaryPart
-		if body and body.Position.Y < Constants.FALL_LIMIT_Y and not respawning[player] then
-			respawning[player] = true
-			HeadSpawner.despawn(player)
-			task.delay(Constants.RESPAWN_DELAY, function()
-				respawning[player] = nil
-				if player.Parent then
-					HeadSpawner.spawn(player)
-				end
-			end)
+		if body and body.Position.Y < Constants.FALL_LIMIT_Y then
+			HeadSpawner.eliminate(player)
 		end
 	end
 end

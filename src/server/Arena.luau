@@ -69,8 +69,17 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	end
 	for _, part in parts do
 		part.Anchored = false
+		-- Keine Roblox-Kollisionen: Köpfe und Granaten rechnen mit der exakten Form (PlatformShapes),
+		-- Plattformen gehen durcheinander durch statt zu verhaken. Raycasts treffen sie trotzdem.
+		part.CanCollide = false
+		part.CanTouch = false
 	end
 	model.PrimaryPart = root
+
+	-- Exakte Form für PlatformShapes: Strecke entlang X mit Radius, relativ zur Wurzel
+	model:SetAttribute("HalfLength", math.max(middleLength, 0) / 2)
+	model:SetAttribute("Radius", radius)
+	model:SetAttribute("ShapeFrame", root.CFrame:ToObjectSpace(center))
 	model.Parent = parent
 	return model
 end

@@ -15,6 +15,7 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 type Thruster = {
 	localPosition: Vector3, -- Klebepunkt relativ zur Plattform
 	localDirection: Vector3, -- Schubrichtung relativ zur Plattform (dreht mit)
+	startTime: number,
 	endTime: number,
 }
 
@@ -71,9 +72,24 @@ function PlatformPhysics.addThruster(part: BasePart, position: Vector3, directio
 	table.insert(info.thrusters, {
 		localPosition = info.root.CFrame:PointToObjectSpace(position),
 		localDirection = info.root.CFrame:VectorToObjectSpace(direction),
+		startTime = Workspace:GetServerTimeNow(),
 		endTime = Workspace:GetServerTimeNow() + duration,
 	})
 	return true
+end
+
+-- Plötzlicher Stoß (z. B. Explosion): change = Geschwindigkeitsänderung in Studs/s, an der Stelle position.
+-- Ein Stoß neben der Mitte dreht die Plattform zusätzlich.
+function PlatformPhysics.addImpulse(model: Model, position: Vector3, change: Vector3)
+	local root = model.PrimaryPart
+	local info = root and platforms[root]
+	if not info then
+		return
+	end
+	local push = Vector3.new(change.X, change.Y, 0)
+	local lever = position - info.root.Position
+	info.velocity += push
+	info.angularVelocity += (lever.X * push.Y - lever.Y * push.X) / info.inertiaPerMass
 end
 
 function PlatformPhysics.clear()
@@ -95,7 +111,10 @@ local function stepPlatform(info: PlatformInfo, dt: number, now: number)
 		if now >= thruster.endTime then
 			table.remove(info.thrusters, i)
 		else
-			local push = cframe:VectorToWorldSpace(thruster.localDirection) * Constants.THRUSTER_ACCEL
+			-- Schub läuft weich an und aus, statt schlagartig ein- und auszusetzen
+			local ramp = Constants.THRUSTER_RAMP
+			local strength = math.clamp(math.min(now - thruster.startTime, thruster.endTime - now) / ramp, 0, 1)
+			local push = cframe:VectorToWorldSpace(thruster.localDirection) * Constants.THRUSTER_ACCEL * strength
 			push = Vector3.new(push.X, push.Y, 0)
 			local lever = cframe:PointToWorldSpace(thruster.localPosition) - cframe.Position
 			acceleration += push

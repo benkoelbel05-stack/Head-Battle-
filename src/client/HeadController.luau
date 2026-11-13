@@ -1,7 +1,13 @@
 --!strict
--- Steuert den eigenen Kopf: Laufen, Springen und an Boden, Wand und Decke haften.
--- Die Physik-Kugel gehört dem Client (Network Ownership), daher fühlt sich die Bewegung ohne Verzögerung an.
--- Die Schwerkraft rechnen wir selbst (Workspace.Gravity = 0), damit Haften an Wand und Decke sauber funktioniert.
+-- Steuert den eigenen Kopf: Laufen, Springen, an Plattformen kleben und Fähigkeiten auslösen.
+--
+-- Bewegung ohne Roblox-Kollisionen, exakt gegen die Plattform-Formen (PlatformShapes):
+--   * Klebt der Kopf an einer Plattform, läuft er auf einem geschlossenen Ring um sie herum
+--     (oben, Rundung, unten, Rundung). Herunterfallen beim Entlanglaufen ist so unmöglich,
+--     um die Ecken geht es gleichmäßig, und bewegt sich die Plattform, fährt der Kopf mit.
+--   * In der Luft: eigene Schwerkraft. Berührt der Kopf eine Plattform, klebt er an und
+--     behält seinen Schwung entlang der Fläche (gleitet weiter).
+-- Die Kugel gehört dem Client (Network Ownership), daher gibt es keine Eingabe-Verzögerung.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,9 +17,15 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
-local placeThrusterRemote = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER):WaitForChild("PlaceThruster") :: RemoteEvent
+local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
+
+local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
+local placeThrusterRemote = remotes:WaitForChild("PlaceThruster") :: RemoteEvent
+local throwGrenadeRemote = remotes:WaitForChild("ThrowGrenade") :: RemoteEvent
 
 local player = Players.LocalPlayer
+local R = Constants.HEAD_RADIUS
 
 local LEFT_KEYS = { Enum.KeyCode.A, Enum.KeyCode.Left }
 local RIGHT_KEYS = { Enum.KeyCode.D, Enum.KeyCode.Right }
@@ -39,45 +51,43 @@ local SLOT_KEYS: { [Enum.KeyCode]: number } = {
 	[Enum.KeyCode.ButtonB] = 3,
 }
 local STICK_DEADZONE = 0.25
-
--- In diese acht Richtungen wird nach Flächen gesucht (diagonal, damit man um runde Kanten herumläuft)
-local DIAGONAL = math.sqrt(0.5)
-local DIRECTIONS = {
-	Vector3.new(0, -1, 0),
-	Vector3.new(0, 1, 0),
-	Vector3.new(-1, 0, 0),
-	Vector3.new(1, 0, 0),
-	Vector3.new(DIAGONAL, DIAGONAL, 0),
-	Vector3.new(-DIAGONAL, DIAGONAL, 0),
-	Vector3.new(DIAGONAL, -DIAGONAL, 0),
-	Vector3.new(-DIAGONAL, -DIAGONAL, 0),
-}
+local MAX_SUBSTEP = 0.4 -- so weit bewegt sich der Kopf pro Kollisionsprüfung höchstens (Studs)
+local SWITCH_COOLDOWN = 0.2 -- Mindestzeit zwischen zwei Plattform-Wechseln beim Entlanglaufen
 
 local HeadController = {}
 
+-- Kopf
 local myHead: Model? = nil
-local raycastParams = RaycastParams.new()
-raycastParams.FilterType = Enum.RaycastFilterType.Include -- nur die Arena zählt als Fläche
-
-local surfaceNormal: Vector3? = nil -- nil = in der Luft
-local surfacePart: BasePart? = nil -- die Plattform, an der man klebt (kann sich bewegen)
-local lastSurfaceNormal = Vector3.yAxis
-local lastAttached = -math.huge
-local detachUntil = 0
-
+local position = Vector3.zero
+local velocity = Vector3.zero
 local facing = 1
-local crawlDirection = 0 -- Laufrichtung entlang der Fläche (+1 / -1), bleibt um Ecken herum erhalten
 
-local dashPressed = false
-local dashUntil = 0
-local dashReadyAt = 0
-local dashDirection = Vector3.xAxis
-local thrusterPressed = false
-local useSlot: (slot: number) -> ()
+-- Kleben
+local attachedShape: PlatformShapes.Shape? = nil
+local attachedU = 0 -- Position auf dem Ring um die Plattform
+local alongSpeed = 0 -- Geschwindigkeit entlang des Rings
+local lastShapeFrame: CFrame? = nil -- Lage der Plattform im letzten Frame (zum Mitfahren)
+local crawlDirection = 0 -- Laufrichtung entlang des Rings (+1 / -1), bleibt um Ecken erhalten
+local detachUntil = 0
+local lastSwitch = 0
 
+-- Springen
 local jumpHeld = false
 local jumpReleased = false
 local lastJumpPressed = -math.huge
+
+-- Fähigkeiten
+local pendingAbilities: { string } = {}
+local dashUntil = 0
+local dashReadyAt = 0
+local dashDirection = Vector3.xAxis
+
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Include
+
+---------------------------------------------------------------------------------------------------
+-- Hilfsfunktionen
+---------------------------------------------------------------------------------------------------
 
 local function moveTowards(current: number, target: number, maxDelta: number): number
 	if math.abs(target - current) <= maxDelta then
@@ -135,213 +145,328 @@ local function readInput(): Vector3
 	return direction
 end
 
--- Flächennormale auf die 2D-Ebene drücken
-local function flatNormal(normal: Vector3): Vector3
-	local flat = Vector3.new(normal.X, normal.Y, 0)
-	if flat.Magnitude < 0.01 then
-		return Vector3.yAxis
-	end
-	return flat.Unit
+local function getArena(): Instance?
+	return Workspace:FindFirstChild(Constants.ARENA_FOLDER)
 end
 
--- Sucht die Fläche, an der der Kopf haften soll.
--- moveDir: Richtung, in die sich der Spieler bewegen will (bevorzugt z. B. die Wand, auf die man zuläuft).
-local function findSurface(position: Vector3, moveDir: Vector3): (Vector3?, BasePart?)
-	local length = Constants.HEAD_RADIUS + Constants.STICK_DISTANCE
-	local best: Vector3? = nil
-	local bestPart: BasePart? = nil
-	local bestScore = -math.huge
+-- Ring-Radius um eine Plattform (Bahn des Kopf-Mittelpunkts)
+local function ringRadius(shape: PlatformShapes.Shape): number
+	return shape.radius + R
+end
 
-	-- Zusätzlich direkt zur aktuellen Fläche suchen, etwas weiter:
-	-- so bleibt der Kopf auch auf engen Rundungen kleben
-	local directions = table.clone(DIRECTIONS)
-	if surfaceNormal then
-		table.insert(directions, -surfaceNormal)
+-- Normale (Welt) an der aktuellen Klebestelle
+local function attachedNormal(): Vector3?
+	local shape = attachedShape
+	if not shape then
+		return nil
 	end
+	local _, localNormal = PlatformShapes.boundaryPoint(shape.halfLength, ringRadius(shape), attachedU)
+	return PlatformShapes.frame(shape):VectorToWorldSpace(localNormal)
+end
 
-	for index, direction in directions do
-		local rayLength = if index > #DIRECTIONS then length + 0.4 else length
-		local hit = Workspace:Raycast(position, direction * rayLength, raycastParams)
-		if hit then
-			local normal = flatNormal(hit.Normal)
-			local score = -hit.Distance + moveDir:Dot(-normal) * 10
-			-- Die aktuelle Fläche leicht bevorzugen, damit es nicht hin- und herspringt
-			if surfaceNormal and normal:Dot(surfaceNormal) > 0.9 then
-				score += 2
-			end
-			if score > bestScore then
-				best, bestScore = normal, score
-				bestPart = hit.Instance :: BasePart
+---------------------------------------------------------------------------------------------------
+-- Kleben und Lösen
+---------------------------------------------------------------------------------------------------
+
+local function attachTo(shape: PlatformShapes.Shape, now: number)
+	local frame = PlatformShapes.frame(shape)
+	local rho = ringRadius(shape)
+	local localPoint = frame:PointToObjectSpace(position)
+	local u = PlatformShapes.boundaryParam(shape.halfLength, rho, localPoint)
+	local ringPoint, localNormal = PlatformShapes.boundaryPoint(shape.halfLength, rho, u)
+	local localTangent = PlatformShapes.tangent(localNormal)
+
+	-- Schwung entlang der Fläche behalten: so gleitet man nach der Landung weiter
+	local localVelocity = frame:VectorToObjectSpace(velocity)
+	alongSpeed = (localVelocity.X * localTangent.X + localVelocity.Y * localTangent.Y) * Constants.LANDING_KEEP
+	crawlDirection = 0
+
+	attachedShape = shape
+	attachedU = u
+	lastShapeFrame = frame
+	lastSwitch = now
+	position = frame:PointToWorldSpace(ringPoint)
+end
+
+local function detach(now: number, lockTime: number)
+	attachedShape = nil
+	lastShapeFrame = nil
+	detachUntil = now + lockTime
+end
+
+-- Kopf bewegen und dabei auf Plattformen prüfen. Gibt true zurück, wenn er angeklebt ist.
+local function moveWithCollisions(dt: number, shapes: { PlatformShapes.Shape }, now: number): boolean
+	local delta = velocity * dt
+	local steps = math.max(1, math.ceil(delta.Magnitude / MAX_SUBSTEP))
+
+	for _ = 1, steps do
+		position += delta / steps
+		for _, shape in shapes do
+			local frame = PlatformShapes.frame(shape)
+			local localPoint = frame:PointToObjectSpace(position)
+			local distance, closest = PlatformShapes.closest(shape.halfLength, localPoint)
+			local rho = ringRadius(shape)
+			if distance < rho then
+				if now >= detachUntil then
+					attachTo(shape, now)
+					return true
+				end
+				-- Kurz nach dem Absprung: nur herausschieben, nicht ankleben
+				local localNormal = if distance > 0.001
+					then (Vector3.new(localPoint.X, localPoint.Y, 0) - closest) / distance
+					else Vector3.yAxis
+				position = frame:PointToWorldSpace(closest + localNormal * rho)
+				local normal = frame:VectorToWorldSpace(localNormal)
+				local into = velocity:Dot(normal)
+				if into < 0 then
+					velocity -= normal * into
+				end
 			end
 		end
 	end
-
-	return best, bestPart
+	return false
 end
 
--- Geschwindigkeit der Plattform an dieser Stelle (damit man auf bewegten Plattformen mitfährt)
-local function surfaceVelocity(part: BasePart?, position: Vector3): Vector3
-	if not part or part.Anchored then
-		return Vector3.zero
+---------------------------------------------------------------------------------------------------
+-- Bewegung
+---------------------------------------------------------------------------------------------------
+
+local function stepAttached(dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape })
+	local shape = attachedShape :: PlatformShapes.Shape
+	local frame = PlatformShapes.frame(shape)
+	local rho = ringRadius(shape)
+	local L = shape.halfLength
+
+	-- Laufrichtung: Zeigt die Eingabe klar entlang der Fläche, gilt sie. Steht sie quer zur Fläche
+	-- (z. B. "rechts" an einer senkrechten Seite nach dem Herumlaufen um eine Ecke), läuft der Kopf
+	-- in seiner bisherigen Richtung weiter.
+	local _, currentNormal = PlatformShapes.boundaryPoint(L, rho, attachedU)
+	local tangent = PlatformShapes.tangent(currentNormal)
+	local localInput = frame:VectorToObjectSpace(input)
+	local inputAlong = localInput.X * tangent.X + localInput.Y * tangent.Y
+	if input.Magnitude < 0.1 then
+		crawlDirection = 0
+	elseif math.abs(inputAlong) > 0.7 then
+		crawlDirection = math.sign(inputAlong)
+	elseif crawlDirection == 0 and math.abs(inputAlong) > 0.1 then
+		crawlDirection = math.sign(inputAlong)
 	end
-	local v = part:GetVelocityAtPosition(position)
-	return Vector3.new(v.X, v.Y, 0)
+
+	-- Beschleunigen bzw. ohne Eingabe weich ausgleiten
+	local target = crawlDirection * Constants.MOVE_SPEED
+	local rate = if crawlDirection ~= 0 then Constants.GROUND_ACCEL else Constants.GROUND_FRICTION
+	alongSpeed = moveTowards(alongSpeed, target, rate * dt)
+	attachedU += alongSpeed * dt
+
+	local ringPoint, localNormal = PlatformShapes.boundaryPoint(L, rho, attachedU)
+	local newPosition = frame:PointToWorldSpace(ringPoint)
+
+	-- Mitfahren: wie weit hat sich dieser Punkt der Plattform seit dem letzten Frame bewegt?
+	local platformVelocity = Vector3.zero
+	if lastShapeFrame and dt > 0 then
+		local moved = newPosition - (lastShapeFrame :: CFrame):PointToWorldSpace(ringPoint)
+		platformVelocity = Vector3.new(moved.X, moved.Y, 0) / dt
+	end
+	lastShapeFrame = frame
+
+	local worldNormal = frame:VectorToWorldSpace(localNormal)
+	local worldTangent = frame:VectorToWorldSpace(PlatformShapes.tangent(localNormal))
+	position = newPosition
+	velocity = worldTangent * alongSpeed + platformVelocity
+
+	-- Absprung: weg von der Fläche, etwas Laufschwung mitnehmen
+	if now - lastJumpPressed <= Constants.JUMP_BUFFER then
+		lastJumpPressed = -math.huge
+		local jumpDirection = worldNormal
+		if math.abs(worldNormal.X) > 0.5 then
+			jumpDirection = (worldNormal + Vector3.new(0, Constants.WALL_JUMP_LIFT, 0)).Unit
+		end
+		velocity = jumpDirection * Constants.JUMP_VELOCITY
+			+ worldTangent * alongSpeed * Constants.JUMP_KEEP_ALONG
+			+ platformVelocity
+		detach(now, Constants.DETACH_TIME)
+		return
+	end
+
+	-- Ragt eine andere Plattform in den Weg (z. B. weggeschobene Plattform), auf sie umsteigen
+	if now - lastSwitch > SWITCH_COOLDOWN then
+		for _, other in shapes do
+			if other ~= shape then
+				local otherFrame = PlatformShapes.frame(other)
+				local distance = PlatformShapes.closest(other.halfLength, otherFrame:PointToObjectSpace(position))
+				if distance < ringRadius(other) - 0.15 then
+					attachTo(other, now)
+					break
+				end
+			end
+		end
+	end
 end
+
+local function stepAir(dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape })
+	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
+	local vy = velocity.Y - Constants.GRAVITY * dt
+	if jumpReleased and vy > 0 then
+		vy *= Constants.JUMP_CUT_MULTIPLIER -- früh loslassen = niedriger Sprung
+	end
+	vy = math.max(vy, -Constants.MAX_FALL_SPEED)
+	velocity = Vector3.new(vx, vy, 0)
+	moveWithCollisions(dt, shapes, now)
+end
+
+---------------------------------------------------------------------------------------------------
+-- Fähigkeiten
+---------------------------------------------------------------------------------------------------
+
+-- Zielrichtung: gedrückte Richtung; ohne Eingabe auf die eigene Fläche (falls gewünscht) oder in Blickrichtung
+local function aimDirection(input: Vector3, preferSurface: boolean): Vector3
+	if input.Magnitude > 0.1 then
+		return input.Unit
+	end
+	local normal = attachedNormal()
+	if preferSurface and normal then
+		return -normal
+	end
+	return Vector3.new(facing, 0, 0)
+end
+
+local function abilityReady(head: Model, id: string): boolean
+	local readyAt = head:GetAttribute(Abilities.readyAttribute(id))
+	return typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
+end
+
+local function useThruster(head: Model, input: Vector3)
+	if not abilityReady(head, "Thruster") then
+		return
+	end
+	local arena = getArena()
+	if not arena then
+		return
+	end
+	raycastParams.FilterDescendantsInstances = { arena }
+	local aim = aimDirection(input, true)
+	local hit = Workspace:Raycast(position, aim * (R + Constants.THRUSTER_RANGE), raycastParams)
+	if not hit or not hit.Instance:IsA("BasePart") then
+		return
+	end
+	local part = hit.Instance :: BasePart
+	local normal = Vector3.new(hit.Normal.X, hit.Normal.Y, 0)
+	if normal.Magnitude < 0.01 then
+		return
+	end
+	normal = normal.Unit
+
+	-- Sofort-Vorschau, bis der echte Thruster vom Server da ist (gegen Verzögerung)
+	local preview = ThrusterVisual.create(part, hit.Position, normal)
+	local connection: RBXScriptConnection
+	connection = part.ChildAdded:Connect(function(child)
+		if child.Name == "Thruster" and child:GetAttribute("OwnerUserId") == player.UserId then
+			preview:Destroy()
+			connection:Disconnect()
+		end
+	end)
+	task.delay(1, function()
+		preview:Destroy()
+		connection:Disconnect()
+	end)
+
+	placeThrusterRemote:FireServer(part, part.CFrame:PointToObjectSpace(hit.Position), part.CFrame:VectorToObjectSpace(normal))
+end
+
+local function useAbility(id: string, input: Vector3, now: number)
+	local head = myHead
+	if not head then
+		return
+	end
+
+	if id == "Dash" then
+		if now >= dashReadyAt then
+			dashDirection = if input.Magnitude > 0.1 then input.Unit else Vector3.new(facing, 0, 0)
+			dashUntil = now + Constants.DASH_TIME
+			dashReadyAt = now + Constants.DASH_COOLDOWN
+			-- Kurz nicht ankleben, damit man sich von der eigenen Fläche lösen kann
+			detach(now, 0.05)
+			head:SetAttribute(Abilities.readyAttribute("Dash"), Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
+		end
+	elseif id == "Thruster" then
+		useThruster(head, input)
+	elseif id == "Grenade" then
+		if abilityReady(head, "Grenade") then
+			throwGrenadeRemote:FireServer(aimDirection(input, false))
+		end
+	end
+end
+
+-- Fähigkeit im Slot merken (ausgelöst wird im nächsten Frame, mit der aktuellen Eingabe)
+local function useSlot(slot: number)
+	local head = myHead
+	if not head then
+		return
+	end
+	local id = Abilities.parseLoadout(head:GetAttribute("Loadout"))[slot]
+	if id then
+		table.insert(pendingAbilities, id)
+	end
+end
+
+---------------------------------------------------------------------------------------------------
+-- Hauptschleife
+---------------------------------------------------------------------------------------------------
 
 local function step(rawDt: number)
 	local head = myHead
-	if not head or not head.Parent then
-		return
-	end
-	local body = head.PrimaryPart
-	if not body then
+	local body = head and head.PrimaryPart
+	if not head or not head.Parent or not body then
 		return
 	end
 
 	local dt = math.min(rawDt, 1 / 20)
 	local now = os.clock()
 	local input = readInput()
-	local velocity = body.AssemblyLinearVelocity
-	local position = body.Position
 	if math.abs(input.X) > 0.1 then
 		facing = math.sign(input.X)
 	end
+	local shapes = PlatformShapes.collect(getArena())
 
-	-- Dash starten (in Eingaberichtung, ohne Eingabe in Blickrichtung)
-	if dashPressed then
-		dashPressed = false
-		if now >= dashReadyAt then
-			dashDirection = if input.Magnitude > 0.1 then input.Unit else Vector3.new(facing, 0, 0)
-			dashUntil = now + Constants.DASH_TIME
-			dashReadyAt = now + Constants.DASH_COOLDOWN
-			detachUntil = dashUntil
-			surfaceNormal = nil
-			head:SetAttribute(Abilities.readyAttribute("Dash"), Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
-		end
+	-- Angeklebte Plattform verschwunden (z. B. Arena neu gebaut)
+	if attachedShape and not table.find(shapes, attachedShape) then
+		detach(now, 0)
 	end
 
-	-- Thruster setzen: in Eingaberichtung, ohne Eingabe auf die Fläche, an der man klebt,
-	-- sonst in Blickrichtung. Ob etwas getroffen wird, entscheidet der Server.
-	if thrusterPressed then
-		thrusterPressed = false
-		local readyAt = head:GetAttribute(Abilities.readyAttribute("Thruster"))
-		local ready = typeof(readyAt) ~= "number" or Workspace:GetServerTimeNow() >= readyAt
-		if ready then
-			local aim = if input.Magnitude > 0.1
-				then input.Unit
-				elseif surfaceNormal then -surfaceNormal
-				else Vector3.new(facing, 0, 0)
-			placeThrusterRemote:FireServer(aim)
-		end
+	for _, id in pendingAbilities do
+		useAbility(id, input, now)
 	end
+	table.clear(pendingAbilities)
 
-	-- Während des Dashs: gerade Linie, keine Schwerkraft
 	if now < dashUntil then
-		body.AssemblyLinearVelocity = dashDirection * Constants.DASH_SPEED
-		body.CFrame = CFrame.new(position.X, position.Y, Constants.PLANE_Z)
-		body.AssemblyAngularVelocity = Vector3.zero
-		return
-	elseif dashUntil > 0 then
-		-- Dash gerade vorbei: etwas Schwung behalten
-		dashUntil = 0
-		velocity = dashDirection * Constants.DASH_SPEED * Constants.DASH_END_KEEP
-	end
-
-	-- 1. Fläche suchen (kurz nach einem Absprung nicht, sonst klebt man sofort wieder fest)
-	if now >= detachUntil then
-		local moveDir = input
-		if not surfaceNormal and velocity.Magnitude > 1 then
-			moveDir = velocity.Unit
-		end
-		surfaceNormal, surfacePart = findSurface(position, moveDir)
-	else
-		surfaceNormal, surfacePart = nil, nil
-	end
-	local platformVelocity = if surfaceNormal then surfaceVelocity(surfacePart, position) else Vector3.zero
-	if surfaceNormal then
-		lastAttached = now
-		lastSurfaceNormal = surfaceNormal
-	end
-
-	local jumpBuffered = now - lastJumpPressed <= Constants.JUMP_BUFFER
-	local canJump = now - lastAttached <= Constants.COYOTE_TIME
-	local newVelocity: Vector3
-
-	if jumpBuffered and canJump then
-		-- 2a. Absprung: weg von der Fläche
-		local normal = lastSurfaceNormal
-		local jumpDir = normal
-		if math.abs(normal.X) > 0.5 then
-			-- Von der Wand: schräg nach oben weg
-			jumpDir = (normal + Vector3.new(0, Constants.WALL_JUMP_LIFT, 0)).Unit
-		end
-		newVelocity = jumpDir * Constants.JUMP_VELOCITY + platformVelocity
-		surfaceNormal = nil
-		detachUntil = now + Constants.DETACH_TIME
-		lastJumpPressed = -math.huge
-		lastAttached = -math.huge
-	elseif surfaceNormal then
-		-- 2b. Haften: an der Fläche entlang laufen, leicht an sie gedrückt
-		local normal = surfaceNormal
-		local tangent = Vector3.new(normal.Y, -normal.X, 0)
-		local along = (velocity - platformVelocity):Dot(tangent) -- relativ zur (evtl. bewegten) Plattform
-
-		-- Laufrichtung bestimmen: Zeigt die Eingabe klar entlang der Fläche, gilt sie.
-		-- Steht sie quer zur Fläche (z. B. "rechts" an einer senkrechten Wand nach dem Herumlaufen
-		-- um eine Ecke), läuft der Kopf in seiner bisherigen Richtung weiter.
-		local inputAlong = input:Dot(tangent)
-		if input.Magnitude < 0.1 then
-			crawlDirection = 0
-		elseif math.abs(inputAlong) > 0.7 then
-			crawlDirection = math.sign(inputAlong)
-		elseif crawlDirection == 0 and math.abs(inputAlong) > 0.1 then
-			crawlDirection = math.sign(inputAlong)
-		end
-
-		local target = crawlDirection * Constants.MOVE_SPEED
-		along = moveTowards(along, target, Constants.GROUND_ACCEL * dt)
-		newVelocity = tangent * along - normal * Constants.STICK_SPEED + platformVelocity
-
-		-- Kopf genau auf die Oberfläche setzen. Andrücken allein reicht in Kurven (runde Enden)
-		-- nicht, dort würde er nach außen wegrutschen. So klebt er auch auf bewegten Plattformen.
-		local snapLength = Constants.HEAD_RADIUS + Constants.STICK_DISTANCE + 0.5
-		local snapHit = Workspace:Raycast(position, -normal * snapLength, raycastParams)
-		if snapHit then
-			position = snapHit.Position + normal * (Constants.HEAD_RADIUS + 0.02)
+		-- Dash: gerade Linie, keine Schwerkraft; klebt an, sobald er eine Plattform trifft
+		velocity = dashDirection * Constants.DASH_SPEED
+		if moveWithCollisions(dt, shapes, now) then
+			dashUntil = 0
 		end
 	else
-		-- 2c. In der Luft: eigene Schwerkraft, etwas Luftsteuerung
-		local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
-		local vy = velocity.Y - Constants.GRAVITY * dt
-		if jumpReleased and vy > 0 then
-			vy *= Constants.JUMP_CUT_MULTIPLIER -- früh loslassen = niedriger Sprung
+		if dashUntil > 0 then
+			-- Dash gerade vorbei: etwas Schwung behalten
+			dashUntil = 0
+			velocity = dashDirection * Constants.DASH_SPEED * Constants.DASH_END_KEEP
 		end
-		vy = math.max(vy, -Constants.MAX_FALL_SPEED)
-		newVelocity = Vector3.new(vx, vy, 0)
+		if attachedShape then
+			stepAttached(dt, input, now, shapes)
+		else
+			stepAir(dt, input, now, shapes)
+		end
 	end
 	jumpReleased = false
 
-	body.AssemblyLinearVelocity = newVelocity
-
-	-- Auf der 2D-Ebene halten und nicht rollen lassen
-	body.CFrame = CFrame.new(position.X, position.Y, Constants.PLANE_Z)
+	position = Vector3.new(position.X, position.Y, Constants.PLANE_Z)
+	body.CFrame = CFrame.new(position)
+	body.AssemblyLinearVelocity = velocity
 	body.AssemblyAngularVelocity = Vector3.zero
 end
 
--- Fähigkeit im Slot auslösen (welche das ist, steht im Attribut "Loadout" am eigenen Kopf)
-useSlot = function(slot: number)
-	local head = myHead
-	if not head then
-		return
-	end
-	local id = Abilities.parseLoadout(head:GetAttribute("Loadout"))[slot]
-	if id == "Dash" then
-		dashPressed = true
-	elseif id == "Thruster" then
-		thrusterPressed = true
-	end
-	-- Leerer Slot: nichts passiert
-end
+---------------------------------------------------------------------------------------------------
+-- Eingabe und Start
+---------------------------------------------------------------------------------------------------
 
 local function onInputBegan(input: InputObject, gameProcessed: boolean)
 	if gameProcessed then
@@ -352,7 +477,6 @@ local function onInputBegan(input: InputObject, gameProcessed: boolean)
 		lastJumpPressed = os.clock()
 		return
 	end
-
 	local slot = SLOT_MOUSE[input.UserInputType] or SLOT_KEYS[input.KeyCode]
 	if slot then
 		useSlot(slot)
@@ -369,24 +493,20 @@ end
 local function trackHead(child: Instance)
 	if child:IsA("Model") and child:GetAttribute("UserId") == player.UserId then
 		myHead = child
-		surfaceNormal = nil
+		local body = child.PrimaryPart
+		position = if body then body.Position else Vector3.zero
+		velocity = Vector3.zero
+		attachedShape = nil
+		lastShapeFrame = nil
 		detachUntil = 0
 		dashUntil = 0
 		dashReadyAt = 0
+		table.clear(pendingAbilities)
 		print("[HeadBattle] Eigener Kopf gefunden")
 	end
 end
 
-local function trackArena(child: Instance)
-	if child.Name == Constants.ARENA_FOLDER then
-		raycastParams.FilterDescendantsInstances = { child }
-	end
-end
-
 function HeadController.start()
-	Workspace.ChildAdded:Connect(trackArena)
-	trackArena(Workspace:WaitForChild(Constants.ARENA_FOLDER))
-
 	local headsFolder = Workspace:WaitForChild(Constants.HEADS_FOLDER)
 	headsFolder.ChildAdded:Connect(trackHead)
 	for _, child in headsFolder:GetChildren() do
