@@ -1,0 +1,56 @@
+# Head Battle
+
+Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen durch Stop-Motion-Arenen und bekämpfen sich mit Hüten, die ihnen Superkräfte geben. Eine Hommage an *Bopl Battle*.
+
+## Stand: Phase 1 – Prototyp
+
+- [x] Knetkopf als Spielfigur (eigene Physik, keine Roblox-Figur)
+- [x] Laufen und Springen auf einer 2D-Ebene (mit Coyote Time, Sprung-Puffer, variabler Sprunghöhe)
+- [x] Seitliche Kamera, die alle Köpfe im Bild hält
+- [x] Knet-Look: Squash & Stretch, „Wabern“ im 12-fps-Stop-Motion-Takt, Augen in Laufrichtung
+- [x] Erste Arena „Basteltisch“ (graue Klötze)
+- [x] Absturz = Respawn nach 2 Sekunden
+- [ ] Kopfnuss und die ersten 4 Hüte (Phase 2)
+- [ ] Runden, Punkte, Hutwahl (Phase 3)
+- [ ] Touch-Steuerung für Handys (Phase 3)
+
+## Steuerung
+
+| Aktion | Tastatur | Controller |
+| --- | --- | --- |
+| Laufen | A / D oder Pfeiltasten | Linker Stick |
+| Springen | Leertaste, W oder Pfeil hoch | A |
+
+Kurz drücken = kleiner Sprung, lang drücken = hoher Sprung.
+
+## Projektstruktur
+
+```
+src/
+  shared/   Code für Server und Client (ReplicatedStorage.Shared)
+    Constants.luau      alle Spielwerte zum Tunen
+    ArenaLayouts.luau   Arenen als Daten
+  server/   ServerScriptService.Server
+    init.server.luau    Einstieg
+    Arena.luau          baut die Arena
+    HeadSpawner.luau    erzeugt Köpfe, Respawn
+  client/   StarterPlayerScripts.Client
+    init.client.luau    Einstieg
+    HeadController.luau Steuerung des eigenen Kopfes
+    CameraController.luau
+    ClayAnimator.luau   Knet-/Stop-Motion-Animation
+```
+
+## Einrichtung mit Rojo
+
+Rojo synchronisiert die Dateien aus diesem Repo live mit Roblox Studio.
+
+1. **Rojo-Plugin für Studio installieren:** im Roblox Creator Store nach „Rojo“ suchen (Herausgeber: Rojo) oder über die VS-Code-Erweiterung „Rojo“ installieren lassen.
+2. **Rojo-Programm installieren**, eine der Varianten:
+   - VS Code: Erweiterung **Rojo** installieren, sie bringt alles mit.
+   - Oder [Rokit](https://github.com/rojo-rbx/rokit) installieren und im Projektordner `rokit install` ausführen (die Version steht in `rokit.toml`).
+3. Im Projektordner `rojo serve` starten (oder in VS Code: Rojo → Start server).
+4. In Roblox Studio eine neue, leere Baseplate öffnen, im Rojo-Plugin auf **Connect** klicken.
+5. **Play** drücken. Zum Testen mit mehreren Spielern: Test → Clients and Servers → 2 Spieler → Start.
+
+Tipp: Alle Werte für das Spielgefühl (Geschwindigkeit, Sprunghöhe, Schwerkraft …) stehen in `src/shared/Constants.luau`.

@@ -1,0 +1,12 @@
+# Roblox-Place-Dateien (werden aus dem Code gebaut)
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+
+# Rojo / Tools
+sourcemap.json
+
+# System
+.DS_Store
+Thumbs.db
