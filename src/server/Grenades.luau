@@ -1,8 +1,8 @@
 --!strict
 -- Fähigkeit Granate (Granatengürtel).
--- Der Client wirft die Granate sofort selbst (eigene Vorschau) und schickt Richtung + Wurfkraft.
--- Der Server rechnet die echte Granate, verteilt den Wurf an alle Clients (die sie flüssig selbst
--- fliegen lassen) und entscheidet bei der Explosion:
+-- Spieler werfen sofort selbst (eigene Vorschau) und schicken Richtung + Wurfkraft. Bots werfen direkt
+-- über Grenades.throw. Der Server rechnet die echte Granate, verteilt den Wurf an alle Clients (die sie
+-- flüssig selbst fliegen lassen) und entscheidet bei der Explosion:
 --   * Köpfe im GRENADE_BLAST_RADIUS scheiden aus
 --   * Plattformen werden weggestoßen (gleiche Rechnung auf allen Clients, GrenadePhysics.applyExplosion)
 
@@ -15,7 +15,9 @@ local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 
-type Grenade = {
+type Participant = Player | string
+
+export type Grenade = {
 	id: string,
 	position: Vector3,
 	velocity: Vector3,
@@ -24,15 +26,16 @@ type Grenade = {
 
 export type Context = {
 	sim: PlatformSim.Sim,
-	getHead: (Player) -> Model?,
-	getHeads: () -> { [Player]: Model },
-	eliminate: (Player) -> (),
+	getHead: (Participant) -> Model?,
+	getHeads: () -> { [Participant]: Model },
+	eliminate: (Participant) -> (),
+	keyOf: (Participant) -> string,
 	events: RemoteEvent, -- Server -> alle Clients
 }
 
 local Grenades = {}
 
-local readyAt: { [Player]: number } = {}
+local readyAt: { [Participant]: number } = {}
 local active: { Grenade } = {}
 local context: Context
 
@@ -40,59 +43,65 @@ local function explode(grenade: Grenade, shapes: { PlatformShapes.Shape })
 	local position = grenade.position
 
 	-- Köpfe im Radius scheiden aus
-	for player, head in context.getHeads() do
+	local hit = {}
+	for participant, head in context.getHeads() do
 		local body = head.PrimaryPart
 		if body then
 			local flat = Vector3.new(body.Position.X - position.X, body.Position.Y - position.Y, 0)
 			if flat.Magnitude <= Constants.GRENADE_BLAST_RADIUS + Constants.HEAD_RADIUS then
-				context.eliminate(player)
+				table.insert(hit, participant)
 			end
 		end
+	end
+	for _, participant in hit do
+		context.eliminate(participant)
 	end
 
 	GrenadePhysics.applyExplosion(context.sim, shapes, position)
 	context.events:FireAllClients("Explosion", grenade.id, position)
 end
 
-local function onThrow(player: Player, directionValue: unknown, chargeValue: unknown, idValue: unknown)
-	if typeof(directionValue) ~= "Vector3" or typeof(idValue) ~= "string" then
-		return
-	end
-	local aim = directionValue :: Vector3
-	local flat = Vector3.new(aim.X, aim.Y, 0)
-	if flat.Magnitude < 0.1 or #(idValue :: string) > 40 then
-		return
+-- Granate werfen. direction = Wurfrichtung (360°), charge = 0..1. Gibt true zurück, wenn geworfen.
+function Grenades.throw(participant: Participant, direction: Vector3, charge: number, id: string): boolean
+	local flat = Vector3.new(direction.X, direction.Y, 0)
+	if flat.Magnitude < 0.1 then
+		return false
 	end
 	flat = flat.Unit
-	local charge = if typeof(chargeValue) == "number" then math.clamp(chargeValue, 0, 1) else 1
 
 	local now = Workspace:GetServerTimeNow()
-	if (readyAt[player] or 0) > now + 0.1 then
-		return
+	if (readyAt[participant] or 0) > now + 0.1 then
+		return false
 	end
-	local head = context.getHead(player)
+	local head = context.getHead(participant)
 	local body = head and head.PrimaryPart
 	if not head or not body or not Abilities.hasEquipped(head, "Grenade") then
-		return
+		return false
 	end
 
-	readyAt[player] = now + Constants.GRENADE_COOLDOWN
-	head:SetAttribute(Abilities.readyAttribute("Grenade"), readyAt[player])
+	readyAt[participant] = now + Constants.GRENADE_COOLDOWN
+	head:SetAttribute(Abilities.readyAttribute("Grenade"), readyAt[participant])
 
-	local id = `{player.UserId}-{idValue}`
-	local start, launchVelocity = GrenadePhysics.launch(body.Position, flat, charge)
+	local grenadeId = `{context.keyOf(participant)}-{id}`
+	local start, launchVelocity = GrenadePhysics.launch(body.Position, flat, math.clamp(charge, 0, 1))
 	table.insert(active, {
-		id = id,
+		id = grenadeId,
 		position = start,
 		velocity = launchVelocity,
 		explodeAt = now + Constants.GRENADE_FUSE,
 	})
-	context.events:FireAllClients("GrenadeThrown", id, start, launchVelocity, now, player.UserId)
+	context.events:FireAllClients("GrenadeThrown", grenadeId, start, launchVelocity, now)
+	return true
 end
 
 function Grenades.init(remote: RemoteEvent, grenadeContext: Context)
 	context = grenadeContext
-	remote.OnServerEvent:Connect(onThrow)
+	remote.OnServerEvent:Connect(function(player: Player, direction: unknown, charge: unknown, id: unknown)
+		if typeof(direction) == "Vector3" and typeof(id) == "string" and #(id :: string) <= 40 then
+			local chargeValue = if typeof(charge) == "number" then charge :: number else 1
+			Grenades.throw(player, direction :: Vector3, chargeValue, id :: string)
+		end
+	end)
 end
 
 function Grenades.step(dt: number)
@@ -114,8 +123,23 @@ function Grenades.step(dt: number)
 	end
 end
 
-function Grenades.removePlayer(player: Player)
-	readyAt[player] = nil
+-- Fliegende Granaten (z. B. damit Bots ausweichen können)
+function Grenades.getActive(): { Grenade }
+	return active
+end
+
+function Grenades.isReady(participant: Participant): boolean
+	return (readyAt[participant] or 0) <= Workspace:GetServerTimeNow()
+end
+
+-- Neue Runde: alle Granaten weg, Abklingzeiten zurücksetzen
+function Grenades.clear()
+	table.clear(active)
+	table.clear(readyAt)
+end
+
+function Grenades.removeParticipant(participant: Participant)
+	readyAt[participant] = nil
 end
 
 return Grenades

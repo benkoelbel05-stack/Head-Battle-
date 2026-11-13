@@ -202,6 +202,19 @@ function PlatformSim.step(sim: Sim, dt: number, now: number)
 	end
 end
 
+-- Alle Plattformen zurück an ihren Startplatz (neue Runde)
+function PlatformSim.reset(sim: Sim)
+	for _, state in sim.platforms do
+		state.offset = Vector3.zero
+		state.angle = 0
+		state.velocity = Vector3.zero
+		state.angularVelocity = 0
+		state.pendingAcceleration = Vector3.zero
+		state.pendingAngular = 0
+		table.clear(state.thrusters)
+	end
+end
+
 -- Wurzel-Parts an die berechnete Lage setzen (nur Client, lokal)
 function PlatformSim.apply(sim: Sim)
 	for _, state in sim.platforms do

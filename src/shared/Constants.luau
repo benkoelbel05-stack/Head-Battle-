@@ -80,7 +80,21 @@ Constants.PLATFORM_CONTACT_DISTANCE = 0.5 -- so nah muss ein Kopf sein, damit er
 
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
-Constants.RESPAWN_DELAY = 2 -- nur im Prototyp; später gibt es Runden
+Constants.RESPAWN_DELAY = 2 -- nur außerhalb von Runden (z. B. allein beim Warten auf Mitspieler)
+
+-- Rundensystem
+Constants.MIN_PARTICIPANTS = 2 -- ab so vielen Teilnehmern (Spieler + Bots) wird um Punkte gespielt
+Constants.MAX_PARTICIPANTS = 4
+Constants.WIN_POINTS = 5 -- so viele Rundensiege gewinnen ein Match
+Constants.COUNTDOWN_TIME = 3
+Constants.ROUND_END_TIME = 3 -- Pause nach einer Runde (Sieger wird angezeigt)
+Constants.MATCH_END_TIME = 6 -- Pause nach einem Match
+
+-- Bots
+Constants.BOT_NAMES = { "Knetbert", "Plastilina", "Wurstl", "Klumpi", "Matschka", "Fladen" }
+Constants.BOT_THINK_INTERVAL = 0.15 -- so oft entscheidet ein Bot neu (Sekunden)
+Constants.BOT_THROW_CHANCE = 0.35 -- Chance pro Entscheidung, eine Granate zu werfen (wenn sinnvoll)
+Constants.BOT_AIM_ERROR = 2.5 -- wie ungenau Bots zielen (Studs Abweichung beim Ziel)
 
 -- Knet-Look
 Constants.STOP_MOTION_FPS = 12
@@ -107,6 +121,7 @@ Constants.CAMERA_SMOOTHNESS = 5
 Constants.HEADS_FOLDER = "Heads"
 Constants.ARENA_FOLDER = "Arena"
 Constants.REMOTES_FOLDER = "Remotes"
+Constants.ROUND_STATE = "RoundState" -- Ordner in ReplicatedStorage mit Phase, Nachricht, Punkten
 Constants.EFFECTS_FOLDER = "Effects" -- nur lokal auf dem Client (Granaten, Explosionen)
 
 return Constants

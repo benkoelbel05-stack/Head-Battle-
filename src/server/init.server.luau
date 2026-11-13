@@ -16,11 +16,13 @@ local Arena = require(script.Arena)
 local HeadSpawner = require(script.HeadSpawner)
 local Thrusters = require(script.Thrusters)
 local Grenades = require(script.Grenades)
+local RoundManager = require(script.RoundManager)
+local BotController = require(script.BotController)
 
 -- Keine normalen Roblox-Figuren: Jeder Spieler ist ein Knetkopf.
 Players.CharacterAutoLoads = false
 
--- Schwerkraft rechnet der Client selbst (wegen Haften an Wand und Decke).
+-- Schwerkraft rechnet jeder Kopf selbst (wegen Haften an Wand und Decke).
 Workspace.Gravity = 0
 
 -- Flaches, warmes Licht ohne Schatten: wirkt wie ein 2D-Bild
@@ -32,7 +34,10 @@ Lighting.EnvironmentDiffuseScale = 0
 Lighting.EnvironmentSpecularScale = 0
 Lighting.ClockTime = 12
 
+---------------------------------------------------------------------------------------------------
 -- Netzwerk-Events
+---------------------------------------------------------------------------------------------------
+
 local remotes = Instance.new("Folder")
 remotes.Name = Constants.REMOTES_FOLDER
 local function makeRemote(className: string, name: string): Instance
@@ -43,11 +48,16 @@ local function makeRemote(className: string, name: string): Instance
 end
 local placeThruster = makeRemote("RemoteEvent", "PlaceThruster") :: RemoteEvent -- Client -> Server
 local throwGrenade = makeRemote("RemoteEvent", "ThrowGrenade") :: RemoteEvent -- Client -> Server
+local changeBots = makeRemote("RemoteEvent", "ChangeBots") :: RemoteEvent -- Client -> Server (+1 / -1)
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
 
--- Arena bauen. Die Plattformen rechnet jeder Rechner selbst (PlatformSim), der Server gleicht ab.
+---------------------------------------------------------------------------------------------------
+-- Arena und Plattform-Simulation
+---------------------------------------------------------------------------------------------------
+
+-- Die Plattformen rechnet jeder Rechner selbst (PlatformSim), der Server gleicht ab.
 local spawnPoints, platforms = Arena.build(ArenaLayouts.Basteltisch)
 local sim = PlatformSim.new()
 for _, platform in platforms do
@@ -59,29 +69,95 @@ PlatformShapes.setFrameProvider(function(model: Model): CFrame?
 end)
 
 HeadSpawner.init(spawnPoints)
-Thrusters.init(placeThruster, { sim = sim, getHead = HeadSpawner.getHead, events = platformEvents })
+
+---------------------------------------------------------------------------------------------------
+-- Fähigkeiten, Runden, Bots
+---------------------------------------------------------------------------------------------------
+
+Thrusters.init(placeThruster, {
+	sim = sim,
+	getHead = HeadSpawner.getHead,
+	keyOf = HeadSpawner.keyOf,
+	events = platformEvents,
+})
 Grenades.init(throwGrenade, {
 	sim = sim,
 	getHead = HeadSpawner.getHead,
 	getHeads = HeadSpawner.getHeads,
 	eliminate = HeadSpawner.eliminate,
+	keyOf = HeadSpawner.keyOf,
 	events = platformEvents,
 })
 
-Players.PlayerAdded:Connect(HeadSpawner.spawn)
+RoundManager.init({
+	spawn = HeadSpawner.spawn,
+	despawn = HeadSpawner.despawn,
+	keyOf = HeadSpawner.keyOf,
+	displayName = HeadSpawner.displayName,
+	getColor = HeadSpawner.getColor,
+	isBot = HeadSpawner.isBot,
+	getBots = BotController.list,
+	resetArena = function()
+		PlatformSim.reset(sim)
+		Grenades.clear()
+		Thrusters.resetCooldowns()
+		platformEvents:FireAllClients("Reset")
+	end,
+})
+HeadSpawner.setEliminatedCallback(RoundManager.onEliminated)
+
+BotController.init({
+	getHead = HeadSpawner.getHead,
+	getHeads = HeadSpawner.getHeads,
+	getPhase = RoundManager.getPhase,
+	setBotName = HeadSpawner.setBotName,
+	onAdded = RoundManager.addParticipant,
+	onRemoved = function(botId: string)
+		RoundManager.removeParticipant(botId)
+		HeadSpawner.removeParticipant(botId)
+		Grenades.removeParticipant(botId)
+		Thrusters.removeParticipant(botId)
+	end,
+	throwGrenade = Grenades.throw,
+	grenadeReady = Grenades.isReady,
+	activeGrenades = Grenades.getActive,
+	placeThruster = Thrusters.place,
+	thrusterReady = Thrusters.isReady,
+})
+
+-- Bots über die Knöpfe auf dem Bildschirm hinzufügen / entfernen
+changeBots.OnServerEvent:Connect(function(_player: Player, change: unknown)
+	if change == 1 and #Players:GetPlayers() + #BotController.list() < Constants.MAX_PARTICIPANTS then
+		BotController.add()
+	elseif change == -1 then
+		BotController.removeLast()
+	end
+end)
+
+---------------------------------------------------------------------------------------------------
+-- Spieler
+---------------------------------------------------------------------------------------------------
+
+Players.PlayerAdded:Connect(RoundManager.addParticipant)
 Players.PlayerRemoving:Connect(function(player)
-	HeadSpawner.removePlayer(player)
-	Thrusters.removePlayer(player)
-	Grenades.removePlayer(player)
+	RoundManager.removeParticipant(player)
+	HeadSpawner.removeParticipant(player)
+	Thrusters.removeParticipant(player)
+	Grenades.removeParticipant(player)
 end)
 for _, player in Players:GetPlayers() do
-	task.spawn(HeadSpawner.spawn, player)
+	task.spawn(RoundManager.addParticipant, player)
 end
+
+---------------------------------------------------------------------------------------------------
+-- Jeder Frame
+---------------------------------------------------------------------------------------------------
 
 local weightTracker = HeadWeight.newTracker()
 local snapshotTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
+	BotController.step(dt)
 	HeadSpawner.checkFalls()
 
 	local headList = {}

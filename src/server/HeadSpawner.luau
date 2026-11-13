@@ -1,28 +1,88 @@
 --!strict
--- Erzeugt für jeden Spieler einen Knetkopf und lässt ihn nach dem Ausscheiden wieder erscheinen.
+-- Erzeugt die Knetköpfe aller Teilnehmer (Spieler und Bots) und meldet, wenn einer ausscheidet.
+-- Ob und wann ein Kopf wieder erscheint, entscheidet der RoundManager.
 --
--- Aufbau eines Kopfes (Model, Name = Spielername):
---   Body      unsichtbare Kugel, gesteuert vom Client des Spielers (keine Roblox-Kollisionen,
---             die Bewegung rechnet der Client exakt gegen die Plattform-Formen)
---   Visual    sichtbare Knetkugel, wird auf jedem Client lokal animiert
+-- Teilnehmer = ein Player oder eine Bot-ID (Text, z. B. "Bot1").
+--
+-- Aufbau eines Kopfes (Model, Name = Anzeigename):
+--   Body         unsichtbare Kugel. Spieler steuern sie selbst (Network Owner = Spieler),
+--                Bots steuert der Server. Keine Roblox-Kollisionen, die Bewegung rechnet HeadMotor.
+--   Visual       sichtbare Knetkugel, wird auf jedem Client lokal animiert
 --   EyeLeft / EyeRight   Augen, ebenfalls lokal animiert
 --   Wear1–Wear3  ein Kleidungsstück pro ausgerüsteter Fähigkeit (Attribut "Ability"), lokal animiert
+-- Attribute am Model: UserId (Spieler) oder BotId (Bot), Loadout, <Fähigkeit>ReadyAt
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
+export type Participant = Player | string
+
 local HeadSpawner = {}
 
 local headsFolder: Folder
 local spawnPoints: { Vector3 } = {}
-local heads: { [Player]: Model } = {}
-local colorSlots: { [Player]: number } = {}
-local respawning: { [Player]: boolean } = {}
-local loadouts: { [Player]: { string } } = {}
+local heads: { [Participant]: Model } = {}
+local colorSlots: { [Participant]: number } = {}
+local loadouts: { [Participant]: { string } } = {}
+local botNames: { [string]: string } = {}
+local onEliminated: ((Participant) -> ())? = nil
+
+---------------------------------------------------------------------------------------------------
+-- Teilnehmer
+---------------------------------------------------------------------------------------------------
+
+function HeadSpawner.isBot(participant: Participant): boolean
+	return typeof(participant) == "string"
+end
+
+-- Eindeutiger Schlüssel als Text (für Punkte-Anzeige und IDs)
+function HeadSpawner.keyOf(participant: Participant): string
+	if typeof(participant) == "string" then
+		return participant
+	end
+	return tostring((participant :: Player).UserId)
+end
+
+function HeadSpawner.displayName(participant: Participant): string
+	if typeof(participant) == "string" then
+		return botNames[participant] or participant
+	end
+	return (participant :: Player).DisplayName
+end
+
+function HeadSpawner.setBotName(botId: string, name: string)
+	botNames[botId] = name
+end
+
+local function getColorSlot(participant: Participant): number
+	local existing = colorSlots[participant]
+	if existing then
+		return existing
+	end
+	local used = {}
+	for _, slot in colorSlots do
+		used[slot] = true
+	end
+	for slot = 1, #Constants.PLAYER_COLORS do
+		if not used[slot] then
+			colorSlots[participant] = slot
+			return slot
+		end
+	end
+	colorSlots[participant] = 1
+	return 1
+end
+
+function HeadSpawner.getColor(participant: Participant): Color3
+	return Constants.PLAYER_COLORS[getColorSlot(participant)]
+end
+
+---------------------------------------------------------------------------------------------------
+-- Köpfe bauen
+---------------------------------------------------------------------------------------------------
 
 local function decorativePart(name: string, shape: Enum.PartType, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
@@ -40,37 +100,22 @@ local function decorativePart(name: string, shape: Enum.PartType, size: Vector3,
 	return part
 end
 
-local function getColorSlot(player: Player): number
-	local existing = colorSlots[player]
-	if existing then
-		return existing
-	end
-	local used = {}
-	for _, slot in colorSlots do
-		used[slot] = true
-	end
-	for slot = 1, #Constants.PLAYER_COLORS do
-		if not used[slot] then
-			colorSlots[player] = slot
-			return slot
-		end
-	end
-	colorSlots[player] = 1
-	return 1
+local function getLoadout(participant: Participant): { string }
+	return loadouts[participant] or table.clone(Abilities.DEFAULT_LOADOUT)
 end
 
-local function getLoadout(player: Player): { string }
-	return loadouts[player] or table.clone(Abilities.DEFAULT_LOADOUT)
-end
-
-local function createHead(player: Player, color: Color3): Model
+local function createHead(participant: Participant, color: Color3): Model
 	local diameter = Constants.HEAD_RADIUS * 2
 	local model = Instance.new("Model")
-	model.Name = player.Name
-	model:SetAttribute("UserId", player.UserId)
+	model.Name = HeadSpawner.displayName(participant)
+	if typeof(participant) == "string" then
+		model:SetAttribute("BotId", participant)
+	else
+		model:SetAttribute("UserId", (participant :: Player).UserId)
+	end
 	-- Immer an alle Clients senden (wir haben keine Roblox-Figur, um die herum gestreamt wird)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
-	local loadout = getLoadout(player)
+	local loadout = getLoadout(participant)
 	model:SetAttribute("Loadout", Abilities.formatLoadout(loadout))
 
 	local body = Instance.new("Part")
@@ -107,6 +152,10 @@ local function createHead(player: Player, color: Color3): Model
 	return model
 end
 
+---------------------------------------------------------------------------------------------------
+-- Öffentliche Funktionen
+---------------------------------------------------------------------------------------------------
+
 function HeadSpawner.init(points: { Vector3 })
 	spawnPoints = points
 	local existing = Workspace:FindFirstChild(Constants.HEADS_FOLDER)
@@ -118,82 +167,87 @@ function HeadSpawner.init(points: { Vector3 })
 	headsFolder.Parent = Workspace
 end
 
-function HeadSpawner.getHead(player: Player): Model?
-	return heads[player]
+-- Wird aufgerufen, wenn ein Kopf ausscheidet (gefallen, Granate ...)
+function HeadSpawner.setEliminatedCallback(callback: (Participant) -> ())
+	onEliminated = callback
+end
+
+function HeadSpawner.getHead(participant: Participant): Model?
+	return heads[participant]
+end
+
+function HeadSpawner.getHeads(): { [Participant]: Model }
+	return heads
 end
 
 -- Ausrüstung ändern (max. 3 Fähigkeiten). Wird beim nächsten Erscheinen des Kopfes sichtbar.
-function HeadSpawner.setLoadout(player: Player, loadout: { string })
-	loadouts[player] = Abilities.parseLoadout(Abilities.formatLoadout(loadout))
+function HeadSpawner.setLoadout(participant: Participant, loadout: { string })
+	loadouts[participant] = Abilities.parseLoadout(Abilities.formatLoadout(loadout))
 end
 
-function HeadSpawner.despawn(player: Player)
-	local head = heads[player]
+function HeadSpawner.despawn(participant: Participant)
+	local head = heads[participant]
 	if head then
 		head:Destroy()
-		heads[player] = nil
+		heads[participant] = nil
 	end
 end
 
-function HeadSpawner.spawn(player: Player)
-	HeadSpawner.despawn(player)
-	if player.Parent == nil then
+function HeadSpawner.spawn(participant: Participant)
+	HeadSpawner.despawn(participant)
+	if typeof(participant) ~= "string" and (participant :: Player).Parent == nil then
 		return
 	end
 
-	local slot = getColorSlot(player)
-	local head = createHead(player, Constants.PLAYER_COLORS[slot])
+	local slot = getColorSlot(participant)
+	local head = createHead(participant, Constants.PLAYER_COLORS[slot])
 	local spawnPoint = spawnPoints[((slot - 1) % #spawnPoints) + 1]
 
 	head:PivotTo(CFrame.new(spawnPoint))
 	head.Parent = headsFolder
-	heads[player] = head
+	heads[participant] = head
 
-	-- Der Spieler steuert seine Kugel selbst: Bewegung ohne Verzögerung
 	local body = head.PrimaryPart :: BasePart
-	body:SetNetworkOwner(player)
-	-- Streaming-Mittelpunkt für diesen Spieler = sein Kopf
-	player.ReplicationFocus = body
+	if typeof(participant) == "string" then
+		body:SetNetworkOwner(nil) -- Bots steuert der Server
+	else
+		local player = participant :: Player
+		body:SetNetworkOwner(player) -- Spieler steuern ihre Kugel selbst: Bewegung ohne Verzögerung
+		player.ReplicationFocus = body -- Streaming-Mittelpunkt für diesen Spieler = sein Kopf
+	end
 end
 
-function HeadSpawner.removePlayer(player: Player)
-	HeadSpawner.despawn(player)
-	colorSlots[player] = nil
-	respawning[player] = nil
-	loadouts[player] = nil
-end
-
--- Kopf scheidet aus (gefallen, von Granate getroffen ...) und erscheint im Prototyp kurz danach wieder.
--- TODO (Phase 3): statt Respawn scheidet der Kopf für die Runde aus.
-function HeadSpawner.eliminate(player: Player)
-	if respawning[player] or not heads[player] then
+-- Kopf scheidet aus
+function HeadSpawner.eliminate(participant: Participant)
+	if not heads[participant] then
 		return
 	end
-	respawning[player] = true
-	HeadSpawner.despawn(player)
-	task.delay(Constants.RESPAWN_DELAY, function()
-		respawning[player] = nil
-		if player.Parent then
-			HeadSpawner.spawn(player)
-		end
-	end)
+	HeadSpawner.despawn(participant)
+	if onEliminated then
+		onEliminated(participant)
+	end
 end
 
--- Alle Köpfe (für Explosionen usw.)
-function HeadSpawner.getHeads(): { [Player]: Model }
-	return heads
+-- Teilnehmer verlässt das Spiel (Spieler geht, Bot wird entfernt)
+function HeadSpawner.removeParticipant(participant: Participant)
+	HeadSpawner.despawn(participant)
+	colorSlots[participant] = nil
+	loadouts[participant] = nil
+	if typeof(participant) == "string" then
+		botNames[participant] = nil
+	end
 end
 
--- Prüft jeden Frame, ob ein Kopf aus der Arena gefallen ist.
+-- Prüft jeden Frame, ob ein Kopf aus der Arena gefallen ist
 function HeadSpawner.checkFalls()
-	for player, head in heads do
+	for participant, head in heads do
 		local body = head.PrimaryPart
 		if body and body.Position.Y < Constants.FALL_LIMIT_Y then
-			HeadSpawner.eliminate(player)
+			HeadSpawner.eliminate(participant)
 		end
 	end
 end
 
--- TODO (Phase 2): Positionen auf Plausibilität prüfen (Anti-Cheat), Treffer serverseitig entscheiden.
+-- TODO: Positionen der Spieler auf Plausibilität prüfen (Anti-Cheat).
 
 return HeadSpawner

@@ -33,6 +33,7 @@ local sim = PlatformSim.new()
 local weightTracker = HeadWeight.newTracker()
 local grenades: { [string]: LocalGrenade } = {}
 local knownExplosions: { [string]: boolean } = {}
+local thrusterVisuals: { [Part]: boolean } = {}
 local effectsFolder: Folder
 local arena: Instance? = nil
 
@@ -82,7 +83,9 @@ local function showThruster(model: Model, thruster: PlatformSim.Thruster)
 	local normal = frame:VectorToWorldSpace(-thruster.localDirection)
 	state.root.CFrame = frame -- damit die Schweißnaht an der richtigen Stelle sitzt
 	local visual = ThrusterVisual.create(state.root, point, normal)
+	thrusterVisuals[visual] = true
 	task.delay(math.max(thruster.endTime - Workspace:GetServerTimeNow(), 0), function()
+		thrusterVisuals[visual] = nil
 		visual:Destroy()
 	end)
 end
@@ -143,6 +146,18 @@ local function onEvent(kind: unknown, ...: any)
 		if typeof(id) == "string" and typeof(start) == "Vector3" and typeof(velocity) == "Vector3" and typeof(startTime) == "number" then
 			spawnGrenade(id, start, velocity, startTime)
 		end
+	elseif kind == "Reset" then
+		-- Neue Runde: Plattformen zurück, Thruster und Granaten weg
+		PlatformSim.reset(sim)
+		PlatformSim.apply(sim)
+		for visual in thrusterVisuals do
+			visual:Destroy()
+		end
+		table.clear(thrusterVisuals)
+		for _, grenade in grenades do
+			grenade.part:Destroy()
+		end
+		table.clear(grenades)
 	elseif kind == "Explosion" then
 		local id, position = ...
 		if typeof(id) == "string" and typeof(position) == "Vector3" then

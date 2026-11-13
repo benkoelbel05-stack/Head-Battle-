@@ -2,7 +2,7 @@
 
 Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen durch Stop-Motion-Arenen und bekämpfen sich mit Hüten, die ihnen Superkräfte geben. Eine Hommage an *Bopl Battle*.
 
-## Stand: Phase 1–2 – Prototyp
+## Stand: Phase 1–3 – Prototyp
 
 - [x] Knetkopf als Spielfigur (eigene Bewegung, keine Roblox-Figur)
 - [x] Exakte Bewegung um die Plattformen: an jeder Seite kleben, gleichmäßig um die runden Enden gleiten, nicht herunterfallen
@@ -16,8 +16,10 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Masse je nach Größe und Dichte: große/schwere Plattformen bewegen und drehen sich weniger
 - [x] 2D-Kamera, zeigt immer die ganze Arena
 - [x] Knet-Look: Squash & Stretch, Stop-Motion-Takt, Kopf dreht sich mit der Fläche
-- [ ] Kopfnuss, weitere Fähigkeiten (Phase 2)
-- [ ] Runden, Punkte, Auswahl der Kleidung (Phase 3)
+- [x] Rundensystem: Countdown, ein Treffer = raus, letzter Überlebender bekommt einen Punkt, 5 Punkte gewinnen das Match
+- [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
+- [ ] Kopfnuss, weitere Fähigkeiten
+- [ ] Auswahl der Kleidung vor der Runde
 - [ ] Touch-Steuerung für Handys (Phase 3)
 
 ## Steuerung
@@ -45,12 +47,15 @@ src/
     PlatformShapes.luau exakte Form der Plattformen (Bewegung, Kollision, Granaten)
     PlatformSim.luau    Physik der Plattformen (läuft auf Server UND jedem Client)
     HeadWeight.luau     Köpfe drücken auf Plattformen (Gewicht, Landen, Laufen)
+    HeadMotor.luau      Bewegung eines Kopfes (Spieler auf dem Client, Bots auf dem Server)
     GrenadePhysics.luau Flugbahn und Explosion der Granate
     ThrusterVisual.luau Aussehen des Thrusters
   server/   ServerScriptService.Server
     init.server.luau    Einstieg, Netzwerk-Events, Abgleich der Plattformen
     Arena.luau          baut die Arena
-    HeadSpawner.luau    erzeugt Köpfe, Ausscheiden, Respawn
+    HeadSpawner.luau    erzeugt Köpfe aller Teilnehmer (Spieler + Bots), meldet Ausscheiden
+    RoundManager.luau   Rundensystem, Punkte
+    BotController.luau  Bot-KI
     Thrusters.luau      Fähigkeit Thruster (prüfen und verteilen)
     Grenades.luau       Fähigkeit Granate (echte Granate, entscheidet wer ausscheidet)
   client/   StarterPlayerScripts.Client
@@ -60,6 +65,7 @@ src/
     CameraController.luau
     ClayAnimator.luau   Knet-/Stop-Motion-Animation, Kleidung
     AimPreview.luau     Zielstreifen für die Granate
+    RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```
 
 ### Netzwerk-Prinzip
