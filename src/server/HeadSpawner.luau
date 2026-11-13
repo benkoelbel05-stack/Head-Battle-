@@ -76,7 +76,12 @@ local function createHead(player: Player, color: Color3): Model
 	body.Parent = model
 	model.PrimaryPart = body
 
-	decorativePart("Visual", Enum.PartType.Ball, Vector3.one * diameter, color, model)
+	-- Sichtbarer Kopf: ein Block mit Kugel-Mesh. Anders als eine Ball-Part lässt sich das
+	-- in jede Richtung quetschen und strecken (Ball-Parts sind in Roblox immer rund).
+	local visual = decorativePart("Visual", Enum.PartType.Block, Vector3.one * diameter, color, model)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = visual
 	local eyeSize = Vector3.one * (Constants.HEAD_RADIUS * 0.32)
 	local eyeColor = Color3.fromRGB(30, 26, 28)
 	decorativePart("EyeLeft", Enum.PartType.Ball, eyeSize, eyeColor, model)

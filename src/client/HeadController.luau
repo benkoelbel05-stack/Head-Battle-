@@ -55,6 +55,7 @@ local lastAttached = -math.huge
 local detachUntil = 0
 
 local facing = 1
+local crawlDirection = 0 -- Laufrichtung entlang der Fläche (+1 / -1), bleibt um Ecken herum erhalten
 
 local dashPressed = false
 local dashUntil = 0
@@ -137,8 +138,16 @@ local function findSurface(position: Vector3, moveDir: Vector3): Vector3?
 	local best: Vector3? = nil
 	local bestScore = -math.huge
 
-	for _, direction in DIRECTIONS do
-		local hit = Workspace:Raycast(position, direction * length, raycastParams)
+	-- Zusätzlich direkt zur aktuellen Fläche suchen, etwas weiter:
+	-- so bleibt der Kopf auch auf engen Rundungen kleben
+	local directions = table.clone(DIRECTIONS)
+	if surfaceNormal then
+		table.insert(directions, -surfaceNormal)
+	end
+
+	for index, direction in directions do
+		local rayLength = if index > #DIRECTIONS then length + 0.4 else length
+		local hit = Workspace:Raycast(position, direction * rayLength, raycastParams)
 		if hit then
 			local normal = flatNormal(hit.Normal)
 			local score = -hit.Distance + moveDir:Dot(-normal) * 10
@@ -236,7 +245,20 @@ local function step(rawDt: number)
 		local normal = surfaceNormal
 		local tangent = Vector3.new(normal.Y, -normal.X, 0)
 		local along = velocity:Dot(tangent)
-		local target = input:Dot(tangent) * Constants.MOVE_SPEED
+
+		-- Laufrichtung bestimmen: Zeigt die Eingabe klar entlang der Fläche, gilt sie.
+		-- Steht sie quer zur Fläche (z. B. "rechts" an einer senkrechten Wand nach dem Herumlaufen
+		-- um eine Ecke), läuft der Kopf in seiner bisherigen Richtung weiter.
+		local inputAlong = input:Dot(tangent)
+		if input.Magnitude < 0.1 then
+			crawlDirection = 0
+		elseif math.abs(inputAlong) > 0.7 then
+			crawlDirection = math.sign(inputAlong)
+		elseif crawlDirection == 0 and math.abs(inputAlong) > 0.1 then
+			crawlDirection = math.sign(inputAlong)
+		end
+
+		local target = crawlDirection * Constants.MOVE_SPEED
 		along = moveTowards(along, target, Constants.GROUND_ACCEL * dt)
 		newVelocity = tangent * along - normal * Constants.STICK_SPEED
 	else

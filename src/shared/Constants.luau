@@ -24,7 +24,7 @@ Constants.JUMP_BUFFER = 0.12 -- Sprung kurz vor der Landung gedrückt zählt tro
 Constants.WALL_JUMP_LIFT = 0.8 -- wie steil man von einer Wand nach oben abspringt
 
 -- Haften an Boden, Wand und Decke
-Constants.STICK_DISTANCE = 0.35 -- so nah muss eine Fläche sein, damit man klebt (zusätzlich zum Radius)
+Constants.STICK_DISTANCE = 0.5 -- so nah muss eine Fläche sein, damit man klebt (zusätzlich zum Radius)
 Constants.STICK_SPEED = 6 -- wie stark der Kopf an die Fläche gedrückt wird
 Constants.DETACH_TIME = 0.15 -- nach dem Absprung so lange nicht wieder festkleben
 
