@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
+local PlatformPhysics = require(script.Parent.PlatformPhysics)
 
 local Thrusters = {}
 
@@ -29,7 +30,13 @@ local function makeFlame(parent: BasePart)
 	emitter.Parent = parent
 end
 
-local function attachThruster(part: BasePart, position: Vector3, normal: Vector3)
+-- Gibt false zurück, wenn das getroffene Teil keine bewegliche Plattform ist
+local function attachThruster(part: BasePart, position: Vector3, normal: Vector3): boolean
+	-- Schub in die Plattform hinein, also weg vom Thruster
+	if not PlatformPhysics.addThruster(part, position, -normal, Constants.THRUSTER_DURATION) then
+		return false
+	end
+
 	-- Ausrichtung: X-Achse zeigt aus der Fläche heraus, Y-Achse zur Kamera
 	local outward = CFrame.fromMatrix(position, normal, Vector3.zAxis)
 
@@ -54,25 +61,10 @@ local function attachThruster(part: BasePart, position: Vector3, normal: Vector3
 	weld.Parent = thruster
 	makeFlame(thruster)
 
-	-- Kraft am Klebepunkt, dreht mit der Plattform mit
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "ThrusterAttachment"
-	attachment.Parent = part
-	attachment.WorldCFrame = outward
-
-	local mass = part.AssemblyMass
-	local force = Instance.new("VectorForce")
-	force.Attachment0 = attachment
-	force.RelativeTo = Enum.ActuatorRelativeTo.Attachment0
-	force.ApplyAtCenterOfMass = false -- Kraft am Rand = Drehung
-	force.Force = Vector3.new(-mass * Constants.THRUSTER_ACCEL, 0, 0) -- in die Plattform hinein
-	force.Parent = part
-
 	task.delay(Constants.THRUSTER_DURATION, function()
-		force:Destroy()
-		attachment:Destroy()
 		thruster:Destroy()
 	end)
+	return true
 end
 
 local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, direction: unknown)
@@ -110,7 +102,7 @@ local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, dire
 	end
 
 	local part = hit.Instance
-	if not part:IsA("BasePart") or part.Anchored then
+	if not part:IsA("BasePart") then
 		return
 	end
 
@@ -119,9 +111,10 @@ local function onPlaceThruster(player: Player, getHead: (Player) -> Model?, dire
 		return
 	end
 
-	readyAt[player] = now + Constants.THRUSTER_COOLDOWN
-	head:SetAttribute(Abilities.readyAttribute("Thruster"), readyAt[player])
-	attachThruster(part, hit.Position, normal.Unit)
+	if attachThruster(part, hit.Position, normal.Unit) then
+		readyAt[player] = now + Constants.THRUSTER_COOLDOWN
+		head:SetAttribute(Abilities.readyAttribute("Thruster"), readyAt[player])
+	end
 end
 
 function Thrusters.init(remote: RemoteEvent, getHead: (Player) -> Model?)

@@ -40,12 +40,14 @@ Constants.THRUSTER_ACCEL = 70 -- Schub (Beschleunigung der Plattform in Studs/s�
 Constants.THRUSTER_DURATION = 2
 Constants.THRUSTER_COOLDOWN = 6
 
--- Plattform-Physik
-Constants.PLATFORM_HOME_ACCEL = 12 -- wie stark die Feder die Plattform zurück an ihren Platz zieht
-Constants.PLATFORM_HOME_RESPONSIVENESS = 4
-Constants.PLATFORM_HOME_ANGULAR_ACCEL = 2 -- wie stark die Feder die Drehung zurückstellt (rad/s²)
-Constants.PLATFORM_LINEAR_DAMPING = 1 -- bremst Bewegung ab
-Constants.PLATFORM_ANGULAR_DAMPING = 1.5 -- bremst Drehung ab
+-- Plattform-Physik (eigene Feder, siehe PlatformPhysics.luau)
+-- Gleichgewicht unter vollem Schub: THRUSTER_ACCEL / PLATFORM_SPRING Studs vom Startplatz
+Constants.PLATFORM_SPRING = 6 -- wie stark die Plattform zum Startplatz zurückgezogen wird
+Constants.PLATFORM_DAMPING = 5 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfedern ohne Nachwackeln
+Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich eine Plattform nie
+Constants.PLATFORM_ANGULAR_SPRING = 10
+Constants.PLATFORM_ANGULAR_DAMPING = 6.3
+Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
 
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
@@ -71,6 +73,7 @@ Constants.CAMERA_FOV = 8
 Constants.CAMERA_MIN_DISTANCE = 300
 Constants.CAMERA_MAX_DISTANCE = 3000
 Constants.CAMERA_PADDING = 6 -- Rand um Arena und Köpfe (Studs)
+Constants.CAMERA_MAX_EXTRA = 8 -- so weit über die Arena hinaus folgt die Kamera einem Kopf höchstens
 Constants.CAMERA_SMOOTHNESS = 5
 
 -- Namen im Workspace
