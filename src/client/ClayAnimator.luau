@@ -12,6 +12,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 
@@ -39,6 +40,7 @@ type HeadState = {
 	onSurface: boolean,
 	onTop: boolean, -- klebt auf einer Oberseite (oder in der Luft)
 	spawnedAt: number,
+	layer: number, -- Tiefen-Staffel der Figur (0-6)
 }
 
 local IMPACT_SQUASH_TIME = 0.15
@@ -52,6 +54,7 @@ local CYLINDER_UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht 
 local ClayAnimator = {}
 
 local states: { [Model]: HeadState } = {}
+local nextLayer = 0 -- jede Figur bekommt ihre eigene Tiefe, damit sich überlappende nicht flackern
 local random = Random.new()
 local frameTimer = 0
 local shapes: { PlatformShapes.Shape } = {}
@@ -75,6 +78,7 @@ local function getState(head: Model): HeadState
 			onSurface = false,
 			onTop = true,
 			spawnedAt = os.clock(),
+			layer = 0,
 		}
 		-- Sprite statt Knetkugel, wenn möglich
 		local skin = head:GetAttribute("Skin")
@@ -91,6 +95,13 @@ local function getState(head: Model): HeadState
 		local facing = head:GetAttribute("Facing")
 		if typeof(facing) == "number" then
 			state.facing = facing
+		end
+		-- Eigene Figur ganz vorne, die anderen gestaffelt dahinter
+		if head:GetAttribute("UserId") == Players.LocalPlayer.UserId then
+			state.layer = 6
+		else
+			state.layer = nextLayer % 5
+			nextLayer += 1
 		end
 		states[head] = state
 	end
@@ -286,7 +297,7 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	if sprite and state.skin then
 		local size = Constants.SPRITE_SIZE
 		sprite.part.Size = Vector3.new(size * scale.X, size * scale.Y, 0.05)
-		local front = Vector3.new(0, 0, Constants.SPRITE_Z - headFrame.Z)
+		local front = Vector3.new(0, 0, Constants.SPRITE_Z + state.layer * Constants.SPRITE_LAYER_STEP - headFrame.Z)
 		local offset = if state.onTop then Constants.SPRITE_OFFSET_Y else Constants.SPRITE_OFFSET_Y_OTHER
 		sprite.part.CFrame = (headFrame + front) * CFrame.new(0, offset * scale.Y, 0)
 

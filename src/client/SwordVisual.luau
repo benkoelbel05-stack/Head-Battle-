@@ -34,7 +34,7 @@ local function spark(position: Vector3)
 		local angle = math.rad(i * 90 + math.random(-30, 30))
 		local piece = makePart("SwordSpark", Vector3.one * 0.3, Color3.fromRGB(255, 236, 170), 0)
 		piece.Shape = Enum.PartType.Ball
-		piece.Position = Vector3.new(position.X, position.Y, Constants.SPRITE_Z + 0.3)
+		piece.Position = Vector3.new(position.X, position.Y, Constants.SPRITE_Z + 1.1)
 		local target = piece.Position + Vector3.new(math.cos(angle), math.sin(angle), 0) * 1.2
 		local started = os.clock()
 		local connection: RBXScriptConnection
@@ -58,7 +58,7 @@ function SwordVisual.play(origin: Vector3, direction: Vector3)
 	-- Von oben nach unten schwingen (bei Blick nach links gespiegelt, damit es natürlich aussieht)
 	local sweep = if direction.X >= 0 then -1 else 1
 	local startAngle = center - sweep * arc
-	local pivot = Vector3.new(origin.X, origin.Y, Constants.SPRITE_Z + 0.2)
+	local pivot = Vector3.new(origin.X, origin.Y, Constants.SPRITE_Z + 1)
 
 	local blade = makePart("SwordBlade", Vector3.new(range - 1, 0.35, 0.1), Constants.SWORD_COLOR, 0)
 	local hilt = makePart("SwordHilt", Vector3.new(0.9, 0.55, 0.12), Color3.fromRGB(120, 78, 50), 0)

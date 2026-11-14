@@ -39,18 +39,21 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	local center = CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z)
 	local middleLength = width - radius * 2
 
+	-- Jede Plattform ist vorne etwas weiter hinten als die vorige: überlappen sich zwei (z. B. nach
+	-- einer Explosion), flackern ihre Flächen nicht ineinander. Die Mitte bleibt bei PLANE_Z (Physik ist 2D).
+	local depth3D = PLATFORM_DEPTH - (index - 1) * Constants.PLATFORM_LAYER_STEP * 2
 	local parts: { BasePart } = {}
 	if middleLength > 0.01 then
 		table.insert(
 			parts,
-			makePart("Middle", Vector3.new(middleLength, height, PLATFORM_DEPTH), center, platform.color, model)
+			makePart("Middle", Vector3.new(middleLength, height, depth3D), center, platform.color, model)
 		)
 	end
 	for side = -1, 1, 2 do
 		local capCenter = center * CFrame.new(side * middleLength / 2, 0, 0)
 		local cap = makePart(
 			"Cap",
-			Vector3.new(PLATFORM_DEPTH, height, height),
+			Vector3.new(depth3D, height, height),
 			capCenter * CYLINDER_TO_CAMERA,
 			platform.color,
 			model
@@ -69,19 +72,19 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	end
 	local depth = math.min(Constants.PLATFORM_TOP_DEPTH, radius * 0.8)
 	local frontRadius = radius - depth / 2
-	local frontZ = PLATFORM_DEPTH / 2 + 0.03
+	local frontZ = depth3D / 2 + Constants.PLATFORM_FRONT_GAP
 	local frontCenter = center * CFrame.new(0, -depth / 2, frontZ)
 	local frontParts: { BasePart } = {}
 	if middleLength > 0.01 then
 		table.insert(
 			frontParts,
-			makePart("Front", Vector3.new(middleLength, frontRadius * 2, 0.04), frontCenter, platform.color, model)
+			makePart("Front", Vector3.new(middleLength, frontRadius * 2, 0.1), frontCenter, platform.color, model)
 		)
 	end
 	for side = -1, 1, 2 do
 		local cap = makePart(
 			"FrontCap",
-			Vector3.new(0.04, frontRadius * 2, frontRadius * 2),
+			Vector3.new(0.1, frontRadius * 2, frontRadius * 2),
 			frontCenter * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA,
 			platform.color,
 			model

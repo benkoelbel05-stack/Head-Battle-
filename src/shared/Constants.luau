@@ -177,7 +177,14 @@ Constants.SPRITE_OFFSET_Y_OTHER = -0.15 -- dasselbe an Wänden und Unterseiten (
 Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe), zum Spiegeln nötig
 Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
-Constants.SPRITE_Z = 4.2 -- Abstand zur Kamera-Ebene: vor den Plattformen (diese sind 8 Studs tief)
+-- Ebenen nach vorne (Kamera schaut von +Z). Die Kamera steht sehr weit weg, deshalb brauchen Flächen
+-- deutliche Abstände, sonst flackern sie ineinander ("Z-Fighting"):
+--   Plattformen: Vorderseite bei höchstens 4, Front-Platte 0,25 davor, jede Plattform 0,5 weiter hinten
+--   Figuren: SPRITE_Z (+ etwas pro Figur, die eigene ganz vorne), Schwert davor
+Constants.SPRITE_Z = 5.5
+Constants.SPRITE_LAYER_STEP = 0.1 -- Abstand zwischen überlappenden Figuren
+Constants.PLATFORM_LAYER_STEP = 0.5 -- Abstand zwischen überlappenden Plattformen
+Constants.PLATFORM_FRONT_GAP = 0.25 -- Front-Platte vor der Plattform
 
 -- Plattform-Look mit Tiefe: oben eine hellere Kante (die "Oberseite"), auf der die Figuren stehen
 Constants.PLATFORM_TOP_DEPTH = 0.55 -- Dicke der hellen Oberkante in Studs
