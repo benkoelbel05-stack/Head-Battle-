@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
@@ -232,7 +233,7 @@ function Missiles.step(dt: number)
 		end
 
 		local position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
-		local shouldExplode = now - missile.firedAt >= Constants.MISSILE_LIFETIME or position.Y < Constants.FALL_LIMIT_Y
+		local shouldExplode = now - missile.firedAt >= Constants.MISSILE_LIFETIME or position.Y < ArenaInfo.fallLimit()
 		-- Treffer prüfen (genau die Form der Rakete, siehe MissileShape). Spieler-Raketen meldet meist
 		-- schon der Schütze selbst (MissileHit), das hier ist die Absicherung.
 		local forward = missile.part.CFrame.RightVector

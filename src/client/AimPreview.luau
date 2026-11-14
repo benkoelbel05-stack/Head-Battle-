@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 
@@ -76,7 +77,7 @@ function AimPreview.show(headPosition: Vector3, aim: Vector3, charge: number, ot
 						break
 					end
 				end
-				if hit or hitsHead or flightTime >= Constants.GRENADE_FUSE or position.Y < Constants.FALL_LIMIT_Y then
+				if hit or hitsHead or flightTime >= Constants.GRENADE_FUSE or position.Y < ArenaInfo.fallLimit() then
 					stopped = true
 					stopPosition = position
 					break

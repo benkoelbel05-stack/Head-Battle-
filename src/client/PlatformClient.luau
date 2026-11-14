@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local HeadWeight = require(ReplicatedStorage.Shared.HeadWeight)
@@ -353,7 +354,7 @@ function PlatformClient.step(dt: number)
 
 	-- Granaten fliegen lassen; bei Zündung verschwinden sie (die Explosion kommt vom Server)
 	for id, grenade in grenades do
-		if now >= grenade.explodeAt + 0.5 or grenade.position.Y < Constants.FALL_LIMIT_Y then
+		if now >= grenade.explodeAt + 0.5 or grenade.position.Y < ArenaInfo.fallLimit() then
 			grenade.part:Destroy()
 			grenades[id] = nil
 		elseif now < grenade.explodeAt then

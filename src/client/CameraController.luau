@@ -27,7 +27,7 @@ local function updateArenaBounds(arena: Instance)
 	local minPoint = Vector3.one * math.huge
 	local maxPoint = -Vector3.one * math.huge
 	for _, part in arena:GetDescendants() do
-		if part:IsA("BasePart") and part.Name ~= "Background" and part.Name ~= "Thruster" then
+		if part:IsA("BasePart") and part.Name ~= "Background" and part.Name ~= "Thruster" and part.Name ~= "Water" and part.Name ~= "WaterLine" then
 			local half = part.Size / 2
 			minPoint = minPoint:Min(part.Position - half)
 			maxPoint = maxPoint:Max(part.Position + half)

@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
@@ -280,7 +281,7 @@ end
 function HeadSpawner.checkFalls()
 	for participant, head in heads do
 		local body = head.PrimaryPart
-		if body and body.Position.Y < Constants.FALL_LIMIT_Y then
+		if body and body.Position.Y < ArenaInfo.fallLimit() then
 			HeadSpawner.eliminate(participant, "Fall")
 		end
 	end

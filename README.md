@@ -17,6 +17,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Ausrüstungs-Wahl im Bopl-Stil nach „Spielen“: Fähigkeiten-Panel, eigene Spalte mit 3 Slots (Slot wählen, dann Fähigkeit oder ◀ ▶), Figur und Haken; rechts Mitspieler/Bots bzw. „Warte auf Spieler …“, Bots und Bot-Stärke; im Spiel „Ausrüstung“ unten links
 - [x] Knet-Texturen auf den Plattformen (Fläche + Kante, je Plattform `material` im Layout; IDs in `src/shared/PlatformTextures.luau`)
 - [x] Glücksrad vor jeder Runde: zufällige Karte (Basteltisch, Schwebeinseln, Knettreppe, Wackelbrücke) und Hintergrund
+- [x] Karten im Bopl-Stil: dicke Inseln, Kreise, schräge Würste (`rotation`), Rand-Textur rundherum, dünne Kontur, Wasser unten (Hineinfallen = raus)
 - [x] Hintergrundbilder im Spiel (Tag / Sonnenuntergang / Nacht, jede Runde ein anderes; IDs in `src/shared/ArenaAssets.luau`)
 - [x] Countdown 3-2-1-LOS beim Einstieg und vor jeder Runde (Bots spielen erst um Punkte, wenn ein Spieler eingestiegen ist)
 - [x] Bot-Stärke Leicht / Normal / Schwer / Profi: Reaktionszeit, Tempo, Zielgenauigkeit, Ausweichen; ab „Schwer“ schlagen Bots Granaten zurück, kombinieren Dash + Schwert, zünden Raketen neben dem Gegner und meiden Schwertkämpfer

@@ -23,19 +23,19 @@ local Trims = {
 	snow = 95652427740734,
 }
 
--- rim = Farbe der hellen Oberkante (passend zur Kante bzw. zur Fläche)
-export type Material = { tex: number, trim: number?, rim: Color3 }
+-- rim = Farbe des Rands rundherum, rimTex = Textur auf dem Rand (z. B. Gras rund um Erde)
+export type Material = { tex: number, trim: number?, rim: Color3, rimTex: number? }
 
 local GRASS_RIM = Color3.fromRGB(122, 196, 62)
 
 local PlatformTextures: { [string]: Material } = {
-	grass = { tex = Textures.grass, trim = Trims.grass, rim = GRASS_RIM },
-	dirt = { tex = Textures.dirt, trim = Trims.grass, rim = GRASS_RIM },
-	stone = { tex = Textures.stone, trim = Trims.grass, rim = GRASS_RIM },
+	grass = { tex = Textures.grass, trim = Trims.grass, rim = GRASS_RIM, rimTex = Textures.grass },
+	dirt = { tex = Textures.dirt, trim = Trims.grass, rim = GRASS_RIM, rimTex = Textures.grass },
+	stone = { tex = Textures.stone, trim = Trims.grass, rim = GRASS_RIM, rimTex = Textures.grass },
 	wood = { tex = Textures.wood, rim = Color3.fromRGB(214, 160, 100) },
 	cheese = { tex = Textures.cheese, rim = Color3.fromRGB(252, 218, 112) },
-	ice = { tex = Textures.ice, trim = Trims.snow, rim = Color3.fromRGB(236, 246, 255) },
-	snow = { tex = Textures.snow, trim = Trims.snow, rim = Color3.fromRGB(240, 246, 255) },
+	ice = { tex = Textures.ice, trim = Trims.snow, rim = Color3.fromRGB(236, 246, 255), rimTex = Textures.snow },
+	snow = { tex = Textures.snow, trim = Trims.snow, rim = Color3.fromRGB(240, 246, 255), rimTex = Textures.snow },
 	lava = { tex = Textures.lava, trim = Trims.lava, rim = Color3.fromRGB(255, 150, 60) },
 	purple_clay = { tex = Textures.purple_clay, trim = Trims.purple_clay, rim = Color3.fromRGB(196, 128, 236) },
 }

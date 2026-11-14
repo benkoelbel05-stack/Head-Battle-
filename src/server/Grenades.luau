@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local HeadHistory = require(script.Parent.HeadHistory)
@@ -150,7 +151,7 @@ function Grenades.step(dt: number)
 		if now >= grenade.explodeAt then
 			table.remove(active, i)
 			explode(grenade, shapes)
-		elseif grenade.position.Y < Constants.FALL_LIMIT_Y then
+		elseif grenade.position.Y < ArenaInfo.fallLimit() then
 			table.remove(active, i)
 		else
 			GrenadePhysics.advance(grenade, dt, shapes)

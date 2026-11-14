@@ -18,6 +18,7 @@ local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local HeadMotor = require(ReplicatedStorage.Shared.HeadMotor)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
+local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 
 type Participant = Player | string
 
@@ -341,7 +342,9 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 	if normal then
 		bot.rescueDecision = nil
 	end
-	if not normal and motor.velocity.Y < 0 and position.Y < lowestPlatformY(shapes) - 3 then
+	-- (bei Karten mit Wasser schon rechtzeitig über der Wasseroberfläche)
+	local rescueHeight = math.max(lowestPlatformY(shapes) - 3, ArenaInfo.fallLimit() + 10)
+	if not normal and motor.velocity.Y < 0 and position.Y < rescueHeight then
 		if bot.rescueDecision == nil then
 			bot.rescueDecision = random:NextNumber() < level.rescueChance
 		end

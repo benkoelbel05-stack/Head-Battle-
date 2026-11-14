@@ -40,7 +40,10 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	local width, height = platform.size.X, platform.size.Y
 	local radius = math.min(height, width) / 2
 	local center = CFrame.new(platform.position.X, platform.position.Y, Constants.PLANE_Z)
+		* CFrame.Angles(0, 0, math.rad(platform.rotation or 0))
 	local middleLength = width - radius * 2
+	-- Kreis (Breite = Höhe): nur ein rundes Teil statt Mittelstück + zwei Enden
+	local sides = if middleLength > 0.01 then { -1, 1 } else { 1 }
 
 	-- Jede Plattform ist vorne etwas weiter hinten als die vorige: überlappen sich zwei (z. B. nach
 	-- einer Explosion), flackern ihre Flächen nicht ineinander. Die Mitte bleibt bei PLANE_Z (Physik ist 2D).
@@ -52,7 +55,7 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 			makePart("Middle", Vector3.new(middleLength, height, depth3D), center, platform.color, model)
 		)
 	end
-	for side = -1, 1, 2 do
+	for _, side in sides do
 		local capCenter = center * CFrame.new(side * middleLength / 2, 0, 0)
 		local cap = makePart(
 			"Cap",
@@ -65,18 +68,17 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		table.insert(parts, cap)
 	end
 
-	-- Look mit Tiefe: Die Plattform selbst bekommt die hellere Farbe der Oberseite. Davor liegt eine
-	-- flache Front in der eigentlichen Farbe, etwas nach unten versetzt und kleiner. So bleibt oben
-	-- (und an den Rundungen auslaufend) ein heller Rand sichtbar, auf dem die Figuren stehen.
-	-- Die Front ist reine Optik: keine Kollision, keine Raycasts.
+	-- Look wie im Vorbild: Die Plattform selbst ist der Rand (z. B. Gras rundherum). Davor liegt eine
+	-- etwas kleinere, flache Front mit der Flächen-Textur (Erde, Stein ...). So bleibt rundherum ein
+	-- gleichmäßiger Rand sichtbar. Die Front ist reine Optik: keine Kollision, keine Raycasts.
 	local topColor = platform.color:Lerp(Color3.new(1, 1, 1), Constants.PLATFORM_TOP_LIGHTEN)
 	for _, part in parts do
 		part.Color = topColor
 	end
-	local depth = math.min(Constants.PLATFORM_TOP_DEPTH, radius * 0.8)
-	local frontRadius = radius - depth / 2
+	local rimWidth = math.clamp(radius * 0.22, Constants.PLATFORM_TOP_DEPTH, 1.4)
+	local frontRadius = radius - rimWidth
 	local frontZ = depth3D / 2 + Constants.PLATFORM_FRONT_GAP
-	local frontCenter = center * CFrame.new(0, -depth / 2, frontZ)
+	local frontCenter = center * CFrame.new(0, 0, frontZ)
 	local frontParts: { BasePart } = {}
 	if middleLength > 0.01 then
 		table.insert(
@@ -84,7 +86,7 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 			makePart("Front", Vector3.new(middleLength, frontRadius * 2, 0.1), frontCenter, platform.color, model)
 		)
 	end
-	for side = -1, 1, 2 do
+	for _, side in sides do
 		local cap = makePart(
 			"FrontCap",
 			Vector3.new(0.1, frontRadius * 2, frontRadius * 2),
@@ -102,8 +104,8 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		front.CastShadow = false
 	end
 
-	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Kante als eigener Streifen oben auf
-	-- dem hellen Rand. Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den
+	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Rand-Textur (z. B. Gras) rundherum auf
+	-- die Plattform selbst. Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den
 	-- gedrehten Zylindern "Left".
 	local material = if platform.material then PlatformTextures[platform.material] else nil
 	local rimColor = if material then material.rim else topColor
@@ -120,28 +122,16 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 	if material then
 		for _, part in parts do
 			part.Color = rimColor
+			if material.rimTex then
+				addTexture(part, material.rimTex, TEXTURE_TILE * 0.7, TEXTURE_TILE * 0.7)
+			end
 		end
 		for _, front in frontParts do
 			addTexture(front, material.tex, TEXTURE_TILE, TEXTURE_TILE)
 		end
-		if material.trim then
-			-- Streifen über die ganze Länge (an den runden Enden etwas kürzer, damit nichts übersteht)
-			local trimHeight = depth + 0.6
-			local stripWidth = math.max(middleLength + radius * 0.6, radius)
-			local strip = makePart(
-				"Trim",
-				Vector3.new(stripWidth, trimHeight, 0.05),
-				center * CFrame.new(0, radius - trimHeight / 2 + 0.12, frontZ + 0.12),
-				rimColor,
-				model
-			)
-			strip.Transparency = 1 -- nur die Textur ist zu sehen
-			addTexture(strip, material.trim, trimHeight * 4, trimHeight)
-			table.insert(frontParts, strip)
-		end
 	end
 
-	-- Kontur und weicher Schatten: dieselbe Form etwas größer bzw. versetzt, hinter der Vorderseite.
+	-- Kontur: dieselbe Form etwas größer, hinter der Vorderseite.
 	-- Sichtbar ist nur, was über die Plattform hinausragt. (Abstände so gewählt, dass keine Fläche
 	-- genau auf der Höhe einer anderen Plattform liegt, sonst flackert es.)
 	local bodyFront = depth3D / 2
@@ -152,7 +142,7 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		if middleLength > 0.01 then
 			table.insert(shapeParts, makePart(name, Vector3.new(middleLength, size, 0.1), base, color, model))
 		end
-		for side = -1, 1, 2 do
+		for _, side in sides do
 			local cap = makePart(name, Vector3.new(0.1, size, size), base * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA, color, model)
 			cap.Shape = Enum.PartType.Cylinder
 			table.insert(shapeParts, cap)
@@ -163,9 +153,8 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 			table.insert(frontParts, part)
 		end
 	end
-	local outlineColor = rimColor:Lerp(Color3.fromRGB(30, 18, 40), 0.7)
-	silhouette("Outline", 0.14, Vector2.zero, bodyFront - 0.6, outlineColor, 0)
-	silhouette("Shadow", 0.08, Vector2.new(0.35, -0.5), bodyFront - 1.2, Color3.fromRGB(20, 10, 34), 0.62)
+	-- Dünne, fast schwarze Kontur wie im Vorbild (ein versetzter Schatten sah wie eine doppelte Plattform aus)
+	silhouette("Outline", 0.12, Vector2.zero, bodyFront - 0.6, Color3.fromRGB(34, 26, 40), 0)
 	for _, decor in frontParts do
 		decor.CanCollide = false
 		decor.CanQuery = false
@@ -243,6 +232,24 @@ function Arena.build(layout: ArenaLayouts.Layout): ({ Vector3 }, { Model })
 	background.CanCollide = false
 	background.CanQuery = false
 	background.CanTouch = false
+
+	-- Wasser am unteren Rand (wie im Vorbild): halb durchsichtig vor den unteren Inseln, mit hellem
+	-- Saum an der Oberfläche. Wer hineinfällt, scheidet aus (ArenaInfo.fallLimit).
+	if layout.waterLevel then
+		local level = layout.waterLevel
+		local waterZ = Constants.SPRITE_Z - 0.7 -- vor den Plattformen, hinter den Figuren
+		local water = makePart("Water", Vector3.new(900, 140, 0.2), CFrame.new(0, level - 70, waterZ), Color3.fromRGB(52, 146, 226), folder)
+		water.Transparency = 0.32
+		local line = makePart("WaterLine", Vector3.new(900, 0.35, 0.2), CFrame.new(0, level - 0.17, waterZ + 0.15), Color3.fromRGB(214, 240, 255), folder)
+		line.Transparency = 0.1
+		for _, part in { water, line } do
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.CastShadow = false
+		end
+		folder:SetAttribute("WaterLevel", level)
+	end
 
 	folder.Parent = Workspace
 
