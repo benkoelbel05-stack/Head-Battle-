@@ -1,5 +1,10 @@
 --!strict
--- Ein Sprite-Bild in der Welt: ein unsichtbares, flaches Teil mit dem Bild auf der Seite zur Kamera.
+-- Ein Sprite-Bild in der Welt. Das unsichtbare, flache Teil gibt Lage, Größe und Drehung vor
+-- (ClayAnimator und Effekte setzen part.CFrame und part.Size wie bisher); gezeichnet wird das Bild
+-- aber mit einer BillboardGui statt einer SurfaceGui.
+-- Warum: SurfaceGuis malt Roblox in ein Zwischenbild, und davon gibt es nur ein begrenztes Budget.
+-- Mit Plattformen, Wolken und Hintergrund wurde es knapp, dann ließ Roblox einzelne Figuren einfach
+-- weg (Figur unsichtbar). BillboardGuis haben dieses Budget nicht und sind außerdem schärfer.
 -- Kann gespiegelt werden (Blickrichtung links/rechts), ohne extra Bilder.
 
 local ContentProvider = game:GetService("ContentProvider")
@@ -13,6 +18,7 @@ local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 -- So blinkt die Figur beim Wechsel auf ein noch nicht geladenes Bild nicht kurz unsichtbar.
 export type Sprite = {
 	part: Part,
+	gui: BillboardGui,
 	image: ImageLabel, -- gerade sichtbare Ebene
 	back: ImageLabel, -- Ebene, in die das nächste Bild geladen wird
 	wanted: string, -- Bild, das gezeigt werden soll
@@ -21,11 +27,13 @@ export type Sprite = {
 }
 
 -- Spätestens nach dieser Zeit wird auf das neue Bild gewechselt, auch wenn Roblox es noch nicht als
--- geladen meldet (bei unsichtbaren Ebenen meldet Roblox "geladen" teils gar nicht)
-local MAX_WAIT = 0.6
+-- geladen meldet. Bis dahin bleibt das alte Bild stehen (lieber kurz eingefroren als unsichtbar).
+local MAX_WAIT = 1.5
 -- Die hintere Ebene ist fast (nicht ganz) unsichtbar: nur dann lädt Roblox ihr Bild zuverlässig
--- und meldet "geladen". So wird nie auf ein noch leeres Bild umgeschaltet (Figur kurz unsichtbar).
+-- und meldet "geladen".
 local BACK_TRANSPARENCY = 0.985
+-- Bild ein kleines Stück zur Kamera hin, damit es nie mit Flächen dahinter um die Tiefe streitet
+local TOWARD_CAMERA = 0.3
 
 local SpriteVisual = {}
 
@@ -40,20 +48,21 @@ function SpriteVisual.create(name: string, parent: Instance): Sprite
 	part.Transparency = 1
 	part.Size = Vector3.new(Constants.SPRITE_SIZE, Constants.SPRITE_SIZE, 0.05)
 
-	-- Die Kamera schaut von +Z, also ist die "Back"-Seite des Teils die sichtbare
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Back
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	gui.CanvasSize = Vector2.new(100, 100)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "SpriteGui"
+	gui.Adornee = part
+	gui.Size = UDim2.fromScale(part.Size.X, part.Size.Y) -- in Studs
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 0, TOWARD_CAMERA)
 	gui.LightInfluence = 0 -- Farben wie im Bild, unabhängig vom Licht
-	-- Die Kamera steht sehr weit weg (fast-2D-Ansicht): Bilder nie wegen Entfernung ausblenden
-	pcall(function()
-		(gui :: any).MaxDistance = 1e6
-	end)
+	gui.AlwaysOnTop = false -- verdeckt sich korrekt mit anderen Figuren und Effekten
+	gui.ClipsDescendants = false
+	gui.MaxDistance = 1e6 -- die Kamera steht sehr weit weg: nie wegen Entfernung ausblenden
 	gui.Parent = part
 
 	local function makeLayer(): ImageLabel
 		local layer = Instance.new("ImageLabel")
+		layer.AnchorPoint = Vector2.new(0.5, 0.5)
+		layer.Position = UDim2.fromScale(0.5, 0.5)
 		layer.Size = UDim2.fromScale(1, 1)
 		layer.BackgroundTransparency = 1
 		layer.ScaleType = Enum.ScaleType.Stretch
@@ -64,8 +73,25 @@ function SpriteVisual.create(name: string, parent: Instance): Sprite
 	local back = makeLayer()
 	back.ImageTransparency = BACK_TRANSPARENCY
 
+	local sprite: Sprite = { part = part, gui = gui, image = image, back = back, wanted = "", pendingSince = 0, flip = false }
+
+	-- Größe und Drehung des Teils auf das Bild übertragen (Quetschen, Aufploppen, Kleben an Wänden)
+	part:GetPropertyChangedSignal("Size"):Connect(function()
+		gui.Size = UDim2.fromScale(part.Size.X, part.Size.Y)
+	end)
+	local lastRotation = 0
+	part:GetPropertyChangedSignal("CFrame"):Connect(function()
+		local right = part.CFrame.RightVector
+		local rotation = -math.deg(math.atan2(right.Y, right.X))
+		if math.abs(rotation - lastRotation) > 0.05 then
+			lastRotation = rotation
+			sprite.image.Rotation = rotation
+			sprite.back.Rotation = rotation
+		end
+	end)
+
 	part.Parent = parent
-	return { part = part, image = image, back = back, wanted = "", pendingSince = 0, flip = false }
+	return sprite
 end
 
 local function applyFlip(layer: ImageLabel, flip: boolean)
@@ -83,6 +109,10 @@ end
 -- Bild setzen; flip = nach links schauen (gespiegelt). Wird jeden Frame aufgerufen.
 function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
 	local wanted = assetId or ""
+	-- Fehlt ein Einzelbild (ID 0), bleibt das letzte Bild stehen statt einer leeren Figur
+	if wanted == "" and sprite.image.Image ~= "" then
+		wanted = sprite.image.Image
+	end
 	if sprite.flip ~= flip then
 		sprite.flip = flip
 		applyFlip(sprite.image, flip)
@@ -98,10 +128,8 @@ function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
 	end
 	sprite.wanted = wanted
 	local waited = os.clock() - sprite.pendingSince
-	-- ... und tauschen, sobald es geladen ist. Bis dahin bleibt das alte Bild stehen (lieber kurz
-	-- eingefroren als unsichtbar), höchstens MAX_WAIT lang – oder sofort, wenn es noch gar keins gibt.
-	local frontReady = sprite.image.Image ~= "" and sprite.image.IsLoaded
-	if sprite.back.IsLoaded or not frontReady or waited >= MAX_WAIT then
+	-- ... und tauschen, sobald es geladen ist (oder sofort, wenn vorne noch gar nichts ist)
+	if sprite.back.IsLoaded or sprite.image.Image == "" or waited >= MAX_WAIT then
 		local front = sprite.image
 		sprite.image = sprite.back
 		sprite.back = front

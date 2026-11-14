@@ -243,6 +243,39 @@ function HeadSpawner.despawn(participant: Participant)
 	end
 end
 
+-- Startplatz möglichst weit weg von allen anderen Köpfen. Der Erste (z. B. beim Rundenstart) bekommt
+-- zufällig einen der äußersten Plätze, die Nächsten jeweils den Platz mit dem größten Abstand zum
+-- nächsten Gegner. So stehen zwei Teilnehmer an entgegengesetzten Enden, statt nebeneinander.
+-- (Früher hing der Platz an der Farbe: zwei Figuren konnten sogar am selben Platz erscheinen.)
+local function chooseSpawnPoint(participant: Participant): Vector3
+	local others: { Vector3 } = {}
+	for other, head in heads do
+		local body = head.PrimaryPart
+		if other ~= participant and head.Parent and body then
+			table.insert(others, body.Position)
+		end
+	end
+	local best = spawnPoints[1]
+	local bestScore = -math.huge
+	for _, point in spawnPoints do
+		local score: number
+		if #others == 0 then
+			score = math.abs(point.X)
+		else
+			score = math.huge
+			for _, position in others do
+				local gap = Vector2.new(point.X - position.X, point.Y - position.Y).Magnitude
+				score = math.min(score, gap)
+			end
+		end
+		score += math.random() * 0.5 -- bei Gleichstand zufällig
+		if score > bestScore then
+			best, bestScore = point, score
+		end
+	end
+	return best
+end
+
 function HeadSpawner.spawn(participant: Participant)
 	HeadSpawner.despawn(participant)
 	if typeof(participant) ~= "string" and (participant :: Player).Parent == nil then
@@ -251,7 +284,7 @@ function HeadSpawner.spawn(participant: Participant)
 
 	local slot = getColorSlot(participant)
 	local head = createHead(participant, Constants.SKINS[slot].color, Constants.SKINS[slot].key)
-	local spawnPoint = spawnPoints[((slot - 1) % #spawnPoints) + 1]
+	local spawnPoint = chooseSpawnPoint(participant)
 
 	head:PivotTo(CFrame.new(spawnPoint))
 	-- Zur Mitte der Arena schauen

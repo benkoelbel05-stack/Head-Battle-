@@ -81,11 +81,20 @@ local function getState(head: Model): HeadState
 			spawnedAt = os.clock(),
 			layer = 0,
 		}
-		-- Sprite statt Knetkugel, wenn möglich
-		local skin = head:GetAttribute("Skin")
-		if Constants.USE_SPRITES and SpriteAssets.hasImages() and typeof(skin) == "string" then
-			state.skin = skin
-			state.sprite = SpriteVisual.create("Sprite", head)
+		-- Sprite statt Knetkugel, wenn möglich. Kommt das Attribut "Skin" erst nach dem Kopf an (oder
+		-- ändert sich die Farbe), wird das Sprite dann angelegt bzw. umgestellt: sonst bliebe die Figur
+		-- unsichtbar (die Knetkugel ist mit Sprites ausgeblendet).
+		local newState = state :: HeadState
+		local function useSkin()
+			local skin = head:GetAttribute("Skin")
+			if not (Constants.USE_SPRITES and SpriteAssets.hasImages() and typeof(skin) == "string") then
+				return
+			end
+			newState.skin = skin
+			if newState.sprite then
+				return
+			end
+			newState.sprite = SpriteVisual.create("Sprite", head)
 			-- Knetkugel, Augen und 3D-Kleidung lokal ausblenden. Auch Teile, die erst später ankommen:
 			-- Beim Neu-Erscheinen trifft der Kopf teils vor seinen Teilen ein, sonst sähe man kurz die Knetkugel.
 			local function hide(child: Instance)
@@ -97,14 +106,9 @@ local function getState(head: Model): HeadState
 				hide(child)
 			end
 			head.ChildAdded:Connect(hide)
-			-- Farbe kann sich ändern (Ausrüstungs-Wahl im Spiel): ab dem nächsten Bild die neuen Sprites
-			head:GetAttributeChangedSignal("Skin"):Connect(function()
-				local newSkin = head:GetAttribute("Skin")
-				if typeof(newSkin) == "string" then
-					state.skin = newSkin
-				end
-			end)
 		end
+		useSkin()
+		head:GetAttributeChangedSignal("Skin"):Connect(useSkin)
 		local facing = head:GetAttribute("Facing")
 		if typeof(facing) == "number" then
 			state.facing = facing
@@ -299,13 +303,6 @@ end
 
 -- Wird jeden Frame aufgerufen: Teile an die aktuelle Position setzen
 local function placeParts(head: Model, body: BasePart, state: HeadState)
-	local visual = head:FindFirstChild("Visual") :: BasePart?
-	if not visual then
-		return
-	end
-	local eyeLeft = head:FindFirstChild("EyeLeft") :: BasePart?
-	local eyeRight = head:FindFirstChild("EyeRight") :: BasePart?
-
 	local radius = Constants.HEAD_RADIUS
 	local scale = state.scale
 	local headFrame = CFrame.new(body.Position + state.offset) * CFrame.Angles(0, 0, state.angle)
@@ -341,6 +338,14 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 		SpriteVisual.setImage(sprite, SpriteAssets.frame(state.skin, state.animation, index), Constants.SPRITE_FLIP and state.facing < 0)
 		return
 	end
+
+	-- Knet-Modus (ohne Sprites): braucht die Kugel-Teile des Kopfes
+	local visual = head:FindFirstChild("Visual") :: BasePart?
+	if not visual then
+		return
+	end
+	local eyeLeft = head:FindFirstChild("EyeLeft") :: BasePart?
+	local eyeRight = head:FindFirstChild("EyeRight") :: BasePart?
 
 	visual.Size = Vector3.one * (radius * 2) * scale
 	visual.CFrame = headFrame
