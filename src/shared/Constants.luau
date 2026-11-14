@@ -10,7 +10,11 @@ Constants.PLANE_Z = 0
 Constants.HEAD_RADIUS = 1.5
 
 -- Bewegung (Studs pro Sekunde)
-Constants.MOVE_SPEED = 14
+Constants.MOVE_SPEED = 14 -- Tempo beim Loslaufen
+-- Anlauf: wer ohne abzusetzen in eine Richtung weiterläuft, wird langsam schneller (auch um Ecken und
+-- über Sprünge hinweg, solange man die Richtung hält). Umdrehen, Stehenbleiben oder Anstoßen setzt zurück.
+Constants.RUN_MAX_SPEED = 19 -- Höchsttempo nach vollem Anlauf
+Constants.RUN_BUILDUP_TIME = 1.1 -- Sekunden bis zum Höchsttempo
 Constants.GROUND_ACCEL = 160 -- (früher 110) wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
 Constants.GROUND_FRICTION = 130 -- (früher 90) wie schnell man ohne Eingabe auf einer Fläche abbremst (gleiten)
 Constants.AIR_ACCEL = 95 -- (früher 70) weniger Kontrolle in der Luft

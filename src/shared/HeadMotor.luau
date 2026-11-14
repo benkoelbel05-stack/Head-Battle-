@@ -33,6 +33,7 @@ export type Motor = {
 	velocity: Vector3,
 	facing: number,
 	speedScale: number, -- Laufgeschwindigkeit (1 = normal; Bots auf "Leicht" langsamer)
+	runTime: number, -- wie lange man schon ohne abzusetzen in eine Richtung läuft (Anlauf)
 
 	-- Kleben
 	attachedShape: PlatformShapes.Shape?,
@@ -67,6 +68,7 @@ function HeadMotor.new(position: Vector3): Motor
 		velocity = Vector3.zero,
 		facing = 1,
 		speedScale = 1,
+		runTime = 0,
 		attachedShape = nil,
 		attachedU = 0,
 		alongSpeed = 0,
@@ -90,6 +92,13 @@ local function moveTowards(current: number, target: number, maxDelta: number): n
 		return target
 	end
 	return current + math.sign(target - current) * maxDelta
+end
+
+-- Lauftempo mit Anlauf: von MOVE_SPEED weich bis RUN_MAX_SPEED in RUN_BUILDUP_TIME Sekunden
+local function runSpeed(motor: Motor): number
+	local t = math.clamp(motor.runTime / Constants.RUN_BUILDUP_TIME, 0, 1)
+	local eased = t * t * (3 - 2 * t)
+	return (Constants.MOVE_SPEED + (Constants.RUN_MAX_SPEED - Constants.MOVE_SPEED) * eased) * motor.speedScale
 end
 
 -- Ring-Radius um eine Plattform (Bahn des Kopf-Mittelpunkts)
@@ -235,8 +244,16 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 		motor.crawlDirection = math.sign(inputAlong)
 	end
 
+	-- Anlauf wächst, solange man schon in die gewollte Richtung unterwegs ist. Stehen, Umdrehen
+	-- (Schwung zeigt noch in die alte Richtung) oder Blockiertwerden (Tempo 0) setzt ihn zurück.
+	if motor.crawlDirection == 0 or motor.alongSpeed * motor.crawlDirection <= 0 then
+		motor.runTime = 0
+	else
+		motor.runTime += dt
+	end
+
 	-- Beschleunigen bzw. ohne Eingabe weich ausgleiten
-	local target = motor.crawlDirection * Constants.MOVE_SPEED * motor.speedScale
+	local target = motor.crawlDirection * runSpeed(motor)
 	local rate = if motor.crawlDirection ~= 0 then Constants.GROUND_ACCEL else Constants.GROUND_FRICTION
 	motor.alongSpeed = moveTowards(motor.alongSpeed, target, rate * dt)
 	local previousU = motor.attachedU
@@ -322,11 +339,15 @@ local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, sh
 	if motor.airJumpsLeft > 0 and now - motor.jumpPressedAt <= Constants.JUMP_BUFFER then
 		motor.jumpPressedAt = -math.huge
 		motor.airJumpsLeft -= 1
-		local wantedX = if math.abs(input.X) > 0.1 then input.X * Constants.MOVE_SPEED * motor.speedScale else velocity.X
+		local wantedX = if math.abs(input.X) > 0.1 then input.X * runSpeed(motor) else velocity.X
 		velocity = Vector3.new(wantedX, Constants.DOUBLE_JUMP_VELOCITY, 0)
 	end
 
-	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED * motor.speedScale, Constants.AIR_ACCEL * dt)
+	-- In der Luft bleibt der Anlauf erhalten (wächst aber nicht), solange man weiter in Flugrichtung drückt
+	if not (math.abs(input.X) > 0.1 and input.X * velocity.X > 0) then
+		motor.runTime = 0
+	end
+	local vx = moveTowards(velocity.X, input.X * runSpeed(motor), Constants.AIR_ACCEL * dt)
 	local vy = velocity.Y - Constants.GRAVITY * dt
 	if motor.jumpReleased and vy > 0 then
 		vy *= Constants.JUMP_CUT_MULTIPLIER -- früh loslassen = niedriger Sprung
