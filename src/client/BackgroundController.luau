@@ -47,7 +47,6 @@ function BackgroundController.start()
 	image.Parent = gui
 
 	-- Bild setzen. Die alte einfarbige Wand bleibt sichtbar, bis das Bild wirklich geladen ist.
-	-- Lädt es nicht (z. B. Decal- statt Image-ID), wird das Vorschaubild des Assets versucht.
 	local function setWall(hidden: boolean)
 		local wall = arena:FindFirstChild("Background")
 		if wall and wall:IsA("BasePart") then
@@ -68,7 +67,7 @@ function BackgroundController.start()
 		image.Image = `rbxassetid://{id}`
 		task.spawn(function()
 			local started = os.clock()
-			while os.clock() - started < 4 and myRequest == requestId do
+			while os.clock() - started < 8 and myRequest == requestId do
 				if image.IsLoaded then
 					setWall(true)
 					return
@@ -77,17 +76,6 @@ function BackgroundController.start()
 			end
 			if myRequest ~= requestId then
 				return
-			end
-			-- Ersatz: Vorschaubild über den Thumbnail-Dienst (klappt auch mit Decal-IDs)
-			warn(`[ClayBattle] Hintergrundbild {key} ({id}) lädt nicht, versuche Vorschaubild`)
-			image.Image = `rbxthumb://type=Asset&id={id}&w=768&h=432`
-			local retry = os.clock()
-			while os.clock() - retry < 4 and myRequest == requestId do
-				if image.IsLoaded then
-					setWall(true)
-					return
-				end
-				task.wait(0.1)
 			end
 			if myRequest == requestId then
 				warn(`[ClayBattle] Hintergrundbild {key} ({id}) lädt gar nicht: einfarbige Wand bleibt`)
