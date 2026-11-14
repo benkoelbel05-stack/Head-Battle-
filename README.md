@@ -13,7 +13,8 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
   - Schwert (Rücken): Hieb im Bogen (±65°) Richtung Maus, Reichweite 5; trifft alle Köpfe darin und schlägt Granaten zurück
   - Raketenrucksack (Rücken): Lenkrakete: Taste halten = sie fliegt extra langsam zum Mauszeiger, loslassen = geradeaus mit vollem Tempo; explodiert bei Plattform/Kopf oder nach 6 s
-- [x] Startmenü: 3 von 5 Fähigkeiten wählen (Klick-Reihenfolge = Taste), Bot-Stärke und Bot-Anzahl einstellen, „Spielen“; im Spiel öffnet „Ausrüstung“ (unten links) das Menü wieder
+- [x] Hauptmenü mit wippenden Knetfiguren, Optionen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik), Shop-Hinweis, Verlassen; Bild-IDs in `src/client/MenuAssetIds.luau` (0 = Ersatzgrafik)
+- [x] Ausrüstungs-Wahl nach „Spielen“: 3 von 5 Fähigkeiten wählen (Klick-Reihenfolge = Taste), Bot-Stärke und Bot-Anzahl einstellen, „Spielen“; im Spiel öffnet „Ausrüstung“ (unten links) das Menü wieder
 - [x] Bot-Stärke Leicht / Normal / Schwer / Profi: Reaktionszeit, Tempo, Zielgenauigkeit, Ausweichen; ab „Schwer“ schlagen Bots Granaten zurück, kombinieren Dash + Schwert, zünden Raketen neben dem Gegner und meiden Schwertkämpfer
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
 - [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
@@ -83,7 +84,9 @@ src/
     SpriteVisual.luau   Sprite-Bild in der Welt (Spiegeln, Vorladen, ID-Prüfung)
     AbilityHUD.luau     Anzeige der Fähigkeiten und Abklingzeiten
     AimPreview.luau     Zielstreifen für die Granate
-    StartScreen.luau    Startmenü (Fähigkeiten, Bot-Stärke, Bots, Spielen)
+    MainMenu.luau       Hauptmenü und Optionen (animiert)
+    MenuAssetIds.luau   Bild-IDs für das Hauptmenü
+    StartScreen.luau    Ausrüstungs-Wahl (Fähigkeiten, Bot-Stärke, Bots, Spielen)
     SwordVisual.luau    Schwerthieb-Animation
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```

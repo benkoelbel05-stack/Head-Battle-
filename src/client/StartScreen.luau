@@ -1,5 +1,5 @@
 --!strict
--- Startmenü: erscheint beim Betreten des Spiels.
+-- Ausrüstungs-Wahl: öffnet sich nach "Spielen" im Hauptmenü (MainMenu).
 --   * 3 Fähigkeiten wählen (Klick-Reihenfolge = Taste: Linke Maus, Mausrad, Rechte Maus)
 --   * Bot-Stärke und Anzahl der Bots einstellen
 --   * "Spielen" steigt ein (JoinGame). Im Spiel öffnet der Knopf "Ausrüstung" (unten links) das Menü wieder.
@@ -12,6 +12,18 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
 local StartScreen = {}
+
+-- open() kann schon aufgerufen werden, bevor start() fertig ist
+local openImpl: (() -> ())? = nil
+local openRequested = false
+
+function StartScreen.open()
+	if openImpl then
+		openImpl()
+	else
+		openRequested = true
+	end
+end
 
 type Card = { frame: TextButton, outline: UIStroke, badge: TextLabel, info: Abilities.AbilityInfo }
 
@@ -141,7 +153,7 @@ function StartScreen.start()
 	end
 
 	-- Titel
-	local title = label(content, "CLAY BATTLE", 76)
+	local title = label(content, "AUSRÜSTUNG", 64)
 	title.LayoutOrder = 1
 	title.TextStrokeColor3 = STROKE_COLOR
 	title.TextStrokeTransparency = 0
@@ -342,7 +354,11 @@ function StartScreen.start()
 	scores.ChildRemoved:Connect(refreshBots)
 	refreshDifficulty()
 	refreshBots()
-	open()
+	backdrop.Visible = false
+	openImpl = open
+	if openRequested then
+		open()
+	end
 end
 
 return StartScreen
