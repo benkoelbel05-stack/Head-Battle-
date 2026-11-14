@@ -20,5 +20,5 @@ return {
 	arena_sunset = 73285968060700,
 	arena_night = 85048047291829,
 	-- Musik im Hauptmenü (Audio-ID aus dem Creator Hub; 0 = keine Musik)
-	menu_theme = 0, -- echobrainz-retro-arcade.mp3
+	menu_theme = 71059893920309, -- echobrainz-retro-arcade.mp3
 } :: { [string]: number }
