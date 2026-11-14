@@ -32,7 +32,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] Hitboxen: Köpfe stoßen sich ab, Plattformen stoßen exakt aneinander (Masse, Drehung, leichtes Abprallen)
 - [x] An Decken bleibt man immer kleben
 - [x] 2D-Charakter-Sprites (12 Farben, Animationen idle/run/jump/land/hit/respawn), Fallback auf 3D-Knetköpfe
-- [x] Anzeige der Fähigkeiten mit Abklingzeit unten in der Mitte
+- [x] Anzeige der Fähigkeiten mit Abklingzeit unten in der Mitte und als schwebende Symbole über jeder Figur (wie in Bopl; Bild-IDs in `src/shared/AbilityIcons.luau`)
 - [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
 - [ ] Kopfnuss, weitere Fähigkeiten (Bogen, Mine, Schild …)
 - [ ] Auswahl der Kleidung vor der Runde
