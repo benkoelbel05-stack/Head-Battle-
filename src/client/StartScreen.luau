@@ -769,6 +769,14 @@ function StartScreen.start()
 	reopen.Activated:Connect(open)
 
 	player:GetAttributeChangedSignal("Skin"):Connect(refresh)
+	-- Über die Pause "Zur Lobby" ausgestiegen: beim nächsten Mal wieder SPIELEN (Einstieg) statt übernehmen
+	player:GetAttributeChangedSignal("InGame"):Connect(function()
+		if player:GetAttribute("InGame") ~= true then
+			joined = false
+			reopen.Visible = false
+			refresh()
+		end
+	end)
 	roundState:GetAttributeChangedSignal("BotDifficulty"):Connect(refreshOthers)
 
 	-- Solange die Wahl offen ist, Teilnehmer aktuell halten

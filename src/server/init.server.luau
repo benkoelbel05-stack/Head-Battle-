@@ -62,6 +62,7 @@ local joinGame = makeRemote("RemoteEvent", "JoinGame") :: RemoteEvent -- Client 
 local setDifficulty = makeRemote("RemoteEvent", "SetDifficulty") :: RemoteEvent -- Client -> Server (1-4)
 local saveSettings = makeRemote("RemoteEvent", "SaveSettings") :: RemoteEvent -- Client -> Server (Optionen)
 local setSkin = makeRemote("RemoteEvent", "SetSkin") :: RemoteEvent -- Client -> Server (Farbe in der Ausrüstungs-Wahl)
+local leaveGame = makeRemote("RemoteEvent", "LeaveGame") :: RemoteEvent -- Client -> Server (Pause -> Zur Lobby)
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
@@ -251,6 +252,22 @@ joinGame.OnServerEvent:Connect(function(player: Player, list: unknown)
 	elseif RoundManager.getPhase() == "Waiting" and HeadSpawner.getHead(player) then
 		HeadSpawner.spawn(player)
 	end
+end)
+
+-- Pause -> "Zur Lobby": aussteigen. Kopf, Punkte und laufende Fähigkeiten verschwinden; Farbe und
+-- Ausrüstung bleiben. Ist danach kein echter Spieler mehr dabei, bricht das Match ab (RoundManager
+-- prüft enoughParticipants) und es geht zurück ins freie Spiel.
+leaveGame.OnServerEvent:Connect(function(player: Player)
+	if player:GetAttribute("InGame") ~= true then
+		return
+	end
+	player:SetAttribute("InGame", false)
+	player:SetAttribute("FrozenUntil", nil)
+	RoundManager.removeParticipant(player)
+	Thrusters.removeParticipant(player)
+	Grenades.removeParticipant(player)
+	Swords.removeParticipant(player)
+	Missiles.removeParticipant(player)
 end)
 
 -- Bot-Schwierigkeit (für alle Bots, sichtbar im RoundState)

@@ -2,11 +2,12 @@
 -- Hauptmenü und Optionen (übernommen aus ClayBattleMenu_Code, angepasst an das Projekt).
 --   * Titelbild (Hintergrund steht still) mit sanft wippenden Knetfiguren, leicht schwebendem Logo und Knöpfen (Hover-Zoom, Klick-Squash, Ein-/Ausblenden)
 --   * "Spielen" -> Ausrüstungs-Wahl (StartScreen) -> JoinGame
---   * "Optionen" -> Einstellungen über dem leicht abgedunkelten Titelbild (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
+--   * "Optionen" -> Einstellungen in Reitern (Ton, Grafik, Spiel, Steuerung) über dem abgedunkelten Bild
 --   * "Shop" -> noch kein Shop im Spiel: kurzer Hinweis
 --   * "Verlassen" -> Nachfrage, dann Spiel verlassen
--- Im Spiel öffnet der Haus-Knopf (oben rechts) oder die Taste M das Menü wieder; "Spielen" geht
--- dann direkt zurück ins Spiel. Das Spiel läuft währenddessen weiter (Mehrspieler), man steht aber still.
+-- Im Spiel öffnet der Haus-Knopf (oben rechts) oder die Taste M die Pause (Weiter, Ausrüstung, Optionen,
+-- Zur Lobby). In der Pause läuft die Runde online weiter, die eigene Figur steht still. Nach "Zur Lobby"
+-- erscheint wieder das Titelbild; "Spielen" führt dann über die Ausrüstungs-Wahl neu ins Spiel.
 -- Bilder kommen aus MenuAssetIds. Fehlt eine ID (0), gibt es einen Ersatz, damit das Menü benutzbar bleibt.
 -- Alle Positionen sind im Entwurfsraster 1672 x 941 (Menu_Vorschau.jpg) angegeben und skalieren mit.
 -- Bilder behalten ihre Proportionen (ScaleType Fit), nur der Hintergrund füllt per Crop.
@@ -22,6 +23,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
+local Constants = require(ReplicatedStorage.Shared.Constants)
 local images = require(script.Parent.MenuAssetIds)
 local StartScreen = require(script.Parent.StartScreen)
 local SoundFX = require(script.Parent.SoundFX)
@@ -719,7 +721,16 @@ function MainMenu.start()
 			transitioning = false
 		end)
 	end
-	boxButton(optionsGroup, "Back", if UIAssets.icon_back ~= 0 then "Zurück" else "← Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle, UIAssets.icon_back)
+	-- Optionen können auch aus dem Pause-Bildschirm kommen: dann führt "Zurück" dorthin
+	local optionsFromPause = false
+	local backToPause: () -> () = function() end
+	boxButton(optionsGroup, "Back", if UIAssets.icon_back ~= 0 then "Zurück" else "← Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), function()
+		if optionsFromPause then
+			backToPause()
+		else
+			showTitle()
+		end
+	end, UIAssets.icon_back)
 	-- Grundwerte der Optionen merken (alles ist jetzt gebaut) und unsichtbar starten
 	Fade.to(optionsGroup, 1, 0)
 
@@ -733,6 +744,13 @@ function MainMenu.start()
 	local function inGame(): boolean
 		return player:GetAttribute("InGame") == true
 	end
+	-- "Zur Lobby" gedrückt, der Server hat "InGame" aber noch nicht zurückgesetzt
+	local leaving = false
+	player:GetAttributeChangedSignal("InGame"):Connect(function()
+		if not inGame() then
+			leaving = false
+		end
+	end)
 
 	-- Spielen: Menü ausblenden. Beim ersten Mal folgt die Ausrüstungs-Wahl (dort geht es ins Spiel),
 	-- später geht es direkt zurück ins laufende Spiel.
@@ -741,7 +759,7 @@ function MainMenu.start()
 			return
 		end
 		transitioning = true
-		local resume = inGame()
+		local resume = inGame() and not leaving
 		Fade.to(titleGroup, 1, 0.4, Enum.EasingStyle.Quart)
 		if optionsGroup.Visible then
 			Fade.to(optionsGroup, 1, 0.4)
@@ -774,8 +792,174 @@ function MainMenu.start()
 		Fade.to(titleGroup, 0, 0.35)
 	end
 
-	-- "Zurück" in der Ausrüstungs-Wahl führt hierher zurück
-	StartScreen.onBack = openMenu
+	-------------------------------------------------------------------------------------------------
+	-- Pause (im Spiel: Haus-Knopf oder Taste M)
+	-- Weiter / Ausrüstung / Optionen / Zur Lobby. Online läuft die Runde für die anderen weiter, die
+	-- eigene Figur steht still. "Zur Lobby" steigt aus (der Server bricht das Match ab, wenn sonst kein
+	-- Spieler mehr dabei ist) und zeigt das Titelbild.
+	-------------------------------------------------------------------------------------------------
+
+	local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
+	local leaveGame = remotes:WaitForChild("LeaveGame") :: RemoteEvent
+
+	local pauseGroup = Instance.new("Frame")
+	pauseGroup.Name = "PauseScreen"
+	pauseGroup.Size = UDim2.fromScale(1, 1)
+	pauseGroup.BackgroundTransparency = 1
+	pauseGroup.ZIndex = 40
+	pauseGroup.Visible = false
+	pauseGroup.Parent = canvas
+
+	local pauseDim = Instance.new("Frame")
+	pauseDim.Name = "Dim"
+	pauseDim.Size = UDim2.fromScale(1, 1)
+	pauseDim.BorderSizePixel = 0
+	pauseDim.BackgroundColor3 = Color3.fromRGB(20, 16, 40)
+	pauseDim.BackgroundTransparency = 0.4
+	pauseDim.Active = true
+	pauseDim.ZIndex = 1
+	pauseDim.Parent = pauseGroup
+
+	local pausePanel = Instance.new("Frame")
+	pausePanel.Name = "Panel"
+	pausePanel.Position = at(586, 200)
+	pausePanel.Size = dims(500, 500)
+	pausePanel.BackgroundColor3 = Color3.fromRGB(85, 49, 134)
+	pausePanel.ZIndex = 2
+	pausePanel.Parent = pauseGroup
+	local pauseCorner = Instance.new("UICorner")
+	pauseCorner.CornerRadius = UDim.new(0.08, 0)
+	pauseCorner.Parent = pausePanel
+	local pauseStroke = Instance.new("UIStroke")
+	pauseStroke.Color = Color3.fromRGB(255, 242, 219)
+	pauseStroke.Thickness = 4
+	pauseStroke.Parent = pausePanel
+
+	local pauseTitle = textLabel(pauseGroup, "Title", "PAUSE", { 700, 222, 300, 70 }, 56)
+	pauseTitle.TextXAlignment = Enum.TextXAlignment.Center
+	iconImage(pauseGroup, "TitleIcon", UIAssets.icon_pause, { 640, 226, 62, 62 }, 22)
+	local pauseNote = textLabel(pauseGroup, "Note", "Online läuft die Runde weiter, deine Figur steht still.", { 536, 712, 600, 36 }, 22)
+	pauseNote.TextXAlignment = Enum.TextXAlignment.Center
+	pauseNote.TextColor3 = Color3.fromRGB(255, 242, 219)
+
+	local function showPause()
+		if transitioning or not inGame() then
+			return
+		end
+		setMenuOpen(true)
+		gui.Enabled = true
+		titleGroup.Visible = false
+		optionsGroup.Visible = false
+		optionsFromPause = false
+		pauseGroup.Visible = true
+		Fade.to(pauseGroup, 1, 0)
+		Fade.to(pauseGroup, 0, 0.22)
+	end
+
+	local function hidePause(thenDo: () -> ())
+		transitioning = true
+		Fade.to(pauseGroup, 1, 0.18)
+		task.delay(0.19, function()
+			pauseGroup.Visible = false
+			transitioning = false
+			thenDo()
+		end)
+	end
+
+	local function resumeGame()
+		if transitioning or not pauseGroup.Visible then
+			return
+		end
+		hidePause(function()
+			gui.Enabled = false
+			titleGroup.Visible = true
+			setMenuOpen(false)
+		end)
+	end
+
+	backToPause = function()
+		if transitioning then
+			return
+		end
+		transitioning = true
+		Fade.to(optionsGroup, 1, 0.18)
+		task.delay(0.19, function()
+			optionsGroup.Visible = false
+			optionsFromPause = false
+			titleGroup.Interactable = true
+			transitioning = false
+			pauseGroup.Visible = true
+			Fade.to(pauseGroup, 1, 0)
+			Fade.to(pauseGroup, 0, 0.2)
+		end)
+	end
+
+	local GREEN = Color3.fromRGB(33, 172, 72)
+	local ORANGE_BUTTON = Color3.fromRGB(236, 128, 34)
+	local BLUE_BUTTON = Color3.fromRGB(33, 112, 231)
+	local RED_BUTTON = Color3.fromRGB(218, 55, 55)
+	boxButton(pauseGroup, "Resume", "WEITER", { 636, 312, 400, 70 }, GREEN, resumeGame, UIAssets.icon_play)
+	boxButton(pauseGroup, "Loadout", "AUSRÜSTUNG", { 636, 396, 400, 70 }, ORANGE_BUTTON, function()
+		if transitioning then
+			return
+		end
+		hidePause(function()
+			gui.Enabled = false
+			titleGroup.Visible = true
+			menuOpen = false -- StartScreen hält "MenuOpen", bis man übernimmt
+			StartScreen.open()
+		end)
+	end)
+	boxButton(pauseGroup, "Options", "OPTIONEN", { 636, 480, 400, 70 }, BLUE_BUTTON, function()
+		if transitioning then
+			return
+		end
+		optionsFromPause = true
+		pauseGroup.Visible = false
+		showOptions()
+	end, UIAssets.icon_settings_gear)
+
+	-- Zur Lobby: erster Klick fragt nach, zweiter (innerhalb von 3 s) steigt aus
+	local lobbyButton: TextButton
+	local lobbyArmedUntil = 0
+	lobbyButton = boxButton(pauseGroup, "Lobby", "ZUR LOBBY", { 636, 564, 400, 70 }, RED_BUTTON, function()
+		if transitioning then
+			return
+		end
+		local now = os.clock()
+		if now > lobbyArmedUntil then
+			lobbyArmedUntil = now + 3
+			lobbyButton.Text = "WIRKLICH? NOCHMAL KLICKEN"
+			task.delay(3, function()
+				if os.clock() >= lobbyArmedUntil then
+					lobbyButton.Text = "ZUR LOBBY"
+				end
+			end)
+			return
+		end
+		lobbyArmedUntil = 0
+		lobbyButton.Text = "ZUR LOBBY"
+		leaving = true
+		leaveGame:FireServer()
+		hidePause(function()
+			titleGroup.Visible = true
+			titleGroup.Interactable = true
+			Fade.to(titleGroup, 1, 0)
+			Fade.to(titleGroup, 0, 0.35)
+		end)
+	end, UIAssets.icon_exit)
+
+	-- Grundwerte der Pause merken und unsichtbar starten
+	Fade.to(pauseGroup, 1, 0)
+
+	-- "Zurück" in der Ausrüstungs-Wahl: im Spiel zur Pause, sonst zum Titelbild
+	StartScreen.onBack = function()
+		if inGame() and not leaving then
+			showPause()
+		else
+			openMenu()
+		end
+	end
 
 	-- Knopf oben rechts (nur im Spiel sichtbar, wenn kein Menü offen ist)
 	local menuButtonGui = Instance.new("ScreenGui")
@@ -827,7 +1011,7 @@ function MainMenu.start()
 	menuButton.Parent = menuButtonGui
 	menuButton.Activated:Connect(function()
 		SoundFX.play("ui_click")
-		openMenu()
+		showPause()
 	end)
 
 	local function refreshMenuButton()
@@ -836,15 +1020,15 @@ function MainMenu.start()
 	player:GetAttributeChangedSignal("InGame"):Connect(refreshMenuButton)
 	player:GetAttributeChangedSignal("MenuOpen"):Connect(refreshMenuButton)
 
-	-- Taste M: Menü auf/zu (nur im Spiel)
+	-- Taste M: Pause auf/zu (nur im Spiel)
 	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
-		if gameProcessed or input.KeyCode ~= Enum.KeyCode.M or not inGame() then
+		if gameProcessed or input.KeyCode ~= Enum.KeyCode.M or not inGame() or leaving then
 			return
 		end
-		if menuOpen and gui.Enabled then
-			playGame()
+		if pauseGroup.Visible and gui.Enabled then
+			resumeGame()
 		elseif player:GetAttribute("MenuOpen") ~= true then
-			openMenu()
+			showPause()
 		end
 	end)
 
