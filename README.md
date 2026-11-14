@@ -102,7 +102,7 @@ src/
     AssetPreloader.luau Lädt alle Bilder/Klänge vollständig: zeigt jedes Bild einmal in Anzeigegröße unter dem
                         Ladebildschirm, wartet auf IsLoaded, zweiter Versuch, meldet in Studio, was fehlt
     SoundFX.luau        Soundeffekte (IDs in src/shared/SoundIds.luau, Dateien in assets/sfx)
-    SwordVisual.luau    Schwerthieb-Animation
+    SwordVisual.luau    Schwerthieb-Animation (gezeichnetes Schwert aus ItemSpriteOverlay.swing, sonst Klötzchen-Klinge)
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```
 

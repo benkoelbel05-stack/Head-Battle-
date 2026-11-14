@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local SoundFX = require(script.Parent.SoundFX)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local ItemSpriteOverlay = require(script.Parent.ItemSpriteOverlay)
 
 local SwordVisual = {}
 
@@ -51,9 +52,38 @@ local function spark(position: Vector3)
 	end
 end
 
--- origin = Kopf-Mittelpunkt, direction = Schlagrichtung
-function SwordVisual.play(origin: Vector3, direction: Vector3)
+-- Mit Bildern: gezeichnetes Schwert (ItemSpriteOverlay.swing) statt der Klötzchen-Klinge, damit nicht
+-- zwei Schwerter gleichzeitig zu sehen sind. Funken dort, wo der Bogen zuerst eine Plattform trifft.
+local function playSprite(origin: Vector3, direction: Vector3, follow: (() -> Vector3)?): boolean
+	local center = math.atan2(direction.Y, direction.X)
+	local getOrigin = follow or function(): Vector3
+		return origin
+	end
+	if not ItemSpriteOverlay.swing(getOrigin, math.deg(center), Constants.SWORD_SPRITE_SIZE) then
+		return false
+	end
+	-- Das Bild schwingt gegen den Uhrzeigersinn: Bogen in dieser Reihenfolge nach der ersten Plattform absuchen
+	local shapes = PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER))
+	local arc = math.rad(Constants.SWORD_ARC)
+	for step = 0, 8 do
+		local angle = center - arc + 2 * arc * step / 8
+		local ray = Vector3.new(math.cos(angle), math.sin(angle), 0)
+		local hit = PlatformShapes.raycast(shapes, origin, ray, Constants.SWORD_RANGE)
+		if hit then
+			task.delay(Constants.SWORD_SWING_TIME * step / 8, spark, origin + ray * hit)
+			break
+		end
+	end
+	return true
+end
+
+-- origin = Kopf-Mittelpunkt, direction = Schlagrichtung, follow (optional) = liefert die aktuelle
+-- Kopfmitte, damit der Schlag beim Laufen mitgeht
+function SwordVisual.play(origin: Vector3, direction: Vector3, follow: (() -> Vector3)?)
 	SoundFX.play("sword")
+	if playSprite(origin, direction, follow) then
+		return
+	end
 	local range = Constants.SWORD_RANGE
 	local arc = math.rad(Constants.SWORD_ARC)
 	local center = math.atan2(direction.Y, direction.X)

@@ -70,6 +70,7 @@ Constants.SWORD_RANGE = 5 -- Reichweite vom Kopf-Mittelpunkt (Studs)
 Constants.SWORD_ARC = 65 -- halber Öffnungswinkel des Schlags in Grad (65 = 130° Bogen)
 Constants.SWORD_COOLDOWN = 0.9
 Constants.SWORD_SWING_TIME = 0.14 -- Dauer der Schwung-Animation
+Constants.SWORD_SPRITE_SIZE = 7 -- Bildgröße des gezeichneten Schwerts (Studs): Spitze reicht so etwa SWORD_RANGE weit
 Constants.SWORD_DEFLECT_SPEED = 55 -- so schnell fliegt eine zurückgeschlagene Granate
 Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
 
@@ -103,12 +104,13 @@ Constants.PLATFORM_MASS_EXPONENT = 0.4
 Constants.PLATFORM_SPRING = 1.4 -- (früher 2) wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = weicher)
 Constants.PLATFORM_DAMPING = 0.9 -- (früher 2,8, dann 1,6) wenig Bremse: schwingt nach wie Wackelpudding
 Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse (früher 12 als harte Grenze: wirkte wie eine unsichtbare Wand)
--- Weiche Grenze: ab PLATFORM_SOFT_OFFSET Studs zieht eine zusätzliche, viel stärkere Feder (mit eigener
--- Bremse) zurück. So läuft eine Plattform weich aus, statt anzuschlagen oder aus dem Bild zu fliegen.
--- Kleine Plattformen unter vollem Schub bleiben so bei ~12-14 Studs, große bei ~10.
-Constants.PLATFORM_SOFT_OFFSET = 9
-Constants.PLATFORM_SOFT_SPRING = 14
-Constants.PLATFORM_SOFT_DAMPING = 4
+-- Weiche Grenze: ab PLATFORM_SOFT_OFFSET Studs zieht eine zusätzliche Feder (mit eigener Bremse) zurück.
+-- So läuft eine Plattform weich aus, statt anzuschlagen oder aus dem Bild zu fliegen.
+-- Ein voller Thruster-Schub schiebt so: Kreis 10x10 ~31 Studs, schräge Wurst 18x6 ~29, große Insel ~22
+-- (früher 9 / 14 / 4: alles blieb nach ~1 s bei 12-14 Studs stehen, wirkte wie eine unsichtbare Wand).
+Constants.PLATFORM_SOFT_OFFSET = 20
+Constants.PLATFORM_SOFT_SPRING = 4
+Constants.PLATFORM_SOFT_DAMPING = 1.5
 Constants.PLATFORM_ANGULAR_SPRING = 2 -- (früher 8) wie stark eine gekippte Plattform zurückgedreht wird (kleiner = kippt mehr)
 Constants.PLATFORM_ANGULAR_DAMPING = 1.15 -- (früher 5,7, dann 3,4) wackelt ein paar Mal nach
 Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(90) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
@@ -218,7 +220,7 @@ Constants.CAMERA_FOV = 8
 Constants.CAMERA_MIN_DISTANCE = 300
 Constants.CAMERA_MAX_DISTANCE = 3000
 Constants.CAMERA_PADDING = 6 -- Rand um Arena und Köpfe (Studs)
-Constants.CAMERA_MAX_EXTRA = 14 -- (früher 8) so weit über die Arena hinaus folgt die Kamera einem Kopf höchstens
+Constants.CAMERA_MAX_EXTRA = 26 -- (früher 14) so weit über die Arena hinaus folgt die Kamera einem Kopf höchstens (weit geschobene Plattformen)
 Constants.CAMERA_SMOOTHNESS = 5
 
 -- Namen im Workspace / ReplicatedStorage

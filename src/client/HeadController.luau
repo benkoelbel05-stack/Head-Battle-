@@ -299,7 +299,9 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			-- In Mausrichtung schlagen; sofort anzeigen, Treffer entscheidet der Server
 			local direction = freeAim() or aimDirection(input, false)
 			head:SetAttribute(Abilities.readyAttribute("Sword"), Workspace:GetServerTimeNow() + Constants.SWORD_COOLDOWN)
-			SwordVisual.play(motor.position, direction)
+			SwordVisual.play(motor.position, direction, function(): Vector3
+				return motor.position
+			end)
 			ItemAnimations.sword(motor.position, direction)
 			swingSwordRemote:FireServer(direction, motor.position)
 		end

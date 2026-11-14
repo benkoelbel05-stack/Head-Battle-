@@ -147,7 +147,8 @@ end
 
 -- Schwert: feine Knete-Splitter zusätzlich zur bereits vorhandenen, kollisionskorrekten Klinge.
 function ItemAnimations.sword(position: Vector3, direction: Vector3)
-	if ItemSpriteOverlay.burst(position, "sword_swing", 7, -math.deg(math.atan2(direction.Y, direction.X))) then return end
+	-- Mit Bildern zeichnet SwordVisual das Schwert (für eigene und fremde Schläge gleich)
+	if ItemSpriteOverlay.has("sword_swing") then return end
 	local d = Vector3.new(direction.X, direction.Y, 0)
 	if d.Magnitude < 0.01 then return end
 	d = d.Unit

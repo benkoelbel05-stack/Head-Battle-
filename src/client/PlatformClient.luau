@@ -395,7 +395,29 @@ local function onEvent(kind: unknown, ...: any)
 		local ownerKey, origin, direction = ...
 		-- Eigene Schläge wurden schon sofort angezeigt
 		if ownerKey ~= tostring(player.UserId) and typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-			SwordVisual.play(origin, direction)
+			-- Schlag läuft mit der Figur mit (Kopf über BotId bzw. UserId finden)
+			local body: BasePart? = nil
+			local heads = Workspace:FindFirstChild(Constants.HEADS_FOLDER)
+			if heads and typeof(ownerKey) == "string" then
+				for _, head in heads:GetChildren() do
+					local botId = head:GetAttribute("BotId")
+					local userId = head:GetAttribute("UserId")
+					local key = if typeof(botId) == "string" then botId elseif typeof(userId) == "number" then tostring(userId) else nil
+					local candidate = head:FindFirstChild("Body")
+					if key == ownerKey and candidate and candidate:IsA("BasePart") then
+						body = candidate
+						break
+					end
+				end
+			end
+			local follow: (() -> Vector3)? = nil
+			if body then
+				local found: BasePart = body
+				follow = function(): Vector3
+					return if found.Parent then found.Position else origin
+				end
+			end
+			SwordVisual.play(origin, direction, follow)
 		end
 	elseif kind == "GrenadeDeflected" then
 		local id, position, velocity = ...
