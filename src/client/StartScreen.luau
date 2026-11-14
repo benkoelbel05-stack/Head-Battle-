@@ -72,13 +72,17 @@ local function stroke(parent: Instance, color: Color3, thickness: number): UIStr
 	return s
 end
 
-local function clayGradient(parent: Instance, color: Color3)
+local function clayGradient(parent: Instance, _color: Color3)
+	-- Weißer Verlauf = nur Glanz, keine Umfärbung. Nicht auf Text-Objekten (würde die Schrift einfärben).
+	if parent:IsA("TextLabel") or parent:IsA("TextButton") then
+		return
+	end
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, color:Lerp(Color3.new(1, 1, 1), 0.25)),
-		ColorSequenceKeypoint.new(0.38, color),
-		ColorSequenceKeypoint.new(1, color:Lerp(Color3.new(0, 0, 0), 0.18)),
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(235, 235, 235)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200)),
 	})
 	gradient.Parent = parent
 end

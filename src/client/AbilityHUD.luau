@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
+local UIStyle = require(script.Parent.UIStyle)
 
 local AbilityHUD = {}
 
@@ -41,12 +42,8 @@ end
 local function makeSlot(parent: Instance, index: number): SlotView
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.fromOffset(130, 70)
-	frame.BackgroundColor3 = PANEL_COLOR
-	frame.BackgroundTransparency = 0.15
 	frame.LayoutOrder = index
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = frame
+	UIStyle.panel(frame)
 
 	-- Farbbalken des Kleidungsstücks oben
 	local stripe = Instance.new("Frame")

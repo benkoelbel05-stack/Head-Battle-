@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local UIStyle = require(script.Parent.UIStyle)
 
 local RoundUI = {}
 
@@ -46,9 +47,8 @@ local function makeButton(parent: Instance, text: string, position: UDim2): Text
 	button.TextColor3 = TEXT_COLOR
 	button.Text = text
 	button.AutoButtonColor = true
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = button
+	UIStyle.panel(button)
+	UIStyle.text(button)
 	button.Parent = parent
 	return button
 end
@@ -75,11 +75,8 @@ function RoundUI.start()
 	board.Position = UDim2.fromOffset(16, 70)
 	board.Size = UDim2.fromOffset(240, 0)
 	board.AutomaticSize = Enum.AutomaticSize.Y
-	board.BackgroundColor3 = PANEL_COLOR
-	board.BackgroundTransparency = 0.25
-	local boardCorner = Instance.new("UICorner")
-	boardCorner.CornerRadius = UDim.new(0, 14)
-	boardCorner.Parent = board
+	UIStyle.panel(board)
+	board.BackgroundTransparency = 0.1
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 8)
 	padding.PaddingBottom = UDim.new(0, 8)

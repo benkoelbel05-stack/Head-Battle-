@@ -102,30 +102,75 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		front.CastShadow = false
 	end
 
-	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Kante auf den hellen Rand (Körper).
-	-- Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den gedrehten Zylindern "Left".
+	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Kante als eigener Streifen oben auf
+	-- dem hellen Rand. Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den
+	-- gedrehten Zylindern "Left".
 	local material = if platform.material then PlatformTextures[platform.material] else nil
+	local rimColor = if material then material.rim else topColor
+	local function addTexture(part: BasePart, id: number, tileU: number, tileV: number)
+		local texture = Instance.new("Texture")
+		texture.Texture = `rbxassetid://{id}`
+		texture.Face = if part:IsA("Part") and part.Shape == Enum.PartType.Cylinder
+			then Enum.NormalId.Left
+			else Enum.NormalId.Back
+		texture.StudsPerTileU = tileU
+		texture.StudsPerTileV = tileV
+		texture.Parent = part
+	end
 	if material then
-		local function addTexture(part: BasePart, id: number, tileU: number, tileV: number, offsetV: number)
-			local texture = Instance.new("Texture")
-			texture.Texture = `rbxassetid://{id}`
-			texture.Face = if part:IsA("Part") and part.Shape == Enum.PartType.Cylinder
-				then Enum.NormalId.Left
-				else Enum.NormalId.Back
-			texture.StudsPerTileU = tileU
-			texture.StudsPerTileV = tileV
-			texture.OffsetStudsV = offsetV
-			texture.Parent = part
+		for _, part in parts do
+			part.Color = rimColor
 		end
 		for _, front in frontParts do
-			addTexture(front, material.tex, TEXTURE_TILE, TEXTURE_TILE, 0)
+			addTexture(front, material.tex, TEXTURE_TILE, TEXTURE_TILE)
 		end
 		if material.trim then
-			-- Die Kante (Seitenverhältnis 4:1) genau über die Körperhöhe legen: sichtbar bleibt oben der Rand
-			for _, part in parts do
-				addTexture(part, material.trim, height * 4, height, 0)
-			end
+			-- Streifen über die ganze Länge (an den runden Enden etwas kürzer, damit nichts übersteht)
+			local trimHeight = depth + 0.6
+			local stripWidth = math.max(middleLength + radius * 0.6, radius)
+			local strip = makePart(
+				"Trim",
+				Vector3.new(stripWidth, trimHeight, 0.05),
+				center * CFrame.new(0, radius - trimHeight / 2 + 0.12, frontZ + 0.12),
+				rimColor,
+				model
+			)
+			strip.Transparency = 1 -- nur die Textur ist zu sehen
+			addTexture(strip, material.trim, trimHeight * 4, trimHeight)
+			table.insert(frontParts, strip)
 		end
+	end
+
+	-- Kontur und weicher Schatten: dieselbe Form etwas größer bzw. versetzt, hinter der Vorderseite.
+	-- Sichtbar ist nur, was über die Plattform hinausragt. (Abstände so gewählt, dass keine Fläche
+	-- genau auf der Höhe einer anderen Plattform liegt, sonst flackert es.)
+	local bodyFront = depth3D / 2
+	local function silhouette(name: string, grow: number, offset: Vector2, z: number, color: Color3, transparency: number)
+		local base = center * CFrame.new(offset.X, offset.Y, z)
+		local size = height + grow * 2
+		local shapeParts: { BasePart } = {}
+		if middleLength > 0.01 then
+			table.insert(shapeParts, makePart(name, Vector3.new(middleLength, size, 0.1), base, color, model))
+		end
+		for side = -1, 1, 2 do
+			local cap = makePart(name, Vector3.new(0.1, size, size), base * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA, color, model)
+			cap.Shape = Enum.PartType.Cylinder
+			table.insert(shapeParts, cap)
+		end
+		for _, part in shapeParts do
+			part.Transparency = transparency
+			part.CastShadow = false
+			table.insert(frontParts, part)
+		end
+	end
+	local outlineColor = rimColor:Lerp(Color3.fromRGB(30, 18, 40), 0.7)
+	silhouette("Outline", 0.14, Vector2.zero, bodyFront - 0.6, outlineColor, 0)
+	silhouette("Shadow", 0.08, Vector2.new(0.35, -0.5), bodyFront - 1.2, Color3.fromRGB(20, 10, 34), 0.62)
+	for _, decor in frontParts do
+		decor.CanCollide = false
+		decor.CanQuery = false
+		decor.CanTouch = false
+		decor.CastShadow = false
 	end
 
 	-- Alle Teile fest zu einem Körper verbinden, das erste Teil ist die Wurzel

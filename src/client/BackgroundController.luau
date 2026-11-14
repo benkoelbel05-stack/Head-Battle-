@@ -132,6 +132,14 @@ function BackgroundController.start()
 	end)
 	refreshImage()
 
+	-- Leichte Tiefenunschärfe: Arena scharf, Hintergrund weich (wirkt plastischer)
+	local depthOfField = Instance.new("DepthOfFieldEffect")
+	depthOfField.Name = "ClayBattleDepth"
+	depthOfField.NearIntensity = 0
+	depthOfField.FarIntensity = 0.35
+	depthOfField.InFocusRadius = 30
+	depthOfField.Parent = game:GetService("Lighting")
+
 	-- Nach der Kamera (Camera+1)
 	RunService:BindToRenderStep("ClayBattleBackground", Enum.RenderPriority.Camera.Value + 2, function()
 		local camera = Workspace.CurrentCamera
@@ -139,6 +147,7 @@ function BackgroundController.start()
 			return
 		end
 		local position = camera.CFrame.Position
+		depthOfField.FocusDistance = math.max(position.Z - Constants.PLANE_Z, 1)
 		local distance = math.max(position.Z - BACKGROUND_Z, 1)
 		local height = 2 * distance * math.tan(math.rad(camera.FieldOfView) / 2) * OVERSIZE
 		local viewport = camera.ViewportSize

@@ -194,7 +194,7 @@ Constants.PLATFORM_LAYER_STEP = 0.5 -- Abstand zwischen überlappenden Plattform
 Constants.PLATFORM_FRONT_GAP = 0.25 -- Front-Platte vor der Plattform
 
 -- Plattform-Look mit Tiefe: oben eine hellere Kante (die "Oberseite"), auf der die Figuren stehen
-Constants.PLATFORM_TOP_DEPTH = 0.55 -- Dicke der hellen Oberkante in Studs
+Constants.PLATFORM_TOP_DEPTH = 0.7 -- Dicke der hellen Oberkante in Studs
 Constants.PLATFORM_TOP_LIGHTEN = 0.28 -- wie viel heller die Oberseite ist (0..1)
 Constants.COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102) -- Kleidung, deren Fähigkeit gerade abklingt
 
