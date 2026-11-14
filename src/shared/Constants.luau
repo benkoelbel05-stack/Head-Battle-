@@ -42,6 +42,10 @@ Constants.THRUSTER_RANGE = 12 -- so weit darf die Plattform entfernt sein
 Constants.THRUSTER_FORCE = 2000 -- Schubkraft; Beschleunigung = Kraft / Masse der Plattform
 Constants.THRUSTER_DURATION = 2
 Constants.THRUSTER_RAMP = 0.2 -- Sekunden, in denen der Schub weich an- und ausläuft
+-- Der Schub beginnt minimal verzögert, aber für Server und alle Clients zur SELBEN Serverzeit. Sonst
+-- schiebt jeder Rechner etwas früher oder später an, die Plattform läuft auseinander und wird ständig
+-- zurückkorrigiert (sah aus wie Zucken). Der Thruster selbst ist sofort zu sehen.
+Constants.THRUSTER_SYNC_DELAY = 0.15
 Constants.THRUSTER_COOLDOWN = 6
 Constants.THRUSTER_COLOR = Color3.fromRGB(222, 96, 48)
 

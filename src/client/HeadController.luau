@@ -272,8 +272,8 @@ local function useThruster(head: Model, input: Vector3)
 
 	-- Sofort in der eigenen Simulation wirken lassen, dann an den Server schicken
 	head:SetAttribute(Abilities.readyAttribute("Thruster"), Workspace:GetServerTimeNow() + Constants.THRUSTER_COOLDOWN)
-	PlatformClient.predictThruster(model, localPosition, localNormal, id)
-	placeThrusterRemote:FireServer(model, localPosition, localNormal, id)
+	local startTime = PlatformClient.predictThruster(model, localPosition, localNormal, id)
+	placeThrusterRemote:FireServer(model, localPosition, localNormal, id, startTime)
 end
 
 local function useAbility(id: string, charge: number, input: Vector3, now: number)

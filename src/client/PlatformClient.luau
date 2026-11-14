@@ -156,8 +156,11 @@ local function applyFixes(dt: number)
 			pendingFix[model] = nil
 			continue
 		end
+		-- Auch den vorigen Schritt mitschieben, damit das weiche Zeichnen keinen Sprung macht
 		state.offset += fix.offset * share
+		state.prevOffset += fix.offset * share
 		state.angle = wrapAngle(state.angle + fix.angle * share)
+		state.prevAngle = wrapAngle(state.prevAngle + fix.angle * share)
 		state.velocity += fix.velocity * share
 		state.angularVelocity += fix.angularVelocity * share
 		fix.offset *= 1 - share
@@ -315,18 +318,20 @@ function PlatformClient.predictExplosion(position: Vector3, radius: number)
 	predictedExplosion = { position = position, at = os.clock() }
 end
 
-function PlatformClient.predictThruster(model: Model, localPosition: Vector3, localNormal: Vector3, id: string)
-	local now = Workspace:GetServerTimeNow()
+-- Gibt die Startzeit zurück (Serverzeit); die schickt HeadController mit, damit der Server dieselbe nimmt
+function PlatformClient.predictThruster(model: Model, localPosition: Vector3, localNormal: Vector3, id: string): number
+	local startTime = Workspace:GetServerTimeNow() + Constants.THRUSTER_SYNC_DELAY
 	local thruster: PlatformSim.Thruster = {
 		id = `{player.UserId}-{id}`,
 		localPosition = localPosition,
 		localDirection = -localNormal,
-		startTime = now,
-		endTime = now + Constants.THRUSTER_DURATION,
+		startTime = startTime,
+		endTime = startTime + Constants.THRUSTER_DURATION,
 	}
 	if PlatformSim.addThruster(sim, model, thruster) then
 		showThruster(model, thruster)
 	end
+	return startTime
 end
 
 local function spawnGrenade(id: string, start: Vector3, velocity: Vector3, startTime: number)
@@ -455,9 +460,11 @@ function PlatformClient.start()
 	effectsFolder = folder
 
 	-- Plattform-Formen lesen ihre Lage aus der eigenen Simulation
+	-- Köpfe sehen dieselbe (weich gemischte) Lage wie das Bild, sonst würden sie auf schnellen
+	-- Plattformen gegenüber der Plattform ruckeln
 	PlatformShapes.setFrameProvider(function(model: Model): CFrame?
 		local state = PlatformSim.get(sim, model)
-		return if state then PlatformSim.cframeOf(state) else nil
+		return if state then PlatformSim.renderFrameOf(sim, state) else nil
 	end)
 
 	registerArena(Workspace:WaitForChild(Constants.ARENA_FOLDER))

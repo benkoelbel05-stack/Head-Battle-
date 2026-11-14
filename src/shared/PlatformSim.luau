@@ -33,6 +33,8 @@ export type PlatformState = {
 	shapeFrame: CFrame, -- Lage der Form relativ zur Wurzel
 	offset: Vector3, -- Versatz vom Startplatz (x, y)
 	angle: number, -- Drehung um Z gegenüber dem Startplatz
+	prevOffset: Vector3, -- Stand vor dem letzten festen Schritt (zum weichen Zeichnen zwischen Schritten)
+	prevAngle: number,
 	velocity: Vector3,
 	angularVelocity: number,
 	thrusters: { Thruster },
@@ -88,6 +90,8 @@ function PlatformSim.register(sim: Sim, model: Model): PlatformState?
 		end)(),
 		offset = Vector3.zero,
 		angle = 0,
+		prevOffset = Vector3.zero,
+		prevAngle = 0,
 		velocity = Vector3.zero,
 		angularVelocity = 0,
 		thrusters = {},
@@ -115,6 +119,9 @@ function PlatformSim.addThruster(sim: Sim, model: Model, thruster: Thruster): bo
 	end
 	for _, existing in state.thrusters do
 		if existing.id == thruster.id then
+			-- Schon bekannt (eigene Vorhersage): Zeiten auf die des Servers setzen, damit alle gleich schieben
+			existing.startTime = thruster.startTime
+			existing.endTime = thruster.endTime
 			return false
 		end
 	end
@@ -312,6 +319,10 @@ function PlatformSim.step(sim: Sim, dt: number, now: number)
 	for i = 1, steps do
 		local stepTime = now - (steps - i) * SIM_STEP
 		for _, state in states do
+			state.prevOffset = state.offset
+			state.prevAngle = state.angle
+		end
+		for _, state in states do
 			local forces = pending[state]
 			stepPlatform(state, SIM_STEP, stepTime, forces.acceleration, forces.angular)
 		end
@@ -324,6 +335,8 @@ function PlatformSim.reset(sim: Sim)
 	for _, state in sim.platforms do
 		state.offset = Vector3.zero
 		state.angle = 0
+		state.prevOffset = Vector3.zero
+		state.prevAngle = 0
 		state.velocity = Vector3.zero
 		state.angularVelocity = 0
 		state.pendingAcceleration = Vector3.zero
@@ -332,10 +345,21 @@ function PlatformSim.reset(sim: Sim)
 	end
 end
 
--- Wurzel-Parts an die berechnete Lage setzen (nur Client, lokal)
+-- Lage zum Zeichnen: zwischen den letzten beiden festen Schritten gemischt. Die Physik rechnet in
+-- festen Schritten (SIM_RATE pro Sekunde), der Bildschirm zeigt aber 60, 144 ... Bilder pro Sekunde.
+-- Ohne Mischen bewegt sich eine schnelle Plattform mal einen, mal zwei, mal keinen Schritt pro Bild
+-- und ruckelt. (Liegt höchstens einen Schritt hinter der Physik.)
+function PlatformSim.renderFrameOf(sim: Sim, state: PlatformState): CFrame
+	local alpha = math.clamp(sim.accumulator / SIM_STEP, 0, 1)
+	local offset = state.prevOffset:Lerp(state.offset, alpha)
+	local angle = state.prevAngle + wrapAngle(state.angle - state.prevAngle) * alpha
+	return CFrame.new(state.home.Position + offset) * state.home.Rotation * CFrame.Angles(0, 0, angle)
+end
+
+-- Wurzel-Parts an die (weich gemischte) Lage setzen (nur Client, lokal)
 function PlatformSim.apply(sim: Sim)
 	for _, state in sim.platforms do
-		state.root.CFrame = PlatformSim.cframeOf(state)
+		state.root.CFrame = PlatformSim.renderFrameOf(sim, state)
 	end
 end
 
@@ -367,8 +391,12 @@ function PlatformSim.correct(sim: Sim, snapshot: unknown, blend: number)
 			and typeof(velocity) == "Vector3"
 			and typeof(angularVelocity) == "number"
 		then
-			state.offset += (offset - state.offset) * blend
-			state.angle += wrapAngle(angle - state.angle) * blend
+			local shift = (offset - state.offset) * blend
+			local turn = wrapAngle(angle - state.angle) * blend
+			state.offset += shift
+			state.prevOffset += shift
+			state.angle += turn
+			state.prevAngle += turn
 			state.velocity += (velocity - state.velocity) * blend
 			state.angularVelocity += (angularVelocity - state.angularVelocity) * blend
 		end

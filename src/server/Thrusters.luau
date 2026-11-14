@@ -26,7 +26,9 @@ local readyAt: { [Participant]: number } = {}
 local context: Context
 
 -- Thruster setzen. localPosition/localNormal relativ zur Wurzel der Plattform. Gibt true zurück, wenn gesetzt.
-function Thrusters.place(participant: Participant, model: Model, localPosition: Vector3, localNormal: Vector3, id: string): boolean
+-- requestedStart: Startzeit vom Client (Serverzeit). Wird übernommen, wenn sie plausibel ist; so schieben
+-- Server und Clients exakt gleichzeitig. Sonst (und bei Bots): jetzt + THRUSTER_SYNC_DELAY.
+function Thrusters.place(participant: Participant, model: Model, localPosition: Vector3, localNormal: Vector3, id: string, requestedStart: number?): boolean
 	local state = PlatformSim.get(context.sim, model)
 	if not state then
 		return false
@@ -55,12 +57,16 @@ function Thrusters.place(participant: Participant, model: Model, localPosition: 
 		return false
 	end
 
+	local startTime = now + Constants.THRUSTER_SYNC_DELAY
+	if requestedStart and requestedStart == requestedStart and requestedStart > now - 0.3 and requestedStart < now + 0.5 then
+		startTime = requestedStart
+	end
 	local thruster: PlatformSim.Thruster = {
 		id = `{context.keyOf(participant)}-{id}`,
 		localPosition = Vector3.new(localPosition.X, localPosition.Y, 0),
 		localDirection = -flatNormal, -- Schub in die Plattform hinein, also weg vom Thruster
-		startTime = now,
-		endTime = now + Constants.THRUSTER_DURATION,
+		startTime = startTime,
+		endTime = startTime + Constants.THRUSTER_DURATION,
 	}
 	if not PlatformSim.addThruster(context.sim, model, thruster) then
 		return false
@@ -73,7 +79,7 @@ end
 
 function Thrusters.init(remote: RemoteEvent, thrusterContext: Context)
 	context = thrusterContext
-	remote.OnServerEvent:Connect(function(player: Player, model: unknown, localPosition: unknown, localNormal: unknown, id: unknown)
+	remote.OnServerEvent:Connect(function(player: Player, model: unknown, localPosition: unknown, localNormal: unknown, id: unknown, startTime: unknown)
 		if
 			typeof(model) == "Instance"
 			and (model :: Instance):IsA("Model")
@@ -82,7 +88,7 @@ function Thrusters.init(remote: RemoteEvent, thrusterContext: Context)
 			and typeof(id) == "string"
 			and #(id :: string) <= 40
 		then
-			Thrusters.place(player, model :: Model, localPosition :: Vector3, localNormal :: Vector3, id :: string)
+			Thrusters.place(player, model :: Model, localPosition :: Vector3, localNormal :: Vector3, id :: string, if typeof(startTime) == "number" then startTime else nil)
 		end
 	end)
 end
