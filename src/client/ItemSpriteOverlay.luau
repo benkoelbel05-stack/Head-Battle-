@@ -93,7 +93,7 @@ function ItemSpriteOverlay.attach(part: BasePart, seq: string, size: number, ang
 	return animate(part, seq, size, angleFromPart == true)
 end
 
-function ItemSpriteOverlay.burst(position: Vector3, seq: string, size: number): boolean
+function ItemSpriteOverlay.burst(position: Vector3, seq: string, size: number, rotationDegrees: number?): boolean
 	if not valid(seq) then return false end
 	local anchor = Instance.new("Part")
 	anchor.Name = "ClayItemEffectAnchor"
@@ -107,6 +107,11 @@ function ItemSpriteOverlay.burst(position: Vector3, seq: string, size: number): 
 	anchor.Position = Vector3.new(position.X, position.Y, Constants.SPRITE_Z + 1.9)
 	anchor.Parent = Workspace
 	local success = animate(anchor, seq, size, false)
+	if success and rotationDegrees then
+		local sprite = anchor:FindFirstChild("ClayItemSprite")
+		local image = sprite and sprite:FindFirstChild("Frame")
+		if image and image:IsA("ImageLabel") then image.Rotation = rotationDegrees end
+	end
 	Debris:AddItem(anchor, 8 / (FPS[seq] or 12) + 0.12)
 	return success
 end
