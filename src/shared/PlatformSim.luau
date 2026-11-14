@@ -80,7 +80,11 @@ function PlatformSim.register(sim: Sim, model: Model): PlatformState?
 		model = model,
 		root = root,
 		home = home,
-		mass = math.max(area * (if typeof(density) == "number" then density else Constants.PLATFORM_DENSITY), 0.1),
+		mass = (function()
+			local raw = area * (if typeof(density) == "number" then density else Constants.PLATFORM_DENSITY)
+			local reference = Constants.PLATFORM_MASS_REFERENCE
+			return math.max(reference * (math.max(raw, 0.1) / reference) ^ Constants.PLATFORM_MASS_EXPONENT, 0.5)
+		end)(),
 		inertiaPerMass = (width ^ 2 + height ^ 2) / 12,
 		halfLength = L,
 		radius = r,

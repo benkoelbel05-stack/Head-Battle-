@@ -90,13 +90,18 @@ Constants.MISSILE_COOLDOWN = 7
 Constants.MISSILE_COLOR = Color3.fromRGB(205, 60, 50)
 
 -- Plattform-Physik (eigene Feder, siehe PlatformSim.luau)
--- Masse einer Plattform = Fläche (Studs²) * Dichte. Schwere Plattformen bewegen und drehen sich weniger.
--- Bezug: eine Plattform 14 x 2 hat Masse ~28; die Kräfte sind darauf abgestimmt.
+-- Wie in Bopl Battle: Plattformen hängen weich an einer Feder, sinken unter Figuren spürbar ein, kippen,
+-- wenn man am Rand steht, und schwingen nach Landungen und Explosionen ein paar Mal nach.
+-- Masse = BEZUG * (Fläche * Dichte / BEZUG) ^ EXPONENT. Große Inseln sind schwerer, aber nicht mehr
+-- vielfach so schwer (vorher Fläche * Dichte: die große Insel war ~8x so schwer und bewegte sich kaum).
+-- Bezug: eine Plattform mit Fläche*Dichte 28 hat Masse 28; Schub- und Stoßkräfte sind darauf abgestimmt.
 -- Gleichgewicht unter vollem Schub: THRUSTER_FORCE / (Masse * PLATFORM_SPRING) Studs vom Startplatz
 Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform änderbar)
--- Rückkehr-Dauer ungefähr 5 / Wurzel(SPRING) Sekunden (2 -> ca. 3,5 s)
-Constants.PLATFORM_SPRING = 2 -- wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = langsamer)
-Constants.PLATFORM_DAMPING = 1.6 -- Bremse (früher 2,8 = ganz ohne Nachwippen); jetzt federt sie wie Knete kurz nach
+Constants.PLATFORM_MASS_REFERENCE = 28
+Constants.PLATFORM_MASS_EXPONENT = 0.4
+-- Rückkehr-Dauer ungefähr 5 / Wurzel(SPRING) Sekunden (1,4 -> gut 4 s)
+Constants.PLATFORM_SPRING = 1.4 -- (früher 2) wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = weicher)
+Constants.PLATFORM_DAMPING = 0.9 -- (früher 2,8, dann 1,6) wenig Bremse: schwingt nach wie Wackelpudding
 Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse (früher 12 als harte Grenze: wirkte wie eine unsichtbare Wand)
 -- Weiche Grenze: ab PLATFORM_SOFT_OFFSET Studs zieht eine zusätzliche, viel stärkere Feder (mit eigener
 -- Bremse) zurück. So läuft eine Plattform weich aus, statt anzuschlagen oder aus dem Bild zu fliegen.
@@ -104,9 +109,9 @@ Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse (früher 12 als harte Grenze
 Constants.PLATFORM_SOFT_OFFSET = 9
 Constants.PLATFORM_SOFT_SPRING = 14
 Constants.PLATFORM_SOFT_DAMPING = 4
-Constants.PLATFORM_ANGULAR_SPRING = 8 -- wie stark eine gekippte Plattform zurückgedreht wird (kleiner = langsamer)
-Constants.PLATFORM_ANGULAR_DAMPING = 3.4 -- (früher 5,7 = ohne Nachwackeln) wackelt kurz nach
-Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(60) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
+Constants.PLATFORM_ANGULAR_SPRING = 2 -- (früher 8) wie stark eine gekippte Plattform zurückgedreht wird (kleiner = kippt mehr)
+Constants.PLATFORM_ANGULAR_DAMPING = 1.15 -- (früher 5,7, dann 3,4) wackelt ein paar Mal nach
+Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(90) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
 Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (Knete: wenig)
 
 -- Netzwerk-Abgleich der Plattformen (jeder Rechner simuliert selbst, der Server gleicht ab)
@@ -115,9 +120,9 @@ Constants.SNAPSHOT_INTERVAL = 0.2 -- so oft schickt der Server einen Abgleich (S
 Constants.SNAPSHOT_BLEND = 0.25 -- nur noch Rückfall ohne Zeitstempel; sonst gleicht PlatformClient zeitrichtig aus
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
-Constants.HEAD_WEIGHT_FORCE = 260 -- (früher 140) Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
+Constants.HEAD_WEIGHT_FORCE = 170 -- (früher 140, kurz 260; Plattformen sind jetzt leichter) Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
 Constants.HEAD_LANDING_IMPULSE = 7 -- (früher 4) Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
-Constants.HEAD_WALK_FORCE = 4.2 -- Gegenschub pro Studs/s Laufgeschwindigkeit
+Constants.HEAD_WALK_FORCE = 5 -- (früher 4,2) Gegenschub pro Studs/s Laufgeschwindigkeit
 Constants.PLATFORM_CONTACT_DISTANCE = 0.25 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
 -- (klein halten: sonst wird eine Plattform schon weggestoßen, bevor der Kopf sie berührt)
 
