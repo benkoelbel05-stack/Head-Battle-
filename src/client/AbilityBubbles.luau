@@ -3,6 +3,8 @@
 -- (Slot 1 links, Slot 2 oben, Slot 3 rechts). Über der eigenen Figur zeigt zusätzlich ein kleiner,
 -- leicht durchsichtiger Pfeil, wer man selbst ist. Während der Abklingzeit liegt ein dunkler Kreis über
 -- dem Symbol, der zur Mitte hin schrumpft.
+-- Wer im Match die meisten Runden gewonnen hat (allein vorne, mindestens 1 Punkt), trägt eine Krone
+-- auf dem Kopf.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +14,8 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
+local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
+local TweenService = game:GetService("TweenService")
 
 local AbilityBubbles = {}
 
@@ -26,9 +30,13 @@ local OFFSETS = {
 local ARROW_SIZE = 1.1
 local ARROW_HEIGHT = 4.05 + BUBBLE_SIZE / 2 + 0.85
 local OUTLINE = Color3.fromRGB(34, 26, 40)
+-- Krone des Führenden: sitzt leicht schräg auf dem Kopf, unter dem mittleren Symbol
+local CROWN_SIZE = 1.45
+local CROWN_HEIGHT = 2.2 -- Mitte der Krone über der Kopfmitte (Kopf-Radius 1,5)
+local CROWN_TILT = -12
 
 type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, ring: UIStroke, id: string?, fraction: number }
-type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string, arrow: BillboardGui? }
+type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string, arrow: BillboardGui?, crown: BillboardGui? }
 
 local function makeBubble(parent: Instance, index: number): Bubble
 	-- Position im Billboard: Mitte bei (BUBBLE/2 + Versatz) relativ zur Fläche
@@ -198,6 +206,64 @@ function AbilityBubbles.start()
 		return arrow
 	end
 
+	-- Krone über dem Führenden (Bild noch nicht da: keine Krone)
+	local function makeCrown(body: BasePart): BillboardGui
+		local crown = Instance.new("BillboardGui")
+		crown.Name = "LeaderCrown"
+		crown.Adornee = body
+		crown.Size = UDim2.fromScale(CROWN_SIZE, CROWN_SIZE)
+		crown.StudsOffsetWorldSpace = Vector3.new(0, CROWN_HEIGHT, 0)
+		crown.AlwaysOnTop = true
+		crown.LightInfluence = 0
+		crown.ResetOnSpawn = false
+		crown.MaxDistance = 1e6
+		crown.Enabled = false
+		crown.Parent = container
+		local image = Instance.new("ImageLabel")
+		image.Name = "Icon"
+		image.AnchorPoint = Vector2.new(0.5, 0.5)
+		image.Position = UDim2.fromScale(0.5, 0.5)
+		image.Size = UDim2.fromScale(1, 1)
+		image.BackgroundTransparency = 1
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Image = `rbxassetid://{UIAssets.icon_crown}`
+		image.Rotation = CROWN_TILT
+		image.Parent = crown
+		local scale = Instance.new("UIScale")
+		scale.Parent = image
+		return crown
+	end
+
+	-- Schlüssel einer Figur wie in RoundState.Scores: Bot-Name oder UserId als Text
+	local function keyOf(head: Model): string?
+		local botId = head:GetAttribute("BotId")
+		if typeof(botId) == "string" then
+			return botId
+		end
+		local userId = head:GetAttribute("UserId")
+		return if typeof(userId) == "number" then tostring(userId) else nil
+	end
+
+	-- Wer liegt allein vorne (mindestens 1 gewonnene Runde)?
+	local function leaderKey(): string?
+		local state = ReplicatedStorage:FindFirstChild(Constants.ROUND_STATE)
+		local scores = state and state:FindFirstChild("Scores")
+		if not scores then
+			return nil
+		end
+		local best, bestKey, tied = 0, nil :: string?, false
+		for _, entry in scores:GetChildren() do
+			if entry:IsA("IntValue") then
+				if entry.Value > best then
+					best, bestKey, tied = entry.Value, entry.Name, false
+				elseif entry.Value == best and best > 0 then
+					tied = true
+				end
+			end
+		end
+		return if tied then nil else bestKey
+	end
+
 	RunService.RenderStepped:Connect(function()
 		local now = Workspace:GetServerTimeNow()
 		for head, view in views do
@@ -206,9 +272,13 @@ function AbilityBubbles.start()
 				if view.arrow then
 					view.arrow:Destroy()
 				end
+				if view.crown then
+					view.crown:Destroy()
+				end
 				views[head] = nil
 			end
 		end
+		local leader = if UIAssets.icon_crown ~= 0 then leaderKey() else nil
 		for _, child in headsFolder:GetChildren() do
 			local body = if child:IsA("Model") then child.PrimaryPart else nil
 			if child:IsA("Model") and body then
@@ -219,6 +289,23 @@ function AbilityBubbles.start()
 						view.arrow = makeArrow(child, body)
 					end
 					views[child] = view
+				end
+				-- Krone: nur beim alleinigen Führenden, mit kleinem Aufploppen beim Erscheinen
+				local wearsCrown = leader ~= nil and keyOf(child) == leader
+				if wearsCrown and not view.crown then
+					view.crown = makeCrown(body)
+				end
+				local crown = view.crown
+				if crown and crown.Enabled ~= wearsCrown then
+					crown.Enabled = wearsCrown
+					if wearsCrown then
+						local icon = crown:FindFirstChild("Icon")
+						local scale = if icon then icon:FindFirstChildOfClass("UIScale") else nil
+						if scale then
+							scale.Scale = 0.2
+							TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+						end
+					end
 				end
 				local loadoutText = child:GetAttribute("Loadout")
 				local key = if typeof(loadoutText) == "string" then loadoutText else ""
