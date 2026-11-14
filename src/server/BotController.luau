@@ -327,7 +327,7 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 			local along = relative:Dot(missile.direction)
 			local miss = (relative - missile.direction * along).Magnitude
 			local timeToHit = along / Constants.MISSILE_SPEED
-			if along > -2 and miss < Constants.MISSILE_BLAST_RADIUS + R and timeToHit < level.dodgeTime * 1.3 then
+			if along > -2 and miss < Constants.MISSILE_THICKNESS / 2 + R + 1 and timeToHit < level.dodgeTime * 1.3 then
 				if notices(bot, `m{missile.id}`, level.dodgeChance) then
 					local side = Vector3.new(-missile.direction.Y, missile.direction.X, 0)
 					evade(bot, motor, now, if side:Dot(relative) >= 0 then side else -side, normal)
@@ -403,31 +403,16 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 		dash(bot, motor, now, soon)
 	end
 
-	-- 4b. Lenkrakete: abfeuern (lenkt dann selbst) und neben dem Gegner zünden
-	if table.find(equipped, "Missile") then
-		local own: MissileInfo? = nil
-		for _, missile in context.activeMissiles() do
-			if missile.owner == bot.id then
-				own = missile
-			end
-		end
-		if own then
-			if level.combo and flat(own.position - position).Magnitude > Constants.MISSILE_BLAST_RADIUS + R + 1 then
-				for participant, otherHead in context.getHeads() do
-					local body = otherHead.PrimaryPart
-					if
-						participant ~= bot.id
-						and body
-						and flat(body.Position - own.position).Magnitude < Constants.MISSILE_BLAST_RADIUS * 0.85
-					then
-						context.detonateMissile(bot.id)
-						break
-					end
-				end
-			end
-		elseif context.missileReady(bot.id) and distance > 8 and distance < 50 and random:NextNumber() < level.missileChance then
-			context.fireMissile(bot.id, toTarget, nextId(bot))
-		end
+	-- 4b. Lenkrakete: abfeuern (lenkt dann selbst zum Ziel; trifft nur direkt)
+	if
+		table.find(equipped, "Missile")
+		and not context.missileActive(bot.id)
+		and context.missileReady(bot.id)
+		and distance > 8
+		and distance < 50
+		and random:NextNumber() < level.missileChance
+	then
+		context.fireMissile(bot.id, toTarget, nextId(bot))
 	end
 
 	-- 4c. Granate werfen (Ziel vorausberechnet; nach einem verworfenen Plan kurz warten)

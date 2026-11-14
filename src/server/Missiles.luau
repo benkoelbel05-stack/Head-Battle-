@@ -4,7 +4,8 @@
 --     und sie fliegt extra langsam (MISSILE_STEER_SPEED); losgelassen fliegt sie geradeaus (MISSILE_SPEED).
 --     Spieler lenken auf dem eigenen PC, Bots lenkt der Server (zum nächsten Gegner, langsam beim Kurven).
 --   * Explodiert bei Plattform- oder Kopftreffer oder nach MISSILE_LIFETIME (Bots zünden auch selbst).
---   * Explosion: Köpfe im MISSILE_BLAST_RADIUS scheiden aus, Plattformen werden weggestoßen.
+--   * Nur wen die Rakete selbst berührt, scheidet aus (Hitbox = genau ihr Quader, siehe MissileShape).
+--     Die Explosion danach ist Optik und schubst Plattformen leicht.
 -- Die Rakete ist eine Part im Ordner "Missiles". Spieler-Raketen gehören dem Spieler (Network Owner),
 -- damit das Lenken ohne Verzögerung reagiert. Treffer prüft der Server.
 
@@ -49,12 +50,8 @@ local folder: Model
 local function makeMissilePart(position: Vector3, direction: Vector3, ownerKey: string, id: string): Part
 	local part = Instance.new("Part")
 	part.Name = "Missile"
-	-- Form passt genau zur Treffer-Kapsel (MISSILE_HALF_LENGTH, MISSILE_RADIUS)
-	part.Size = Vector3.new(
-		(Constants.MISSILE_HALF_LENGTH + Constants.MISSILE_RADIUS) * 2,
-		Constants.MISSILE_RADIUS * 2,
-		Constants.MISSILE_RADIUS * 2
-	)
+	-- Sichtbare Größe = Hitbox
+	part.Size = Vector3.new(Constants.MISSILE_LENGTH, Constants.MISSILE_THICKNESS, Constants.MISSILE_THICKNESS)
 	part.Color = Constants.MISSILE_COLOR
 	part.Material = Enum.Material.SmoothPlastic
 	part.CanCollide = false
@@ -81,27 +78,34 @@ local function makeMissilePart(position: Vector3, direction: Vector3, ownerKey: 
 	return part
 end
 
-local function explode(missile: Missile, shapes: { PlatformShapes.Shape }, at: Vector3?)
-	local position = at or Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
-	missile.part:Destroy()
+-- Wer berührt die Rakete gerade? Gegner dort, wo der Schütze sie sieht; den Schützen selbst erst
+-- nach MISSILE_OWNER_GRACE. slack = kleiner Spielraum (für vom Schützen gemeldete Treffer).
+local function touchedHeads(missile: Missile, position: Vector3, forward: Vector3, slack: number): { Participant }
 	local now = Workspace:GetServerTimeNow()
 	local ownerProtected = now - missile.firedAt < Constants.MISSILE_OWNER_GRACE
-
-	local hit: { { participant: Participant, direction: Vector3 } } = {}
+	local seen = HeadHistory.positionsFor(missile.owner, context.getHeads())
+	local touched: { Participant } = {}
 	for participant, head in context.getHeads() do
-		local body = head.PrimaryPart
-		if body and not (participant == missile.owner and ownerProtected) then
-			local offset = Vector3.new(body.Position.X - position.X, body.Position.Y - position.Y, 0)
-			if offset.Magnitude <= Constants.MISSILE_BLAST_RADIUS + Constants.HEAD_RADIUS then
-				table.insert(hit, {
-					participant = participant,
-					direction = if offset.Magnitude > 0.01 then offset.Unit else Vector3.yAxis,
-				})
-			end
+		local isOwner = participant == missile.owner
+		local target = if isOwner then (head.PrimaryPart and head.PrimaryPart.Position) else seen[head]
+		if target and not (isOwner and ownerProtected) and MissileShape.hitsHead(position, forward, target, slack) then
+			table.insert(touched, participant)
 		end
 	end
-	for _, entry in hit do
-		context.eliminate(entry.participant, "Blast", entry.direction)
+	return touched
+end
+
+local function explode(missile: Missile, shapes: { PlatformShapes.Shape }, at: Vector3?, slack: number?)
+	local position = at or Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
+	local forward = missile.part.CFrame.RightVector
+	missile.part:Destroy()
+
+	-- Nur direkte Treffer scheiden aus
+	for _, participant in touchedHeads(missile, position, forward, slack or 0) do
+		local head = context.getHead(participant)
+		local body = head and head.PrimaryPart
+		local direction = if body then Vector3.new(body.Position.X - position.X, body.Position.Y - position.Y, 0) else Vector3.zero
+		context.eliminate(participant, "Blast", if direction.Magnitude > 0.01 then direction.Unit else forward)
 	end
 
 	local pushRadius = Constants.MISSILE_BLAST_RADIUS * 2
@@ -229,24 +233,14 @@ function Missiles.step(dt: number)
 
 		local position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
 		local shouldExplode = now - missile.firedAt >= Constants.MISSILE_LIFETIME or position.Y < Constants.FALL_LIMIT_Y
-		-- Treffer prüfen (Kapsel-Form, siehe MissileShape). Gegner dort, wo der Schütze sie sieht;
-		-- den Schützen selbst erst nach MISSILE_OWNER_GRACE. Spieler-Raketen meldet meist schon der
-		-- Schütze selbst (MissileHit), das hier ist die Absicherung.
+		-- Treffer prüfen (genau die Form der Rakete, siehe MissileShape). Spieler-Raketen meldet meist
+		-- schon der Schütze selbst (MissileHit), das hier ist die Absicherung.
 		local forward = missile.part.CFrame.RightVector
 		if not shouldExplode and MissileShape.hitsPlatform(shapes, position, forward) then
 			shouldExplode = true
 		end
-		if not shouldExplode then
-			local ownerProtected = now - missile.firedAt < Constants.MISSILE_OWNER_GRACE
-			local seen = HeadHistory.positionsFor(missile.owner, context.getHeads())
-			for participant, head in context.getHeads() do
-				local isOwner = participant == missile.owner
-				local target = if isOwner then (head.PrimaryPart and head.PrimaryPart.Position) else seen[head]
-				if target and not (isOwner and ownerProtected) and MissileShape.hitsHead(position, forward, target) then
-					shouldExplode = true
-					break
-				end
-			end
+		if not shouldExplode and #touchedHeads(missile, position, forward, 0) > 0 then
+			shouldExplode = true
 		end
 
 		if shouldExplode then
@@ -270,7 +264,8 @@ local function onReportedHit(player: Player, position: Vector3)
 		reported = Vector3.new(serverPosition.X, serverPosition.Y, Constants.PLANE_Z)
 	end
 	table.remove(active, index)
-	explode(missile, PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER)), reported)
+	-- Kleiner Spielraum, weil der Schütze die Lage einen Moment früher gesehen hat
+	explode(missile, PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER)), reported, 0.4)
 end
 
 function Missiles.init(remote: RemoteEvent, missileContext: Context, hitRemote: RemoteEvent?)
