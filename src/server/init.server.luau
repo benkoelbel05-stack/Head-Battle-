@@ -159,6 +159,7 @@ BotController.init({
 	fireMissile = Missiles.fire,
 	missileReady = Missiles.isReady,
 	missileActive = Missiles.hasActive,
+	detonateMissile = Missiles.detonate,
 	setLoadout = HeadSpawner.setLoadout,
 })
 

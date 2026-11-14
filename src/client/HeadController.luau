@@ -68,8 +68,10 @@ local chargingSince = 0
 local dashReadyAt = 0
 local actionCounter = 0 -- für eindeutige IDs von Thrustern und Granaten
 
--- Eigene Lenkraketen: aktuelle Flugrichtung pro Rakete
+-- Eigene Lenkraketen: aktuelle Flugrichtung und Tempo pro Rakete
 local missileDirections: { [BasePart]: Vector3 } = {}
+local missileSpeeds: { [BasePart]: number } = {}
+local missileHeldSlot: number? = nil -- solange diese Taste gehalten wird, lenkt man die Rakete
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include
@@ -281,13 +283,11 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			swingSwordRemote:FireServer(direction)
 		end
 	elseif id == "Missile" then
-		-- Fliegt schon eine eigene Rakete: zünden. Sonst abfeuern.
+		-- Abfeuern, wenn noch keine eigene fliegt. Lenken geschieht durch Halten der Taste (siehe step).
 		local flying = next(missileDirections) ~= nil
-		if flying or abilityReady(head, "Missile") then
+		if not flying and abilityReady(head, "Missile") then
 			actionCounter += 1
-			if not flying then
-				head:SetAttribute(Abilities.readyAttribute("Missile"), Workspace:GetServerTimeNow() + Constants.MISSILE_COOLDOWN)
-			end
+			head:SetAttribute(Abilities.readyAttribute("Missile"), Workspace:GetServerTimeNow() + Constants.MISSILE_COOLDOWN)
 			fireMissileRemote:FireServer(freeAim() or aimDirection(input, false), tostring(actionCounter))
 		end
 	elseif id == "Grenade" then
@@ -315,6 +315,9 @@ local function pressSlot(slot: number)
 	if not id then
 		return
 	end
+	if id == "Missile" then
+		missileHeldSlot = slot
+	end
 	if Abilities.list[id].chargeable then
 		if abilityReady(head, id) and not chargingId then
 			chargingId = id
@@ -328,6 +331,9 @@ end
 
 -- Slot-Taste losgelassen: aufgeladene Fähigkeit auslösen
 local function releaseSlot(slot: number)
+	if missileHeldSlot == slot then
+		missileHeldSlot = nil
+	end
 	if chargingId and chargingSlot == slot then
 		local charge = GrenadePhysics.chargeFromHold(os.clock() - chargingSince)
 		table.insert(pendingAbilities, { id = chargingId, charge = charge })
@@ -380,12 +386,15 @@ local function step(rawDt: number)
 	body.AssemblyLinearVelocity = motor.velocity
 	body.AssemblyAngularVelocity = Vector3.zero
 
-	-- Eigene Lenkraketen mit der Maus lenken (sonst mit den Richtungstasten)
+	-- Eigene Lenkraketen: Taste gehalten = langsam zur Maus lenken (ohne Maus: Richtungstasten),
+	-- losgelassen = geradeaus mit vollem Tempo
 	local missiles = Workspace:FindFirstChild(Constants.MISSILES_FOLDER)
 	local myKey = tostring(player.UserId)
+	local steering = missileHeldSlot ~= nil
 	for part in missileDirections do
 		if not part.Parent then
 			missileDirections[part] = nil
+			missileSpeeds[part] = nil
 		end
 	end
 	if missiles then
@@ -395,7 +404,9 @@ local function step(rawDt: number)
 				local position = Vector3.new(part.Position.X, part.Position.Y, Constants.PLANE_Z)
 				local wanted: Vector3? = nil
 				local mouseAim = freeAim()
-				if mouseAim then
+				if not steering then
+					-- losgelassen: geradeaus weiter
+				elseif mouseAim then
 					-- Zum Mauszeiger hin (freeAim zeigt vom Kopf aus, deshalb hier vom Raketen-Punkt neu rechnen)
 					local camera = Workspace.CurrentCamera
 					local mouse = UserInputService:GetMouseLocation()
@@ -417,9 +428,14 @@ local function step(rawDt: number)
 					direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
 				end
 				missileDirections[part] = direction
-				local nextPosition = position + direction * Constants.MISSILE_SPEED * dt
+				local speed = missileSpeeds[part] or Constants.MISSILE_SPEED
+				local wantedSpeed = if steering then Constants.MISSILE_STEER_SPEED else Constants.MISSILE_SPEED
+				local change = Constants.MISSILE_SPEED_CHANGE * dt
+				speed += math.clamp(wantedSpeed - speed, -change, change)
+				missileSpeeds[part] = speed
+				local nextPosition = position + direction * speed * dt
 				part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
-				part.AssemblyLinearVelocity = direction * Constants.MISSILE_SPEED
+				part.AssemblyLinearVelocity = direction * speed
 			end
 		end
 	end

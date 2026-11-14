@@ -1,9 +1,9 @@
 --!strict
 -- Fähigkeit Lenkrakete (Raketenrucksack).
---   * Die Rakete fliegt in Zielrichtung los und wird gelenkt: bei Spielern vom eigenen PC (Maus),
---     bei Bots vom Server (zum nächsten Gegner). Sie dreht sich höchstens MISSILE_TURN_RATE rad/s.
---   * Explodiert bei Plattform- oder Kopftreffer, nach MISSILE_LIFETIME oder wenn der Schütze
---     die Taste nochmal drückt.
+--   * Die Rakete fliegt in Zielrichtung los. Solange der Schütze die Taste hält, lenkt er sie zur Maus
+--     und sie fliegt extra langsam (MISSILE_STEER_SPEED); losgelassen fliegt sie geradeaus (MISSILE_SPEED).
+--     Spieler lenken auf dem eigenen PC, Bots lenkt der Server (zum nächsten Gegner, langsam beim Kurven).
+--   * Explodiert bei Plattform- oder Kopftreffer oder nach MISSILE_LIFETIME (Bots zünden auch selbst).
 --   * Explosion: Köpfe im MISSILE_BLAST_RADIUS scheiden aus, Plattformen werden weggestoßen.
 -- Die Rakete ist eine Part im Ordner "Missiles". Spieler-Raketen gehören dem Spieler (Network Owner),
 -- damit das Lenken ohne Verzögerung reagiert. Treffer prüft der Server.
@@ -25,6 +25,7 @@ type Missile = {
 	part: BasePart,
 	firedAt: number,
 	direction: Vector3, -- nur für Bots (Server lenkt)
+	speed: number, -- nur für Bots
 }
 
 export type Context = {
@@ -110,13 +111,21 @@ local function findMissile(participant: Participant): (Missile?, number?)
 	return nil, nil
 end
 
--- Rakete abfeuern (oder, falls schon eine fliegt, diese zünden)
-function Missiles.fire(participant: Participant, direction: Vector3, id: string): boolean
+-- Eigene Rakete sofort zünden (nur Bots)
+function Missiles.detonate(participant: Participant): boolean
 	local existing, index = findMissile(participant)
 	if existing and index then
 		table.remove(active, index)
 		explode(existing, PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER)))
 		return true
+	end
+	return false
+end
+
+-- Rakete abfeuern (nur eine gleichzeitig)
+function Missiles.fire(participant: Participant, direction: Vector3, id: string): boolean
+	if findMissile(participant) then
+		return false
 	end
 
 	local flat = Vector3.new(direction.X, direction.Y, 0)
@@ -148,7 +157,7 @@ function Missiles.fire(participant: Participant, direction: Vector3, id: string)
 		part:SetNetworkOwner(participant :: Player) -- Spieler lenken selbst, ohne Verzögerung
 	end
 
-	table.insert(active, { id = missileId, owner = participant, part = part, firedAt = now, direction = flat })
+	table.insert(active, { id = missileId, owner = participant, part = part, firedAt = now, direction = flat, speed = Constants.MISSILE_SPEED })
 	return true
 end
 
@@ -169,21 +178,29 @@ local function steerBotMissile(missile: Missile, dt: number)
 		end
 	end
 	local direction = missile.direction
+	local steering = false
 	if target then
 		local wanted = Vector3.new(target.X - position.X, target.Y - position.Y, 0)
 		if wanted.Magnitude > 0.01 then
 			local current = math.atan2(direction.Y, direction.X)
 			local desired = math.atan2(wanted.Y, wanted.X)
 			local difference = (desired - current + math.pi) % (2 * math.pi) - math.pi
-			local maxTurn = Constants.MISSILE_TURN_RATE * dt
-			local angle = current + math.clamp(difference, -maxTurn, maxTurn)
-			direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
+			-- Wie ein Spieler: nur bei größeren Kurven lenken (und dabei langsam fliegen)
+			if math.abs(difference) > 0.25 then
+				steering = true
+				local maxTurn = Constants.MISSILE_TURN_RATE * dt
+				local angle = current + math.clamp(difference, -maxTurn, maxTurn)
+				direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
+			end
 		end
 	end
 	missile.direction = direction
-	local nextPosition = Vector3.new(position.X, position.Y, Constants.PLANE_Z) + direction * Constants.MISSILE_SPEED * dt
+	local wantedSpeed = if steering then Constants.MISSILE_STEER_SPEED else Constants.MISSILE_SPEED
+	local change = Constants.MISSILE_SPEED_CHANGE * dt
+	missile.speed = missile.speed + math.clamp(wantedSpeed - missile.speed, -change, change)
+	local nextPosition = Vector3.new(position.X, position.Y, Constants.PLANE_Z) + direction * missile.speed * dt
 	missile.part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
-	missile.part.AssemblyLinearVelocity = direction * Constants.MISSILE_SPEED
+	missile.part.AssemblyLinearVelocity = direction * missile.speed
 end
 
 function Missiles.step(dt: number)

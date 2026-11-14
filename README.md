@@ -12,7 +12,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Schweißerbrille (Brille): Thruster an Plattform kleben, schiebt und dreht sie
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
   - Schwert (Rücken): Hieb im Bogen (±65°) Richtung Maus, Reichweite 5; trifft alle Köpfe darin und schlägt Granaten zurück
-  - Raketenrucksack (Rücken): Lenkrakete, folgt dem Mauszeiger; nochmal drücken = zünden, sonst explodiert sie bei Plattform/Kopf oder nach 3,5 s
+  - Raketenrucksack (Rücken): Lenkrakete: Taste halten = sie fliegt extra langsam zum Mauszeiger, loslassen = geradeaus mit vollem Tempo; explodiert bei Plattform/Kopf oder nach 6 s
 - [x] Startmenü: 3 von 5 Fähigkeiten wählen (Klick-Reihenfolge = Taste), Bot-Stärke und Bot-Anzahl einstellen, „Spielen“; im Spiel öffnet „Ausrüstung“ (unten links) das Menü wieder
 - [x] Bot-Stärke Leicht / Normal / Schwer / Profi: Reaktionszeit, Tempo, Zielgenauigkeit, Ausweichen; ab „Schwer“ schlagen Bots Granaten zurück, kombinieren Dash + Schwert, zünden Raketen neben dem Gegner und meiden Schwertkämpfer
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
@@ -45,7 +45,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 
 Zielen: Fähigkeiten gehen in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
 Dash, Granate, Schwert und Rakete zielt man frei in alle Richtungen (360°): mit dem Mauszeiger oder dem rechten Stick.
-Die Lenkrakete folgt danach weiter dem Mauszeiger (ohne Maus: Richtungstasten).
+Die Lenkrakete lenkt man, solange man die Taste hält: dann fliegt sie langsam zum Mauszeiger (ohne Maus: Richtungstasten).
 Der Thruster klebt genau dort an die Plattform, wo man gerade steht. In der Luft geht er an die nächste Plattform in Zielrichtung.
 
 ## Projektstruktur

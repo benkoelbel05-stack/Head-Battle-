@@ -42,6 +42,7 @@ export type Context = {
 	fireMissile: (Participant, Vector3, string) -> boolean,
 	missileReady: (Participant) -> boolean,
 	missileActive: (Participant) -> boolean,
+	detonateMissile: (Participant) -> boolean,
 	setLoadout: (Participant, { string }) -> (),
 }
 
@@ -419,7 +420,7 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 						and body
 						and flat(body.Position - own.position).Magnitude < Constants.MISSILE_BLAST_RADIUS * 0.85
 					then
-						context.fireMissile(bot.id, toTarget, nextId(bot)) -- zündet
+						context.detonateMissile(bot.id)
 						break
 					end
 				end

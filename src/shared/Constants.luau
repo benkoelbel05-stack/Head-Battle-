@@ -70,9 +70,11 @@ Constants.SWORD_DEFLECT_SPEED = 55 -- so schnell fliegt eine zurückgeschlagene 
 Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
 
 -- Lenkrakete: fliegt los und wird mit der Maus gelenkt
-Constants.MISSILE_SPEED = 32
-Constants.MISSILE_TURN_RATE = 3.2 -- maximale Drehung in rad/s (Wendigkeit)
-Constants.MISSILE_LIFETIME = 3.5
+Constants.MISSILE_SPEED = 22 -- Fluggeschwindigkeit geradeaus
+Constants.MISSILE_STEER_SPEED = 8 -- extra langsam, solange man sie lenkt (Taste gehalten)
+Constants.MISSILE_SPEED_CHANGE = 45 -- wie schnell sie zwischen den beiden Tempi wechselt (Studs/s²)
+Constants.MISSILE_TURN_RATE = 3.6 -- maximale Drehung beim Lenken in rad/s (Wendigkeit)
+Constants.MISSILE_LIFETIME = 6
 Constants.MISSILE_RADIUS = 0.6
 Constants.MISSILE_BLAST_RADIUS = 5
 Constants.MISSILE_IMPULSE = 600 -- Stoß auf Plattformen bei der Explosion
