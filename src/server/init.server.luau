@@ -68,10 +68,44 @@ remotes.Parent = ReplicatedStorage
 ---------------------------------------------------------------------------------------------------
 
 -- Die Plattformen rechnet jeder Rechner selbst (PlatformSim), der Server gleicht ab.
-local spawnPoints, platforms = Arena.build(ArenaLayouts.Basteltisch)
+local currentMap = "Basteltisch"
+local spawnPoints, platforms = Arena.build(ArenaLayouts[currentMap])
 local sim = PlatformSim.new()
 for _, platform in platforms do
 	PlatformSim.register(sim, platform)
+end
+
+-- Andere Karte laden (vor einer Runde). Alte Plattformen verschwinden mit ihrem Model aus der Simulation.
+local function loadArena(name: string)
+	local layout = ArenaLayouts[name]
+	if not layout or name == currentMap then
+		return
+	end
+	currentMap = name
+	local points, newPlatforms = Arena.build(layout)
+	for _, platform in newPlatforms do
+		PlatformSim.register(sim, platform)
+	end
+	HeadSpawner.setSpawnPoints(points)
+end
+
+-- Karte und Hintergrund für die nächste Runde auslosen (nicht zweimal hintereinander dasselbe)
+local BACKGROUNDS = { "day", "sunset", "night" }
+local function pickArena(currentBackground: string?): (string, string)
+	local maps = {}
+	for name in ArenaLayouts do
+		if name ~= currentMap then
+			table.insert(maps, name)
+		end
+	end
+	local backgrounds = {}
+	for _, key in BACKGROUNDS do
+		if key ~= currentBackground then
+			table.insert(backgrounds, key)
+		end
+	end
+	local map = if #maps > 0 then maps[math.random(1, #maps)] else currentMap
+	return map, backgrounds[math.random(1, #backgrounds)]
 end
 PlatformShapes.setFrameProvider(function(model: Model): CFrame?
 	local state = PlatformSim.get(sim, model)
@@ -125,6 +159,8 @@ RoundManager.init({
 	getColor = HeadSpawner.getColor,
 	isBot = HeadSpawner.isBot,
 	getBots = BotController.list,
+	pickArena = pickArena,
+	loadArena = loadArena,
 	resetArena = function()
 		PlatformSim.reset(sim)
 		Grenades.clear()

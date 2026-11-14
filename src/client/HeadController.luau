@@ -140,7 +140,8 @@ end
 
 -- Während des Countdowns stehen alle still
 local function isFrozen(): boolean
-	if roundState:GetAttribute("Phase") == "Countdown" then
+	local phase = roundState:GetAttribute("Phase")
+	if phase == "Countdown" or phase == "MapSelect" then
 		return true
 	end
 	-- Eigener Countdown beim Einstieg ins freie Spiel

@@ -170,6 +170,11 @@ end
 -- Öffentliche Funktionen
 ---------------------------------------------------------------------------------------------------
 
+-- Neue Startpunkte (nach dem Laden einer anderen Karte)
+function HeadSpawner.setSpawnPoints(points: { Vector3 })
+	spawnPoints = points
+end
+
 function HeadSpawner.init(points: { Vector3 })
 	spawnPoints = points
 	local existing = Workspace:FindFirstChild(Constants.HEADS_FOLDER)

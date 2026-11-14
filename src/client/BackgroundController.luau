@@ -17,7 +17,7 @@ local OVERSIZE = 1.06 -- etwas größer als der Bildschirm, damit nie ein Rand z
 
 function BackgroundController.start()
 	local roundState = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
-	local arena = Workspace:WaitForChild(Constants.ARENA_FOLDER)
+	Workspace:WaitForChild(Constants.ARENA_FOLDER)
 
 	local part = Instance.new("Part")
 	part.Name = "ArenaBackdrop"
@@ -48,7 +48,8 @@ function BackgroundController.start()
 
 	-- Bild setzen. Die alte einfarbige Wand bleibt sichtbar, bis das Bild wirklich geladen ist.
 	local function setWall(hidden: boolean)
-		local wall = arena:FindFirstChild("Background")
+		local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
+		local wall = arena and arena:FindFirstChild("Background")
 		if wall and wall:IsA("BasePart") then
 			wall.LocalTransparencyModifier = if hidden then 1 else 0
 		end
@@ -84,9 +85,12 @@ function BackgroundController.start()
 		end)
 	end
 	roundState:GetAttributeChangedSignal("Background"):Connect(refreshImage)
-	arena.ChildAdded:Connect(function(child)
-		if child.Name == "Background" then
-			setWall(image.IsLoaded and image.Image ~= "")
+	-- Neue Karte geladen: deren Wand ebenfalls ausblenden, wenn das Bild da ist
+	Workspace.ChildAdded:Connect(function(child)
+		if child.Name == Constants.ARENA_FOLDER then
+			task.defer(function()
+				setWall(image.IsLoaded and image.Image ~= "")
+			end)
 		end
 	end)
 	refreshImage()

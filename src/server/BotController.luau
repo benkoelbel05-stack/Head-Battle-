@@ -534,7 +534,8 @@ function BotController.step(dt: number)
 		return
 	end
 	local now = os.clock()
-	local frozen = context.getPhase() == "Countdown"
+	local phase = context.getPhase()
+	local frozen = phase == "Countdown" or phase == "MapSelect"
 	local shapes = PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER))
 
 	for _, bot in bots do

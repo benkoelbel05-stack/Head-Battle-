@@ -122,6 +122,7 @@ Constants.MIN_PARTICIPANTS = 2 -- ab so vielen Teilnehmern (Spieler + Bots) wird
 Constants.MAX_PARTICIPANTS = 4
 Constants.WIN_POINTS = 5 -- so viele Rundensiege gewinnen ein Match
 Constants.COUNTDOWN_TIME = 3
+Constants.MAP_SELECT_TIME = 3 -- vor jeder Runde: Karte und Hintergrund werden ausgelost (Glücksrad)
 Constants.ROUND_END_TIME = 3 -- Pause nach einer Runde (Sieger wird angezeigt)
 Constants.MATCH_END_TIME = 6 -- Pause nach einem Match
 

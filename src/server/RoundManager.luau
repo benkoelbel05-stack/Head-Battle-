@@ -27,6 +27,8 @@ export type Context = {
 	isBot: (Participant) -> boolean,
 	getBots: () -> { string },
 	resetArena: () -> (), -- Plattformen, Granaten, Thruster und Abklingzeiten zurücksetzen
+	pickArena: (string?) -> (string, string), -- nächste Karte und Hintergrund auslosen
+	loadArena: (string) -> (), -- Karte laden
 }
 
 local RoundManager = {}
@@ -185,7 +187,19 @@ end
 -- Eine Runde spielen. Gibt den Sieger zurück (nil = unentschieden oder abgebrochen).
 local function playRound(): Participant?
 	round += 1
+
+	-- Glücksrad: Karte und Hintergrund auslosen; die Clients zeigen das Durchwechseln an
+	local current = stateFolder:GetAttribute("Background")
+	local map, background = context.pickArena(if typeof(current) == "string" then current else nil)
+	stateFolder:SetAttribute("NextMap", map)
+	stateFolder:SetAttribute("NextBackground", background)
+	setPhase("MapSelect", `Runde {round}`, Constants.MAP_SELECT_TIME)
+	updateScoreboard()
+	task.wait(Constants.MAP_SELECT_TIME)
+
 	context.resetArena()
+	context.loadArena(map)
+	stateFolder:SetAttribute("Background", background)
 	table.clear(alive)
 	for _, participant in participants() do
 		context.despawn(participant)
@@ -194,17 +208,6 @@ local function playRound(): Participant?
 		alive[participant] = true
 		context.spawn(participant)
 	end
-
-	-- Jede Runde ein anderer Hintergrund (Tag, Sonnenuntergang, Nacht)
-	local backgrounds = { "day", "sunset", "night" }
-	local current = stateFolder:GetAttribute("Background")
-	local options = {}
-	for _, key in backgrounds do
-		if key ~= current then
-			table.insert(options, key)
-		end
-	end
-	stateFolder:SetAttribute("Background", options[math.random(1, #options)])
 
 	setPhase("Countdown", `Runde {round}`, Constants.COUNTDOWN_TIME)
 	updateScoreboard()
