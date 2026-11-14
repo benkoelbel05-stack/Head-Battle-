@@ -586,6 +586,24 @@ function MainMenu.start()
 	end)
 
 	tween(titleGroup, 0.75, { GroupTransparency = 0 })
+
+	-- Nur in Studio: nach ein paar Sekunden melden, welche Menübilder nicht geladen werden konnten
+	-- (z. B. Decal- statt Image-ID oder noch nicht von Roblox freigegeben)
+	if RunService:IsStudio() then
+		task.delay(6, function()
+			local broken = {}
+			for _, item in titleGroup:GetDescendants() do
+				if (item:IsA("ImageLabel") or item:IsA("ImageButton")) and item.Image ~= "" and not item.IsLoaded then
+					table.insert(broken, `{item.Name} ({item.Image})`)
+				end
+			end
+			if #broken > 0 then
+				warn(`[ClayBattle] Menübilder nicht geladen: {table.concat(broken, ", ")}`)
+			else
+				print("[ClayBattle] Alle Menübilder geladen")
+			end
+		end)
+	end
 end
 
 return MainMenu
