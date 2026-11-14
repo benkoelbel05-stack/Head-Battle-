@@ -13,7 +13,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
   - Schwert (Rücken): Hieb im Bogen (±65°) Richtung Maus, Reichweite 5; trifft alle Köpfe darin und schlägt Granaten zurück
   - Raketenrucksack (Rücken): Lenkrakete: Taste halten = sie fliegt extra langsam zum Mauszeiger, loslassen = geradeaus mit vollem Tempo; explodiert bei Plattform/Kopf oder nach 6 s
-- [x] Hauptmenü mit wippenden Knetfiguren, Optionen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik), Shop-Hinweis, Verlassen; Bild-IDs in `src/client/MenuAssetIds.luau` (0 = Ersatzgrafik)
+- [x] Hauptmenü (im Spiel über „☰ MENÜ“ oben rechts oder Taste M wieder erreichbar) mit wippenden Knetfiguren, Optionen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik), Shop-Hinweis, Verlassen; Bild-IDs in `src/client/MenuAssetIds.luau` (0 = Ersatzgrafik)
 - [x] Ausrüstungs-Wahl im Bopl-Stil nach „Spielen“: Fähigkeiten-Panel, eigene Spalte mit 3 Slots (Slot wählen, dann Fähigkeit oder ◀ ▶), Figur und Haken; rechts Mitspieler/Bots bzw. „Warte auf Spieler …“, Bots und Bot-Stärke; im Spiel „Ausrüstung“ unten links
 - [x] Countdown 3-2-1-LOS beim Einstieg und vor jeder Runde (Bots spielen erst um Punkte, wenn ein Spieler eingestiegen ist)
 - [x] Bot-Stärke Leicht / Normal / Schwer / Profi: Reaktionszeit, Tempo, Zielgenauigkeit, Ausweichen; ab „Schwer“ schlagen Bots Granaten zurück, kombinieren Dash + Schwert, zünden Raketen neben dem Gegner und meiden Schwertkämpfer

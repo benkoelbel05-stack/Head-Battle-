@@ -5,6 +5,8 @@
 --   * "Optionen" -> Einstellungen über dem leicht abgedunkelten Titelbild (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
 --   * "Shop" -> noch kein Shop im Spiel: kurzer Hinweis
 --   * "Verlassen" -> Nachfrage, dann Spiel verlassen
+-- Im Spiel öffnet der Knopf "☰ MENÜ" (oben rechts) oder die Taste M das Menü wieder; "Spielen" geht
+-- dann direkt zurück ins Spiel. Das Spiel läuft währenddessen weiter (Mehrspieler), man steht aber still.
 -- Bilder kommen aus MenuAssetIds. Fehlt eine ID (0), gibt es einen Ersatz, damit das Menü benutzbar bleibt.
 -- Alle Positionen sind im Entwurfsraster 1672 x 941 (Menu_Vorschau.jpg) angegeben und skalieren mit.
 
@@ -13,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local images = require(script.Parent.MenuAssetIds)
@@ -470,20 +473,102 @@ function MainMenu.start()
 	end
 	boxButton(optionsGroup, "Back", "← Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle)
 
-	-- Spielen: Menü ausblenden, dann die Ausrüstungs-Wahl zeigen (dort geht es mit "Spielen" ins Spiel)
+	-- Solange ein Menü offen ist, nimmt die Steuerung keine Eingaben an (HeadController liest das)
+	local function setMenuOpen(open: boolean)
+		menuOpen = open
+		player:SetAttribute("MenuOpen", open)
+	end
+	setMenuOpen(true)
+
+	local function inGame(): boolean
+		return player:GetAttribute("InGame") == true
+	end
+
+	-- Spielen: Menü ausblenden. Beim ersten Mal folgt die Ausrüstungs-Wahl (dort geht es ins Spiel),
+	-- später geht es direkt zurück ins laufende Spiel.
 	local function playGame()
 		if not menuOpen or transitioning then
 			return
 		end
-		menuOpen = false
 		transitioning = true
-		tween(titleGroup, 0.48, { GroupTransparency = 1 }, Enum.EasingStyle.Quart)
-		task.delay(0.49, function()
+		local resume = inGame()
+		tween(titleGroup, 0.4, { GroupTransparency = 1 }, Enum.EasingStyle.Quart)
+		if optionsGroup.Visible then
+			tween(optionsGroup, 0.4, { GroupTransparency = 1 })
+		end
+		task.delay(0.41, function()
 			gui.Enabled = false
+			optionsGroup.Visible = false
+			titleGroup.Interactable = true
 			transitioning = false
-			StartScreen.open()
+			if resume then
+				setMenuOpen(false)
+			else
+				menuOpen = false
+				StartScreen.open() -- setzt "MenuOpen" selbst, bis man einsteigt
+			end
 		end)
 	end
+
+	-- Im Spiel: Menü wieder öffnen (Titelbild)
+	local function openMenu()
+		if menuOpen or transitioning then
+			return
+		end
+		setMenuOpen(true)
+		gui.Enabled = true
+		titleGroup.Visible = true
+		titleGroup.Interactable = true
+		optionsGroup.Visible = false
+		titleGroup.GroupTransparency = 1
+		tween(titleGroup, 0.35, { GroupTransparency = 0 })
+	end
+
+	-- Knopf oben rechts (nur im Spiel sichtbar, wenn kein Menü offen ist)
+	local menuButtonGui = Instance.new("ScreenGui")
+	menuButtonGui.Name = "ClayBattleMenuButton"
+	menuButtonGui.ResetOnSpawn = false
+	menuButtonGui.DisplayOrder = 5
+	menuButtonGui.Parent = playerGui
+	local menuButton = Instance.new("TextButton")
+	menuButton.Name = "Menu"
+	menuButton.AnchorPoint = Vector2.new(1, 0)
+	menuButton.Position = UDim2.new(1, -16, 0, 12)
+	menuButton.Size = UDim2.fromOffset(130, 44)
+	menuButton.BackgroundColor3 = Color3.fromRGB(85, 49, 134)
+	menuButton.Font = Enum.Font.LuckiestGuy
+	menuButton.TextSize = 22
+	menuButton.TextColor3 = WHITE
+	menuButton.Text = "☰ MENÜ"
+	menuButton.Visible = false
+	local menuCorner = Instance.new("UICorner")
+	menuCorner.CornerRadius = UDim.new(0, 14)
+	menuCorner.Parent = menuButton
+	local menuStroke = Instance.new("UIStroke")
+	menuStroke.Color = Color3.fromRGB(250, 246, 225)
+	menuStroke.Thickness = 2
+	menuStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	menuStroke.Parent = menuButton
+	menuButton.Parent = menuButtonGui
+	menuButton.Activated:Connect(openMenu)
+
+	local function refreshMenuButton()
+		menuButton.Visible = inGame() and player:GetAttribute("MenuOpen") ~= true
+	end
+	player:GetAttributeChangedSignal("InGame"):Connect(refreshMenuButton)
+	player:GetAttributeChangedSignal("MenuOpen"):Connect(refreshMenuButton)
+
+	-- Taste M: Menü auf/zu (nur im Spiel)
+	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if gameProcessed or input.KeyCode ~= Enum.KeyCode.M or not inGame() then
+			return
+		end
+		if menuOpen and gui.Enabled then
+			playGame()
+		elseif player:GetAttribute("MenuOpen") ~= true then
+			openMenu()
+		end
+	end)
 
 	-- Noch gibt es keinen Shop: kurzer Hinweis
 	local function showShop()

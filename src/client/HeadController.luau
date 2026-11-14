@@ -90,8 +90,13 @@ local function anyKeyDown(keys: { Enum.KeyCode }): boolean
 end
 
 -- Eingabe als Richtung in der 2D-Ebene (X = rechts, Y = oben)
+-- Ist gerade ein Menü offen (Hauptmenü, Optionen, Ausrüstung)? Dann keine Steuerung.
+local function menuOpen(): boolean
+	return player:GetAttribute("MenuOpen") == true
+end
+
 local function readInput(): Vector3
-	if UserInputService:GetFocusedTextBox() then
+	if UserInputService:GetFocusedTextBox() or menuOpen() then
 		return Vector3.zero
 	end
 
@@ -456,7 +461,7 @@ end
 ---------------------------------------------------------------------------------------------------
 
 local function onInputBegan(input: InputObject, gameProcessed: boolean)
-	if gameProcessed then
+	if gameProcessed or menuOpen() then
 		return
 	end
 	if JUMP_KEYS[input.KeyCode] then

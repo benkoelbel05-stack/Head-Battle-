@@ -584,6 +584,7 @@ function StartScreen.start()
 	-------------------------------------------------------------------------------------------------
 
 	local function open()
+		player:SetAttribute("MenuOpen", true)
 		backdrop.Visible = true
 		reopen.Visible = false
 		hovered = nil
@@ -600,6 +601,7 @@ function StartScreen.start()
 		end
 		backdrop.Visible = false
 		reopen.Visible = true
+		player:SetAttribute("MenuOpen", false)
 	end)
 	reopen.Activated:Connect(open)
 
