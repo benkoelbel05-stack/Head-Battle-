@@ -103,13 +103,12 @@ function ItemAnimations.grenade(part: BasePart)
 	part.Material = Enum.Material.SmoothPlastic
 	local r = part.Size.Y / 2
 	welded(part, "ClayCap", CFrame.new(0, r * 0.88, 0), Vector3.new(r * 0.72, r * 0.32, r * 0.72), PURPLE)
-	local fuse = welded(part, "ClayFuse", CFrame.new(0.07, r * 1.28, 0) * CFrame.Angles(0, 0, -0.3), Vector3.new(0.14, r * 0.65, 0.14), Color3.fromRGB(128, 94, 55), Enum.PartType.Cylinder)
+	local fuse = welded(part, "ClayFuse", CFrame.new(0.07, r * 1.28, 0) * CFrame.Angles(0, 0, math.pi / 2 + 0.3), Vector3.new(r * 0.65, 0.14, 0.14), Color3.fromRGB(128, 94, 55), Enum.PartType.Cylinder)
 	local attachment = Instance.new("Attachment")
-	attachment.Position = Vector3.new(0, r * 0.37, 0)
+	attachment.Position = Vector3.new(r * 0.36, 0, 0)
 	attachment.Parent = fuse
 	local sparks = Instance.new("ParticleEmitter")
 	sparks.Name = "ClayFuseSparks"
-	sparks.Texture = "" -- built-in particle, no image/decal ID
 	sparks.Color = ColorSequence.new(YELLOW, ORANGE)
 	sparks.LightEmission = 0.6
 	sparks.Size = NumberSequence.new(0.15, 0)
@@ -167,7 +166,6 @@ function ItemAnimations.thruster(part: BasePart)
 	local smoke = Instance.new("ParticleEmitter")
 	smoke.Name = "ClayThrusterSmoke"
 	smoke.EmissionDirection = Enum.NormalId.Right
-	smoke.Texture = "" -- no asset IDs
 	smoke.Color = ColorSequence.new(Color3.fromRGB(252, 222, 170), Color3.fromRGB(169, 143, 174))
 	smoke.Transparency = NumberSequence.new(0.3, 1)
 	smoke.Size = NumberSequence.new(0.2, 0.7)
