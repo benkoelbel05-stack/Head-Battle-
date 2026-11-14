@@ -97,7 +97,13 @@ Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform
 -- Rückkehr-Dauer ungefähr 5 / Wurzel(SPRING) Sekunden (2 -> ca. 3,5 s)
 Constants.PLATFORM_SPRING = 2 -- wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = langsamer)
 Constants.PLATFORM_DAMPING = 1.6 -- Bremse (früher 2,8 = ganz ohne Nachwippen); jetzt federt sie wie Knete kurz nach
-Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse: wie weit eine Plattform geht, bestimmen Kräfte und Feder (früher 12, das wirkte wie eine unsichtbare Wand)
+Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse (früher 12 als harte Grenze: wirkte wie eine unsichtbare Wand)
+-- Weiche Grenze: ab PLATFORM_SOFT_OFFSET Studs zieht eine zusätzliche, viel stärkere Feder (mit eigener
+-- Bremse) zurück. So läuft eine Plattform weich aus, statt anzuschlagen oder aus dem Bild zu fliegen.
+-- Kleine Plattformen unter vollem Schub bleiben so bei ~12-14 Studs, große bei ~10.
+Constants.PLATFORM_SOFT_OFFSET = 9
+Constants.PLATFORM_SOFT_SPRING = 14
+Constants.PLATFORM_SOFT_DAMPING = 4
 Constants.PLATFORM_ANGULAR_SPRING = 8 -- wie stark eine gekippte Plattform zurückgedreht wird (kleiner = langsamer)
 Constants.PLATFORM_ANGULAR_DAMPING = 3.4 -- (früher 5,7 = ohne Nachwackeln) wackelt kurz nach
 Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(60) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
@@ -207,7 +213,7 @@ Constants.CAMERA_FOV = 8
 Constants.CAMERA_MIN_DISTANCE = 300
 Constants.CAMERA_MAX_DISTANCE = 3000
 Constants.CAMERA_PADDING = 6 -- Rand um Arena und Köpfe (Studs)
-Constants.CAMERA_MAX_EXTRA = 8 -- so weit über die Arena hinaus folgt die Kamera einem Kopf höchstens
+Constants.CAMERA_MAX_EXTRA = 14 -- (früher 8) so weit über die Arena hinaus folgt die Kamera einem Kopf höchstens
 Constants.CAMERA_SMOOTHNESS = 5
 
 -- Namen im Workspace / ReplicatedStorage

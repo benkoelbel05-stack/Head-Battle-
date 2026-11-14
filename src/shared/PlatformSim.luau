@@ -6,7 +6,7 @@
 --   * Jede Plattform hängt an einer weichen Feder an ihrem Startplatz (Position und Drehung)
 --   * Thruster schieben die Plattform; sitzt der Thruster am Rand, dreht sie sich
 --   * Stöße (Explosionen, Landungen) und Kräfte (Gewicht der Köpfe)
---   * Versatz nur durch die Feder begrenzt (PLATFORM_MAX_OFFSET ist bloß eine weite Notbremse); drehen können sie sich ganz (360°)
+--   * Versatz: Feder, ab PLATFORM_SOFT_OFFSET eine weiche, starke Zusatzfeder (PLATFORM_MAX_OFFSET nur Notbremse); drehen ganz (360°)
 --   * Plattformen stoßen exakt (als Knetwürste) aneinander, mit Masse, Drehung und leichtem Abprallen
 --   * Feste Zeitschritte (SIM_RATE pro Sekunde), damit alle Rechner möglichst gleich rechnen
 
@@ -173,6 +173,13 @@ local function stepPlatform(state: PlatformState, dt: number, now: number, pendi
 
 	-- Feder zurück zum Startplatz + Dämpfung
 	acceleration += -state.offset * Constants.PLATFORM_SPRING - state.velocity * Constants.PLATFORM_DAMPING
+	-- Weiche Grenze: weiter draußen zieht eine viel stärkere Feder zurück und bremst zusätzlich
+	local distance = state.offset.Magnitude
+	if distance > Constants.PLATFORM_SOFT_OFFSET then
+		local outward = state.offset / distance
+		acceleration += -outward * (distance - Constants.PLATFORM_SOFT_OFFSET) * Constants.PLATFORM_SOFT_SPRING
+			- state.velocity * Constants.PLATFORM_SOFT_DAMPING
+	end
 	-- Die Rückdreh-Kraft wächst nur bis PLATFORM_ANGULAR_SPRING_LIMIT: darüber reicht ein kräftiger Schub,
 	-- um die Plattform ganz herumzudrehen (360°). Zurück geht es immer auf dem kürzeren Weg.
 	local springAngle = math.clamp(state.angle, -Constants.PLATFORM_ANGULAR_SPRING_LIMIT, Constants.PLATFORM_ANGULAR_SPRING_LIMIT)
