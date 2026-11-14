@@ -1,8 +1,9 @@
 --!strict
 -- Fähigkeit Lenkrakete (Raketenrucksack).
---   * Die Rakete fliegt in Zielrichtung los. Solange der Schütze die Taste hält, lenkt er sie zur Maus
---     und sie fliegt extra langsam (MISSILE_STEER_SPEED); losgelassen fliegt sie geradeaus (MISSILE_SPEED).
---     Spieler lenken auf dem eigenen PC, Bots lenkt der Server (zum nächsten Gegner, langsam beim Kurven).
+--   * Die Rakete fliegt in Zielrichtung los. Solange der Schütze die Taste hält, lenkt er sie zur Maus;
+--     losgelassen fliegt sie geradeaus. Sie wird dabei immer schneller (MISSILE_START_SPEED bis
+--     MISSILE_MAX_SPEED), bei gleicher Drehrate werden die Kurven also immer weiter.
+--     Spieler lenken auf dem eigenen PC, Bots lenkt der Server (zum nächsten Gegner).
 --   * Explodiert bei Plattform- oder Kopftreffer oder nach MISSILE_LIFETIME (Bots zünden auch selbst).
 --   * Nur wen die Rakete selbst berührt, scheidet aus (Hitbox = genau ihr Quader, siehe MissileShape).
 --     Die Explosion danach ist Optik und schubst Plattformen leicht.
@@ -162,14 +163,14 @@ function Missiles.fire(participant: Participant, direction: Vector3, id: string)
 	local start = body.Position + flat * (Constants.HEAD_RADIUS + 1)
 	local part = makeMissilePart(Vector3.new(start.X, start.Y, Constants.PLANE_Z), flat, key, missileId)
 	part.Parent = folder
-	part.AssemblyLinearVelocity = flat * Constants.MISSILE_SPEED
+	part.AssemblyLinearVelocity = flat * Constants.MISSILE_START_SPEED
 	if typeof(participant) == "string" then
 		part:SetNetworkOwner(nil) -- Bot-Raketen lenkt der Server
 	else
 		part:SetNetworkOwner(participant :: Player) -- Spieler lenken selbst, ohne Verzögerung
 	end
 
-	table.insert(active, { id = missileId, owner = participant, part = part, firedAt = now, direction = flat, speed = Constants.MISSILE_SPEED })
+	table.insert(active, { id = missileId, owner = participant, part = part, firedAt = now, direction = flat, speed = Constants.MISSILE_START_SPEED })
 	return true
 end
 
@@ -184,22 +185,20 @@ local function steerBotMissile(missile: Missile, dt: number)
 			local distance = (body.Position - position).Magnitude
 			if distance < best then
 				-- Vorhalten: dorthin, wo der Gegner bald ist
-				local timeToReach = distance / Constants.MISSILE_SPEED
+				local timeToReach = distance / math.max(missile.speed, 1)
 				target, best = body.Position + body.AssemblyLinearVelocity * math.min(timeToReach, 0.6) * 0.6, distance
 			end
 		end
 	end
 	local direction = missile.direction
-	local steering = false
 	if target then
 		local wanted = Vector3.new(target.X - position.X, target.Y - position.Y, 0)
 		if wanted.Magnitude > 0.01 then
 			local current = math.atan2(direction.Y, direction.X)
 			local desired = math.atan2(wanted.Y, wanted.X)
 			local difference = (desired - current + math.pi) % (2 * math.pi) - math.pi
-			-- Wie ein Spieler: nur bei größeren Kurven lenken (und dabei langsam fliegen)
+			-- Wie ein Spieler: nur bei größeren Kurven lenken
 			if math.abs(difference) > 0.25 then
-				steering = true
 				local maxTurn = Constants.MISSILE_TURN_RATE * dt
 				local angle = current + math.clamp(difference, -maxTurn, maxTurn)
 				direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
@@ -207,9 +206,7 @@ local function steerBotMissile(missile: Missile, dt: number)
 		end
 	end
 	missile.direction = direction
-	local wantedSpeed = if steering then Constants.MISSILE_STEER_SPEED else Constants.MISSILE_SPEED
-	local change = Constants.MISSILE_SPEED_CHANGE * dt
-	missile.speed = missile.speed + math.clamp(wantedSpeed - missile.speed, -change, change)
+	missile.speed = math.min(missile.speed + Constants.MISSILE_ACCELERATION * dt, Constants.MISSILE_MAX_SPEED)
 	local nextPosition = Vector3.new(position.X, position.Y, Constants.PLANE_Z) + direction * missile.speed * dt
 	missile.part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
 	missile.part.AssemblyLinearVelocity = direction * missile.speed
@@ -292,7 +289,7 @@ function Missiles.init(remote: RemoteEvent, missileContext: Context, hitRemote: 
 end
 
 -- Für die Bots: wo fliegen gerade Raketen hin?
-function Missiles.getActive(): { { id: string, owner: Participant, position: Vector3, direction: Vector3 } }
+function Missiles.getActive(): { { id: string, owner: Participant, position: Vector3, direction: Vector3, speed: number } }
 	local list = {}
 	for _, missile in active do
 		if missile.part.Parent then
@@ -302,6 +299,8 @@ function Missiles.getActive(): { { id: string, owner: Participant, position: Vec
 				owner = missile.owner,
 				position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z),
 				direction = Vector3.new(direction.X, direction.Y, 0).Unit,
+				-- Spieler-Raketen lenkt der Schütze: deren Tempo kennt der Server nur über die Geschwindigkeit
+				speed = math.max(missile.part.AssemblyLinearVelocity.Magnitude, Constants.MISSILE_START_SPEED),
 			})
 		end
 	end

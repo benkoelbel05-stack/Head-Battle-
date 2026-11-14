@@ -409,8 +409,8 @@ local function step(rawDt: number)
 	body.AssemblyLinearVelocity = motor.velocity
 	body.AssemblyAngularVelocity = Vector3.zero
 
-	-- Eigene Lenkraketen: Taste gehalten = langsam zur Maus lenken (ohne Maus: Richtungstasten),
-	-- losgelassen = geradeaus mit vollem Tempo
+	-- Eigene Lenkraketen: Taste gehalten = zur Maus lenken (ohne Maus: Richtungstasten), losgelassen =
+	-- geradeaus. Sie wird dabei immer schneller, die Kurven also immer weiter (siehe MISSILE_ACCELERATION).
 	local missiles = Workspace:FindFirstChild(Constants.MISSILES_FOLDER)
 	local myKey = tostring(player.UserId)
 	local steering = missileHeldSlot ~= nil
@@ -454,10 +454,8 @@ local function step(rawDt: number)
 					direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
 				end
 				missileDirections[part] = direction
-				local speed = missileSpeeds[part] or Constants.MISSILE_SPEED
-				local wantedSpeed = if steering then Constants.MISSILE_STEER_SPEED else Constants.MISSILE_SPEED
-				local change = Constants.MISSILE_SPEED_CHANGE * dt
-				speed += math.clamp(wantedSpeed - speed, -change, change)
+				local speed = missileSpeeds[part] or Constants.MISSILE_START_SPEED
+				speed = math.min(speed + Constants.MISSILE_ACCELERATION * dt, Constants.MISSILE_MAX_SPEED)
 				missileSpeeds[part] = speed
 				local nextPosition = position + direction * speed * dt
 				part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)

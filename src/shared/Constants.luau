@@ -74,10 +74,12 @@ Constants.SWORD_SPRITE_SIZE = 6.6 -- Bildgröße des gezeichneten Schwerts (Stud
 Constants.SWORD_DEFLECT_SPEED = 55 -- so schnell fliegt eine zurückgeschlagene Granate
 Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
 
--- Lenkrakete: fliegt los und wird mit der Maus gelenkt
-Constants.MISSILE_SPEED = 22 -- Fluggeschwindigkeit geradeaus
-Constants.MISSILE_STEER_SPEED = 8 -- extra langsam, solange man sie lenkt (Taste gehalten)
-Constants.MISSILE_SPEED_CHANGE = 45 -- wie schnell sie zwischen den beiden Tempi wechselt (Studs/s²)
+-- Lenkrakete: fliegt los, wird mit der Maus gelenkt und dabei immer schneller. Die Drehrate bleibt gleich,
+-- also werden die Kurven mit dem Tempo immer weiter (Wenderadius = Tempo / Drehrate):
+-- am Anfang ~8 Studs, bei 30 Studs/s ~17, bei Höchsttempo ~33. Je länger sie fliegt, desto schwerer zu lenken.
+Constants.MISSILE_START_SPEED = 14 -- Tempo beim Abfeuern (früher immer 22, beim Lenken 8)
+Constants.MISSILE_ACCELERATION = 14 -- so viel schneller pro Sekunde (Studs/s²): nach ~3,3 s Höchsttempo
+Constants.MISSILE_MAX_SPEED = 60 -- Obergrenze (schneller springt sie pro Bild zu weit und könnte Köpfe überspringen)
 Constants.MISSILE_TURN_RATE = 1.8 -- maximale Drehung beim Lenken in rad/s (ca. 100° pro Sekunde)
 Constants.MISSILE_LIFETIME = 6
 Constants.MISSILE_LENGTH = 1.6 -- Größe der Rakete = genau ihre Hitbox

@@ -23,7 +23,7 @@ local ArenaInfo = require(ReplicatedStorage.Shared.ArenaInfo)
 type Participant = Player | string
 
 type Grenade = { id: string, owner: Participant, position: Vector3, velocity: Vector3, explodeAt: number }
-type MissileInfo = { id: string, owner: Participant, position: Vector3, direction: Vector3 }
+type MissileInfo = { id: string, owner: Participant, position: Vector3, direction: Vector3, speed: number }
 
 export type Context = {
 	getHead: (Participant) -> Model?,
@@ -329,7 +329,7 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 			local relative = flat(position - missile.position)
 			local along = relative:Dot(missile.direction)
 			local miss = (relative - missile.direction * along).Magnitude
-			local timeToHit = along / Constants.MISSILE_SPEED
+			local timeToHit = along / missile.speed
 			if along > -2 and miss < Constants.MISSILE_THICKNESS / 2 + R + 1 and timeToHit < level.dodgeTime * 1.3 then
 				if notices(bot, `m{missile.id}`, level.dodgeChance) then
 					local side = Vector3.new(-missile.direction.Y, missile.direction.X, 0)
