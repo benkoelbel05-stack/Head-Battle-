@@ -178,6 +178,9 @@ Constants.SPRITE_OFFSET_Y_OTHER = -0.15 -- dasselbe an Wänden und Unterseiten (
 Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe), zum Spiegeln nötig
 Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
+-- Erscheinen: true = gezeichnete "respawn"-Bilder, false = Figur ploppt aus dem Nichts (Wachsen + Nachfedern)
+Constants.USE_RESPAWN_SPRITES = false
+Constants.RESPAWN_POP_TIME = 0.35
 -- Ebenen nach vorne (Kamera schaut von +Z). Die Kamera steht sehr weit weg, deshalb brauchen Flächen
 -- deutliche Abstände, sonst flackern sie ineinander ("Z-Fighting"):
 --   Plattformen: Vorderseite bei höchstens 4, Front-Platte 0,25 davor, jede Plattform 0,5 weiter hinten

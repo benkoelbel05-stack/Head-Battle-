@@ -73,7 +73,7 @@ local function getState(head: Model): HeadState
 			lastFrameVelocity = Vector3.zero,
 			sprite = nil,
 			skin = nil,
-			animation = "respawn",
+			animation = if Constants.USE_RESPAWN_SPRITES then "respawn" else "idle",
 			animationStart = os.clock(),
 			onSurface = false,
 			onTop = true,
@@ -164,7 +164,7 @@ local function chooseAnimation(state: HeadState, normal: Vector3?, localVelocity
 	local frames = if state.skin then SpriteAssets.frameCount(state.skin, state.animation) else 1
 	local finished = animationTime >= frames / Constants.SPRITE_FPS
 
-	if now - state.spawnedAt < RESPAWN_TIME then
+	if Constants.USE_RESPAWN_SPRITES and now - state.spawnedAt < RESPAWN_TIME then
 		setAnimation(state, "respawn")
 	elseif not state.onSurface then
 		-- In der Luft: Sprung-Animation (bleibt auf dem letzten Bild stehen)
@@ -301,6 +301,15 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 	local sprite = state.sprite
 	if sprite and state.skin then
 		local size = Constants.SPRITE_SIZE
+		-- Ohne Erscheinen-Bilder: die Figur ploppt auf (wächst schnell, federt kurz nach)
+		if not Constants.USE_RESPAWN_SPRITES then
+			local t = (os.clock() - state.spawnedAt) / Constants.RESPAWN_POP_TIME
+			if t < 1 then
+				local back = 1.70158
+				local u = t - 1
+				size *= math.max(0.05, 1 + (back + 1) * u * u * u + back * u * u) -- "Back"-Kurve
+			end
+		end
 		sprite.part.Size = Vector3.new(size * scale.X, size * scale.Y, 0.05)
 		local front = Vector3.new(0, 0, Constants.SPRITE_Z + state.layer * Constants.SPRITE_LAYER_STEP - headFrame.Z)
 		local offset = if state.onTop then Constants.SPRITE_OFFSET_Y else Constants.SPRITE_OFFSET_Y_OTHER
