@@ -11,19 +11,19 @@ Constants.HEAD_RADIUS = 1.5
 
 -- Bewegung (Studs pro Sekunde)
 Constants.MOVE_SPEED = 14
-Constants.GROUND_ACCEL = 110 -- wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
-Constants.GROUND_FRICTION = 90 -- wie schnell man ohne Eingabe auf einer Fläche abbremst (gleiten)
-Constants.AIR_ACCEL = 70 -- weniger Kontrolle in der Luft
+Constants.GROUND_ACCEL = 160 -- (früher 110) wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
+Constants.GROUND_FRICTION = 130 -- (früher 90) wie schnell man ohne Eingabe auf einer Fläche abbremst (gleiten)
+Constants.AIR_ACCEL = 95 -- (früher 70) weniger Kontrolle in der Luft
 Constants.LANDING_KEEP = 0.85 -- so viel vom Schwung entlang der Fläche bleibt beim Landen erhalten
 
 -- Springen (die Schwerkraft rechnet der Client selbst, Workspace.Gravity ist 0)
-Constants.GRAVITY = 140
-Constants.JUMP_VELOCITY = 52
+Constants.GRAVITY = 165 -- (früher 140) schnellere Sprünge bei gleicher Höhe: weniger schwebend
+Constants.JUMP_VELOCITY = 57 -- (früher 52) Sprunghöhe ~ v² / (2 * GRAVITY) bleibt gleich
 Constants.JUMP_CUT_MULTIPLIER = 0.45 -- Taste früh loslassen = niedriger Sprung
 Constants.JUMP_KEEP_ALONG = 0.6 -- so viel Laufgeschwindigkeit nimmt man in den Sprung mit
-Constants.MAX_FALL_SPEED = 90
+Constants.MAX_FALL_SPEED = 100
 Constants.AIR_JUMPS = 1 -- Doppelsprung: so oft kann man in der Luft nochmal springen
-Constants.DOUBLE_JUMP_VELOCITY = 42 -- etwas schwächer als der normale Sprung
+Constants.DOUBLE_JUMP_VELOCITY = 46 -- (früher 42) etwas schwächer als der normale Sprung
 Constants.JUMP_BUFFER = 0.12 -- Sprung kurz vor der Landung gedrückt zählt trotzdem
 Constants.WALL_JUMP_VELOCITY = 34 -- Absprung von einer Wand (schräg nach oben)
 Constants.WALL_JUMP_LIFT = 0.8 -- wie steil man von einer Wand nach oben abspringt
@@ -34,7 +34,7 @@ Constants.DETACH_TIME = 0.16 -- nach dem Absprung so lange nicht wieder an derse
 -- Dash (Fliegerkappe)
 Constants.DASH_SPEED = 80
 Constants.DASH_TIME = 0.14
-Constants.DASH_COOLDOWN = 3
+Constants.DASH_COOLDOWN = 2.5
 Constants.DASH_END_KEEP = 0.4 -- so viel Schwung bleibt nach dem Dash übrig
 
 -- Thruster (Schweißerbrille): klebt an eine Plattform und schiebt sie von sich weg
@@ -46,7 +46,7 @@ Constants.THRUSTER_RAMP = 0.2 -- Sekunden, in denen der Schub weich an- und ausl
 -- schiebt jeder Rechner etwas früher oder später an, die Plattform läuft auseinander und wird ständig
 -- zurückkorrigiert (sah aus wie Zucken). Der Thruster selbst ist sofort zu sehen.
 Constants.THRUSTER_SYNC_DELAY = 0.15
-Constants.THRUSTER_COOLDOWN = 6
+Constants.THRUSTER_COOLDOWN = 5
 Constants.THRUSTER_COLOR = Color3.fromRGB(222, 96, 48)
 
 -- Granate (Granatengürtel)
@@ -62,7 +62,7 @@ Constants.GRENADE_OWNER_GRACE = 0.3 -- so lange nach dem Wurf trifft die Granate
 Constants.GRENADE_BLAST_RADIUS = 7 -- Köpfe in diesem Radius scheiden aus
 Constants.GRENADE_PUSH_RADIUS = 14 -- Plattformen in diesem Radius werden weggestoßen
 Constants.GRENADE_IMPULSE = 800 -- Stoß auf Plattformen; Geschwindigkeitsänderung = Stoß / Masse (nimmt mit Abstand ab)
-Constants.GRENADE_COOLDOWN = 5
+Constants.GRENADE_COOLDOWN = 4
 Constants.GRENADE_COLOR = Color3.fromRGB(86, 104, 62)
 
 -- Schwert: Schlag im Bogen vor sich
@@ -96,10 +96,10 @@ Constants.MISSILE_COLOR = Color3.fromRGB(205, 60, 50)
 Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform änderbar)
 -- Rückkehr-Dauer ungefähr 5 / Wurzel(SPRING) Sekunden (2 -> ca. 3,5 s)
 Constants.PLATFORM_SPRING = 2 -- wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = langsamer)
-Constants.PLATFORM_DAMPING = 2.8 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfedern ohne Nachwackeln
+Constants.PLATFORM_DAMPING = 1.6 -- Bremse (früher 2,8 = ganz ohne Nachwippen); jetzt federt sie wie Knete kurz nach
 Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse: wie weit eine Plattform geht, bestimmen Kräfte und Feder (früher 12, das wirkte wie eine unsichtbare Wand)
 Constants.PLATFORM_ANGULAR_SPRING = 8 -- wie stark eine gekippte Plattform zurückgedreht wird (kleiner = langsamer)
-Constants.PLATFORM_ANGULAR_DAMPING = 5.7 -- ca. 2 * Wurzel(ANGULAR_SPRING) = ohne Nachwackeln
+Constants.PLATFORM_ANGULAR_DAMPING = 3.4 -- (früher 5,7 = ohne Nachwackeln) wackelt kurz nach
 Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(60) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
 Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (Knete: wenig)
 
@@ -109,8 +109,8 @@ Constants.SNAPSHOT_INTERVAL = 0.2 -- so oft schickt der Server einen Abgleich (S
 Constants.SNAPSHOT_BLEND = 0.25 -- nur noch Rückfall ohne Zeitstempel; sonst gleicht PlatformClient zeitrichtig aus
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
-Constants.HEAD_WEIGHT_FORCE = 140 -- Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
-Constants.HEAD_LANDING_IMPULSE = 4 -- Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
+Constants.HEAD_WEIGHT_FORCE = 260 -- (früher 140) Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
+Constants.HEAD_LANDING_IMPULSE = 7 -- (früher 4) Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
 Constants.HEAD_WALK_FORCE = 4.2 -- Gegenschub pro Studs/s Laufgeschwindigkeit
 Constants.PLATFORM_CONTACT_DISTANCE = 0.25 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
 -- (klein halten: sonst wird eine Plattform schon weggestoßen, bevor der Kopf sie berührt)
