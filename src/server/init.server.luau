@@ -54,7 +54,8 @@ local placeThruster = makeRemote("RemoteEvent", "PlaceThruster") :: RemoteEvent 
 local throwGrenade = makeRemote("RemoteEvent", "ThrowGrenade") :: RemoteEvent -- Client -> Server
 local changeBots = makeRemote("RemoteEvent", "ChangeBots") :: RemoteEvent -- Client -> Server (+1 / -1)
 local swingSword = makeRemote("RemoteEvent", "SwingSword") :: RemoteEvent -- Client -> Server
-local fireMissile = makeRemote("RemoteEvent", "FireMissile") :: RemoteEvent -- Client -> Server
+local fireMissile = makeRemote("RemoteEvent", "FireMissile") :: RemoteEvent
+local missileHit = makeRemote("RemoteEvent", "MissileHit") :: RemoteEvent -- Client -> Server (Einschlag sofort erkannt) -- Client -> Server
 local setLoadout = makeRemote("RemoteEvent", "SetLoadout") :: RemoteEvent -- Client -> Server
 local joinGame = makeRemote("RemoteEvent", "JoinGame") :: RemoteEvent -- Client -> Server (Startmenü "Spielen")
 local setDifficulty = makeRemote("RemoteEvent", "SetDifficulty") :: RemoteEvent -- Client -> Server (1-4)
@@ -114,7 +115,7 @@ Missiles.init(fireMissile, {
 	eliminate = HeadSpawner.eliminate,
 	keyOf = HeadSpawner.keyOf,
 	events = platformEvents,
-})
+}, missileHit)
 
 RoundManager.init({
 	spawn = HeadSpawner.spawn,

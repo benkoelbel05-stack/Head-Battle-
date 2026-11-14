@@ -17,12 +17,14 @@ local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local AimPreview = require(script.Parent.AimPreview)
 local PlatformClient = require(script.Parent.PlatformClient)
 local SwordVisual = require(script.Parent.SwordVisual)
+local MissileShape = require(ReplicatedStorage.Shared.MissileShape)
 
 local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
 local placeThrusterRemote = remotes:WaitForChild("PlaceThruster") :: RemoteEvent
 local throwGrenadeRemote = remotes:WaitForChild("ThrowGrenade") :: RemoteEvent
 local swingSwordRemote = remotes:WaitForChild("SwingSword") :: RemoteEvent
 local fireMissileRemote = remotes:WaitForChild("FireMissile") :: RemoteEvent
+local missileHitRemote = remotes:WaitForChild("MissileHit") :: RemoteEvent
 local roundState = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
 
 local player = Players.LocalPlayer
@@ -71,6 +73,8 @@ local actionCounter = 0 -- für eindeutige IDs von Thrustern und Granaten
 -- Eigene Lenkraketen: aktuelle Flugrichtung und Tempo pro Rakete
 local missileDirections: { [BasePart]: Vector3 } = {}
 local missileSpeeds: { [BasePart]: number } = {}
+local missileSeenAt: { [BasePart]: number } = {} -- wann die eigene Rakete aufgetaucht ist (Schutz für einen selbst)
+local missileDone: { [BasePart]: boolean } = {} -- eingeschlagen, wartet nur noch aufs Verschwinden
 local missileHeldSlot: number? = nil -- solange diese Taste gehalten wird, lenkt man die Rakete
 
 local raycastParams = RaycastParams.new()
@@ -405,11 +409,14 @@ local function step(rawDt: number)
 		if not part.Parent then
 			missileDirections[part] = nil
 			missileSpeeds[part] = nil
+			missileSeenAt[part] = nil
+			missileDone[part] = nil
 		end
 	end
 	if missiles then
 		for _, part in missiles:GetChildren() do
-			if part:IsA("BasePart") and part:GetAttribute("OwnerKey") == myKey then
+			if part:IsA("BasePart") and part:GetAttribute("OwnerKey") == myKey and not missileDone[part] then
+				missileSeenAt[part] = missileSeenAt[part] or os.clock()
 				local direction = missileDirections[part] or part.CFrame.RightVector
 				local position = Vector3.new(part.Position.X, part.Position.Y, Constants.PLANE_Z)
 				local wanted: Vector3? = nil
@@ -446,6 +453,37 @@ local function step(rawDt: number)
 				local nextPosition = position + direction * speed * dt
 				part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
 				part.AssemblyLinearVelocity = direction * speed
+
+				-- Einschlag sofort hier erkennen (nicht erst, wenn der Server es merkt): sonst fliegt die
+				-- Rakete auf dem eigenen Bildschirm erst ein Stück durch Plattformen und Köpfe.
+				local hit = MissileShape.hitsPlatform(shapes, nextPosition, direction)
+				local headsFolder = Workspace:FindFirstChild(Constants.HEADS_FOLDER)
+				if not hit and headsFolder then
+					local ownProtected = os.clock() - (missileSeenAt[part] or 0) < Constants.MISSILE_OWNER_GRACE
+					for _, otherHead in headsFolder:GetChildren() do
+						local otherBody = if otherHead:IsA("Model") then otherHead.PrimaryPart else nil
+						local isMine = otherHead == head
+						if otherBody and not (isMine and ownProtected) then
+							local headPosition = if isMine then motor.position else otherBody.Position
+							if MissileShape.hitsHead(nextPosition, direction, headPosition) then
+								hit = true
+								break
+							end
+						end
+					end
+				end
+				if hit then
+					missileDone[part] = true
+					part.AssemblyLinearVelocity = Vector3.zero
+					part.LocalTransparencyModifier = 1
+					for _, effect in part:GetChildren() do
+						if effect:IsA("ParticleEmitter") then
+							effect.Enabled = false
+						end
+					end
+					PlatformClient.predictExplosion(nextPosition, Constants.MISSILE_BLAST_RADIUS)
+					missileHitRemote:FireServer(nextPosition)
+				end
 			end
 		end
 	end

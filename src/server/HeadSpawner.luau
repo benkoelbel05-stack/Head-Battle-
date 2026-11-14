@@ -18,6 +18,11 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+
+-- Mit Sprites ist die 3D-Knetkugel (samt Augen und Kleidung) nur Platzhalter: von Anfang an unsichtbar.
+-- Sonst stünde sie bis zum ersten Bild sichtbar am Weltmittelpunkt.
+local CLAY_HIDDEN = Constants.USE_SPRITES and SpriteAssets.hasImages()
 
 export type Participant = Player | string
 
@@ -102,7 +107,8 @@ local function decorativePart(name: string, shape: Enum.PartType, size: Vector3,
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
-	part.CastShadow = true
+	part.CastShadow = not CLAY_HIDDEN
+	part.Transparency = if CLAY_HIDDEN then 1 else 0
 	part.Parent = parent
 	return part
 end

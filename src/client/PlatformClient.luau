@@ -164,6 +164,14 @@ end
 ---------------------------------------------------------------------------------------------------
 
 -- Thruster sofort setzen. localPosition/localNormal relativ zur Wurzel der Plattform.
+-- Eigene Rakete hat eingeschlagen: Explosion sofort zeigen. Die Meldung vom Server kurz danach
+-- zeigt sie dann nicht noch einmal (stößt aber wie immer die Plattformen weg).
+local predictedExplosion: { position: Vector3, at: number }? = nil
+function PlatformClient.predictExplosion(position: Vector3, radius: number)
+	explosionEffect(position, radius)
+	predictedExplosion = { position = position, at = os.clock() }
+end
+
 function PlatformClient.predictThruster(model: Model, localPosition: Vector3, localNormal: Vector3, id: string)
 	local now = Workspace:GetServerTimeNow()
 	local thruster: PlatformSim.Thruster = {
@@ -258,7 +266,16 @@ local function onEvent(kind: unknown, ...: any)
 				grenades[id] = nil
 			end
 			local radius = if typeof(blastRadius) == "number" then blastRadius else nil
-			explosionEffect(position, radius)
+			local predicted = predictedExplosion
+			if
+				predicted
+				and os.clock() - predicted.at < 1
+				and (Vector3.new(predicted.position.X, predicted.position.Y, 0) - Vector3.new(position.X, position.Y, 0)).Magnitude < 8
+			then
+				predictedExplosion = nil -- schon gezeigt
+			else
+				explosionEffect(position, radius)
+			end
 			GrenadePhysics.applyExplosion(
 				sim,
 				PlatformShapes.collect(arena),

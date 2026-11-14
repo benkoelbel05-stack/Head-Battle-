@@ -17,6 +17,7 @@ local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local HeadHistory = require(script.Parent.HeadHistory)
+local MissileShape = require(ReplicatedStorage.Shared.MissileShape)
 
 type Participant = Player | string
 
@@ -80,8 +81,8 @@ local function makeMissilePart(position: Vector3, direction: Vector3, ownerKey: 
 	return part
 end
 
-local function explode(missile: Missile, shapes: { PlatformShapes.Shape })
-	local position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
+local function explode(missile: Missile, shapes: { PlatformShapes.Shape }, at: Vector3?)
+	local position = at or Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
 	missile.part:Destroy()
 	local now = Workspace:GetServerTimeNow()
 	local ownerProtected = now - missile.firedAt < Constants.MISSILE_OWNER_GRACE
@@ -228,46 +229,22 @@ function Missiles.step(dt: number)
 
 		local position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
 		local shouldExplode = now - missile.firedAt >= Constants.MISSILE_LIFETIME or position.Y < Constants.FALL_LIMIT_Y
-		-- Die Rakete ist eine Kapsel: Strecke von hinten nach vorne, mit MISSILE_RADIUS Dicke
+		-- Treffer prüfen (Kapsel-Form, siehe MissileShape). Gegner dort, wo der Schütze sie sieht;
+		-- den Schützen selbst erst nach MISSILE_OWNER_GRACE. Spieler-Raketen meldet meist schon der
+		-- Schütze selbst (MissileHit), das hier ist die Absicherung.
 		local forward = missile.part.CFrame.RightVector
-		forward = Vector3.new(forward.X, forward.Y, 0)
-		forward = if forward.Magnitude > 0.01 then forward.Unit else Vector3.xAxis
-		local tail = position - forward * Constants.MISSILE_HALF_LENGTH
-		local nose = position + forward * Constants.MISSILE_HALF_LENGTH
-
-		-- Plattform getroffen? (Spitze, Mitte oder Ende berührt sie)
-		if not shouldExplode then
-			for _, shape in shapes do
-				local frame = PlatformShapes.frame(shape)
-				for _, point in { nose, position, tail } do
-					local localPoint = frame:PointToObjectSpace(Vector3.new(point.X, point.Y, frame.Position.Z))
-					if PlatformShapes.closest(shape.halfLength, localPoint) < shape.radius + Constants.MISSILE_RADIUS then
-						shouldExplode = true
-						break
-					end
-				end
-				if shouldExplode then
-					break
-				end
-			end
+		if not shouldExplode and MissileShape.hitsPlatform(shapes, position, forward) then
+			shouldExplode = true
 		end
-
-		-- Kopf getroffen? Abstand Kopfmitte zur Raketen-Strecke. Gegner dort, wo der Schütze sie sieht;
-		-- den Schützen selbst erst nach MISSILE_OWNER_GRACE.
 		if not shouldExplode then
 			local ownerProtected = now - missile.firedAt < Constants.MISSILE_OWNER_GRACE
 			local seen = HeadHistory.positionsFor(missile.owner, context.getHeads())
 			for participant, head in context.getHeads() do
 				local isOwner = participant == missile.owner
 				local target = if isOwner then (head.PrimaryPart and head.PrimaryPart.Position) else seen[head]
-				if target and not (isOwner and ownerProtected) then
-					local flatTarget = Vector3.new(target.X, target.Y, Constants.PLANE_Z)
-					local along = math.clamp((flatTarget - tail):Dot(forward), 0, Constants.MISSILE_HALF_LENGTH * 2)
-					local closest = tail + forward * along
-					if (flatTarget - closest).Magnitude <= Constants.HEAD_RADIUS + Constants.MISSILE_RADIUS then
-						shouldExplode = true
-						break
-					end
+				if target and not (isOwner and ownerProtected) and MissileShape.hitsHead(position, forward, target) then
+					shouldExplode = true
+					break
 				end
 			end
 		end
@@ -279,12 +256,37 @@ function Missiles.step(dt: number)
 	end
 end
 
-function Missiles.init(remote: RemoteEvent, missileContext: Context)
+-- Der Schütze meldet einen Einschlag, den sein PC sofort erkannt hat. Der Server übernimmt die Stelle,
+-- wenn sie zur Rakete passt (höchstens MISSILE_HIT_TOLERANCE von der Server-Position entfernt).
+local MISSILE_HIT_TOLERANCE = 10
+local function onReportedHit(player: Player, position: Vector3)
+	local missile, index = findMissile(player)
+	if not missile or not index then
+		return
+	end
+	local serverPosition = missile.part.Position
+	local reported = Vector3.new(position.X, position.Y, Constants.PLANE_Z)
+	if (Vector3.new(serverPosition.X, serverPosition.Y, Constants.PLANE_Z) - reported).Magnitude > MISSILE_HIT_TOLERANCE then
+		reported = Vector3.new(serverPosition.X, serverPosition.Y, Constants.PLANE_Z)
+	end
+	table.remove(active, index)
+	explode(missile, PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER)), reported)
+end
+
+function Missiles.init(remote: RemoteEvent, missileContext: Context, hitRemote: RemoteEvent?)
 	context = missileContext
 	folder = Instance.new("Model")
 	folder.Name = Constants.MISSILES_FOLDER
 	folder.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	folder.Parent = Workspace
+
+	if hitRemote then
+		hitRemote.OnServerEvent:Connect(function(player: Player, position: unknown)
+			if typeof(position) == "Vector3" then
+				onReportedHit(player, position :: Vector3)
+			end
+		end)
+	end
 
 	remote.OnServerEvent:Connect(function(player: Player, direction: unknown, id: unknown)
 		if typeof(direction) == "Vector3" and typeof(id) == "string" and #(id :: string) <= 40 then
