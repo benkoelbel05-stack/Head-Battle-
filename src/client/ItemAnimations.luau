@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local ItemSpriteOverlay = require(script.Parent.ItemSpriteOverlay)
 local ItemAnimations = {}
 
 local CREAM = Color3.fromRGB(255, 240, 200)
@@ -74,6 +75,7 @@ end
 
 -- Dash: kleine Kneteschlieren und blaue Puffs, die sichtbar nachziehen.
 function ItemAnimations.dash(position: Vector3, direction: Vector3)
+	if ItemSpriteOverlay.burst(position, "dash_burst", 5.1, -math.deg(math.atan2(direction.Y, direction.X))) then return end
 	local flat = Vector3.new(direction.X, direction.Y, 0)
 	if flat.Magnitude < 0.01 then
 		flat = Vector3.xAxis
@@ -96,6 +98,10 @@ end
 -- Granate: aus der bisher schlichten Kugel wird eine Knetebombe mit Kappe,
 -- gebogener Zündschnur und Funken. Schussbahn und Hitbox bleiben unverändert.
 function ItemAnimations.grenade(part: BasePart)
+	if ItemSpriteOverlay.attach(part, "grenade_spin", 2.65) then
+		part.LocalTransparencyModifier = 1
+		return
+	end
 	if part:FindFirstChild("ClayFuse") then
 		return
 	end
@@ -120,6 +126,7 @@ end
 
 -- Farbige Knetbrocken fliegen beim Explodieren nach außen.
 function ItemAnimations.explosion(position: Vector3, radius: number?)
+	if ItemSpriteOverlay.burst(position, "grenade_explosion", (radius or 6) * 1.65) then return end
 	local r = math.min(radius or 6, 12)
 	local center = Vector3.new(position.X, position.Y, Constants.SPRITE_Z + 1.1)
 	for i = 1, 14 do
@@ -140,6 +147,7 @@ end
 
 -- Schwert: feine Knete-Splitter zusätzlich zur bereits vorhandenen, kollisionskorrekten Klinge.
 function ItemAnimations.sword(position: Vector3, direction: Vector3)
+	if ItemSpriteOverlay.burst(position, "sword_swing", 7, -math.deg(math.atan2(direction.Y, direction.X))) then return end
 	local d = Vector3.new(direction.X, direction.Y, 0)
 	if d.Magnitude < 0.01 then return end
 	d = d.Unit
@@ -155,6 +163,10 @@ end
 -- Thruster: gerippte Düsenmanschette, warme Lichtpunkte und Rauch. Das vorhandene
 -- Feuer und die physikalische Befestigung werden nicht verändert.
 function ItemAnimations.thruster(part: BasePart)
+	if ItemSpriteOverlay.attach(part, "thruster_burst", 3.8) then
+		part.LocalTransparencyModifier = 1
+		return
+	end
 	if part:FindFirstChild("ClayNozzleRing") then
 		return
 	end
@@ -196,6 +208,10 @@ end
 -- Lenkrakete: eigenständige 2D-Knetegrafik vor der bestehenden Physik-Hitbox,
 -- roter Kopf, weiße Kapsel, gelber Flammenstrahl und kleine Flossen.
 local function missile(part: BasePart)
+	if ItemSpriteOverlay.attach(part, "missile_flight", 3.8, true) then
+		part.LocalTransparencyModifier = 1
+		return
+	end
 	if animatedMissiles[part] or part:FindFirstChild("ClayMissileArt") then
 		return
 	end
