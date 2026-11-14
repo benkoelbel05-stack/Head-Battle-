@@ -20,11 +20,11 @@ local BackgroundController = require(script.BackgroundController)
 local MapSelectUI = require(script.MapSelectUI)
 local AbilityBubbles = require(script.AbilityBubbles)
 local OceanScene = require(script.OceanScene)
-local AssetPreloader = require(script.AssetPreloader)
+local LoadingScreen = require(script.LoadingScreen)
 local SoundFX = require(script.SoundFX)
 
+task.spawn(LoadingScreen.start) -- Ladebildschirm zuerst: lädt einmal alle Bilder und Klänge vor
 PlatformClient.start()
-task.spawn(AssetPreloader.start) -- Bilder und Musik vorladen (Menü zuerst)
 task.spawn(SoundFX.start)
 task.spawn(CameraController.start)
 task.spawn(BackgroundController.start)

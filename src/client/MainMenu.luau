@@ -21,6 +21,7 @@ local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local images = require(script.Parent.MenuAssetIds)
 local StartScreen = require(script.Parent.StartScreen)
 local SoundFX = require(script.Parent.SoundFX)
+local LoadingScreen = require(script.Parent.LoadingScreen)
 
 local MainMenu = {}
 
@@ -160,6 +161,8 @@ local function fallbackBackground(parent: GuiObject)
 end
 
 function MainMenu.start()
+	-- Erst nach dem Ladebildschirm: dann ist alles schon geladen und erscheint sofort scharf
+	LoadingScreen.waitUntilDone()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
 

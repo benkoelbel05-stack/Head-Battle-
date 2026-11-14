@@ -1,56 +1,47 @@
 --!strict
--- Lädt alle Bilder und Klänge gleich beim Start vor, in der Reihenfolge, in der man sie braucht:
---   1. Hauptmenü (Bilder + Musik)   2. Ausrüstungs-Wahl (Tafeln, Icons)
---   3. Arena (Hintergründe, Plattform-Texturen, Wolken, Wasser)   4. Figuren-Sprites (die meisten)
--- So ist beim Öffnen eines Bildschirms schon alles da, statt erst dann nachzuladen.
+-- Lädt alle Bilder und Klänge vor, in der Reihenfolge, in der man sie braucht:
+--   1. Hauptmenü (Bilder + Musik)   2. Ausrüstungs-Wahl (Tafeln, Icons, Soundeffekte)
+--   3. Arena (Hintergründe, Plattform-Texturen, Wolken, Wasser)   4. Figuren-Sprites
+-- Der Ladebildschirm ruft run() mit einer Fortschrittsanzeige auf.
 
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local MenuAssetIds = require(script.Parent.MenuAssetIds)
-local SpriteVisual = require(script.Parent.SpriteVisual)
 local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
 local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 local ArenaAssets = require(ReplicatedStorage.Shared.ArenaAssets)
 local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
 local OceanAssets = require(ReplicatedStorage.Shared.OceanAssets)
 local SoundIds = require(ReplicatedStorage.Shared.SoundIds)
+local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 
 local AssetPreloader = {}
 
-local function add(list: { string }, id: unknown)
-	if typeof(id) == "number" and id ~= 0 then
-		table.insert(list, `rbxassetid://{id}`)
-	end
-end
+local BATCH = 12 -- so viele auf einmal (für eine flüssige Fortschrittsanzeige)
 
-local function preload(name: string, list: { string })
-	if #list == 0 then
-		return
+local function collect(): { { name: string, items: { string } } }
+	local seen: { [string]: boolean } = {}
+	local function list(): { string }
+		return {}
 	end
-	local started = os.clock()
-	local failed = 0
-	ContentProvider:PreloadAsync(list, function(_content: string, status: Enum.AssetFetchStatus)
-		if status ~= Enum.AssetFetchStatus.Success then
-			failed += 1
+	local function add(target: { string }, id: unknown)
+		if typeof(id) == "number" and id ~= 0 then
+			local content = `rbxassetid://{id}`
+			if not seen[content] then
+				seen[content] = true
+				table.insert(target, content)
+			end
 		end
-	end)
-	if RunService:IsStudio() then
-		print(`[ClayBattle] Vorgeladen: {name} – {#list - failed}/{#list} in {string.format("%.1f", os.clock() - started)} s`)
 	end
-end
 
-function AssetPreloader.start()
-	-- 1. Hauptmenü
-	local menu = {}
+	local menu = list()
 	for _, id in MenuAssetIds do
 		add(menu, id)
 	end
-	preload("Hauptmenü", menu)
 
-	-- 2. Ausrüstungs-Wahl und Anzeigen
-	local ui = {}
+	local ui = list()
 	for _, id in UIAssets do
 		add(ui, id)
 	end
@@ -60,10 +51,8 @@ function AssetPreloader.start()
 	for _, id in SoundIds do
 		add(ui, id)
 	end
-	preload("Bedienelemente", ui)
 
-	-- 3. Arena
-	local arena = {}
+	local arena = list()
 	for _, id in ArenaAssets do
 		add(arena, id)
 	end
@@ -72,18 +61,56 @@ function AssetPreloader.start()
 		add(arena, material.trim)
 		add(arena, material.rimTex)
 	end
-	add(arena, OceanAssets.clouds_left)
-	add(arena, OceanAssets.clouds_right)
-	add(arena, OceanAssets.clouds_distant)
-	add(arena, OceanAssets.water_base)
-	add(arena, OceanAssets.water_shimmer)
+	for _, key in { "clouds_left", "clouds_right", "clouds_distant", "water_base", "water_shimmer" } do
+		add(arena, (OceanAssets :: any)[key])
+	end
 	for _, id in OceanAssets.small do
 		add(arena, id)
 	end
-	preload("Arena", arena)
 
-	-- 4. Figuren (viele Einzelbilder)
-	SpriteVisual.preload()
+	local sprites = list()
+	for _, entry in SpriteAssets.allIds() do
+		add(sprites, entry.id)
+	end
+
+	return {
+		{ name = "Hauptmenü", items = menu },
+		{ name = "Bedienung und Klänge", items = ui },
+		{ name = "Arena", items = arena },
+		{ name = "Figuren", items = sprites },
+	}
+end
+
+-- Alles laden. onProgress(fertig, gesamt, Abschnitt) wird nach jedem kleinen Paket aufgerufen.
+function AssetPreloader.run(onProgress: ((number, number, string) -> ())?)
+	local groups = collect()
+	local total = 0
+	for _, group in groups do
+		total += #group.items
+	end
+	local done = 0
+	local failed = 0
+	local started = os.clock()
+	for _, group in groups do
+		for first = 1, #group.items, BATCH do
+			local batch = {}
+			for i = first, math.min(first + BATCH - 1, #group.items) do
+				table.insert(batch, group.items[i])
+			end
+			ContentProvider:PreloadAsync(batch, function(_content: string, status: Enum.AssetFetchStatus)
+				if status ~= Enum.AssetFetchStatus.Success then
+					failed += 1
+				end
+			end)
+			done += #batch
+			if onProgress then
+				onProgress(done, total, group.name)
+			end
+		end
+	end
+	if RunService:IsStudio() then
+		print(`[ClayBattle] Vorgeladen: {total - failed}/{total} in {string.format("%.1f", os.clock() - started)} s`)
+	end
 end
 
 return AssetPreloader

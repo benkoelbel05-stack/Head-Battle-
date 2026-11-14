@@ -11,7 +11,9 @@ local ArenaLayouts = require(ReplicatedStorage.Shared.ArenaLayouts)
 local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
 
 local TEXTURE_TILE = 6 -- so viele Studs ist eine Kachel der Flächen-Textur breit
-local PIXELS_PER_STUD = 20 -- Auflösung der Plattform-Bilder (höher = schärfer, aber mehr Speicher)
+-- Auflösung der Plattform-Bilder. Höher = schärfer, aber Roblox hat ein festes Budget für solche
+-- Bilder: wird es überschritten, verschwinden andere (z. B. die Figuren) zeitweise.
+local PIXELS_PER_STUD = 12
 
 local PLATFORM_DEPTH = 8 -- dicker als der Kopf, damit nichts durchrutscht
 

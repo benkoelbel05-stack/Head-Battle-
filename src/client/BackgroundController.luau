@@ -18,8 +18,9 @@ local BackgroundController = {}
 
 local BACKGROUND_Z = Constants.PLANE_Z - 60 -- weit hinter allem anderen
 local OVERSIZE = 1.12 -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
--- Größe nur ändern, wenn sie sich merklich ändert: jede Größenänderung zeichnet das Bild neu (teuer)
-local RESIZE_THRESHOLD = 0.04
+-- Die Zeichenfläche hat eine feste Pixelgröße: die Teil-Größe darf sich jedes Bild ändern, ohne dass
+-- neu gezeichnet wird (nur bei anderem Seitenverhältnis des Bildschirms)
+local CANVAS_HEIGHT = 720
 
 -- Nur in Studio: melden, welche Arena-Bilder (Hintergründe, Plattform-Texturen) nicht laden
 local function checkAssets()
@@ -75,7 +76,8 @@ function BackgroundController.start()
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Back
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	gui.CanvasSize = Vector2.new(1600, 900)
+	gui.CanvasSize = Vector2.new(1280, CANVAS_HEIGHT)
+	local canvasAspect = 16 / 9
 	gui.LightInfluence = 0
 	pcall(function()
 		(gui :: any).MaxDistance = 1e6
@@ -205,12 +207,12 @@ function BackgroundController.start()
 		local height = 2 * distance * math.tan(math.rad(camera.FieldOfView) / 2) * OVERSIZE
 		local viewport = camera.ViewportSize
 		local aspect = if viewport.Y > 0 then viewport.X / viewport.Y else 16 / 9
-		local current = part.Size
-		if math.abs(current.Y - height) > current.Y * RESIZE_THRESHOLD or math.abs(current.X - height * aspect) > current.X * RESIZE_THRESHOLD then
-			-- etwas Reserve, damit kleine Zoom-Änderungen kein neues Zeichnen auslösen
-			part.Size = Vector3.new(height * aspect * 1.05, height * 1.05, 0.1)
+		-- Weich mit dem Zoom mitwachsen (jedes Bild, ohne Sprünge)
+		part.Size = Vector3.new(height * aspect, height, 0.1)
+		if math.abs(aspect - canvasAspect) > 0.01 then
 			-- Zeichenfläche im selben Seitenverhältnis, sonst würden Bild und Verläufe verzerrt
-			gui.CanvasSize = Vector2.new(math.floor(900 * aspect), 900)
+			canvasAspect = aspect
+			gui.CanvasSize = Vector2.new(math.floor(CANVAS_HEIGHT * aspect), CANVAS_HEIGHT)
 		end
 		part.CFrame = CFrame.new(position.X, position.Y, BACKGROUND_Z)
 	end)

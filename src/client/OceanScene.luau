@@ -56,7 +56,7 @@ local function imagePart(name: string, imageId: number, ratio: number, parent: I
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Back
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-	gui.CanvasSize = Vector2.new(512, math.max(math.floor(512 * ratio), 1))
+	gui.CanvasSize = Vector2.new(384, math.max(math.floor(384 * ratio), 1))
 	gui.LightInfluence = 0
 	pcall(function()
 		(gui :: any).MaxDistance = 1e6
@@ -268,10 +268,8 @@ function OceanScene.start()
 				local v = cloud.v + math.sin(clock * cloud.bobSpeed + cloud.phase) * cloud.bob
 				local widthStuds = cloud.width * viewWidth
 				local size = Vector3.new(widthStuds, widthStuds * cloud.ratio, 0.05)
-				-- Größe nur bei merklicher Änderung (Zoom), sonst wird das Bild neu gezeichnet
-				if math.abs(cloud.part.Size.X - size.X) > cloud.part.Size.X * 0.04 then
-					cloud.part.Size = size
-				end
+				-- Feste Pixelgröße der Zeichenfläche: Größe darf sich jedes Bild weich ändern (kein Neuzeichnen)
+				cloud.part.Size = size
 				cloud.part.CFrame = CFrame.new(
 					center.X + (cloud.u - 0.5) * viewWidth,
 					center.Y + (0.5 - v) * viewHeight,
