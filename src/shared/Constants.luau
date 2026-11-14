@@ -10,10 +10,10 @@ Constants.PLANE_Z = 0
 Constants.HEAD_RADIUS = 1.5
 
 -- Bewegung (Studs pro Sekunde)
-Constants.MOVE_SPEED = 18
-Constants.GROUND_ACCEL = 140 -- wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
+Constants.MOVE_SPEED = 14
+Constants.GROUND_ACCEL = 110 -- wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
 Constants.GROUND_FRICTION = 90 -- wie schnell man ohne Eingabe auf einer Fläche abbremst (gleiten)
-Constants.AIR_ACCEL = 90 -- weniger Kontrolle in der Luft
+Constants.AIR_ACCEL = 70 -- weniger Kontrolle in der Luft
 Constants.LANDING_KEEP = 0.85 -- so viel vom Schwung entlang der Fläche bleibt beim Landen erhalten
 
 -- Springen (die Schwerkraft rechnet der Client selbst, Workspace.Gravity ist 0)
@@ -73,7 +73,7 @@ Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
 Constants.MISSILE_SPEED = 22 -- Fluggeschwindigkeit geradeaus
 Constants.MISSILE_STEER_SPEED = 8 -- extra langsam, solange man sie lenkt (Taste gehalten)
 Constants.MISSILE_SPEED_CHANGE = 45 -- wie schnell sie zwischen den beiden Tempi wechselt (Studs/s²)
-Constants.MISSILE_TURN_RATE = 3.6 -- maximale Drehung beim Lenken in rad/s (Wendigkeit)
+Constants.MISSILE_TURN_RATE = 1.8 -- maximale Drehung beim Lenken in rad/s (ca. 100° pro Sekunde)
 Constants.MISSILE_LIFETIME = 6
 Constants.MISSILE_LENGTH = 1.6 -- Größe der Rakete = genau ihre Hitbox
 Constants.MISSILE_THICKNESS = 0.6
