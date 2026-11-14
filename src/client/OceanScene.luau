@@ -1,6 +1,6 @@
 --!strict
 -- Lebendige, ruhige Meer-Szene im Spiel (nur auf dem Client):
---   * Wolken in drei Tiefen: ferne Wolkenbank (am langsamsten), kleine Wolken (mittel) und die großen
+--   * Wolken in drei Tiefen (bei jedem Hintergrund, passend eingefärbt): ferne Wolkenbank (am langsamsten), kleine Wolken (mittel) und die großen
 --     Wolkenbänke links (driften nach rechts) und rechts (driften nach links). Jede Wolke schwebt
 --     zusätzlich minimal auf und ab. Verlässt eine Wolke das Bild, taucht sie außerhalb auf der
 --     anderen Seite wieder auf – nie mitten im Bild.
@@ -12,8 +12,8 @@
 -- Technik: Jede Wolke ist eine flache Fläche mit einem festen Bild (SurfaceGui). Bewegt wird nur die
 -- Fläche, das Bild wird nicht neu gezeichnet – das ist deutlich schneller als bewegte ImageLabels in
 -- einer großen Oberfläche. Positionen werden in Bildschirm-Anteilen gerechnet (0..1), so passt alles
--- zu jeder Bildschirmgröße und jedem Zoom. Läuft nur, solange der Meer-Hintergrund aktiv und
--- sichtbar ist (kein Vollbild-Menü davor).
+-- zu jeder Bildschirmgröße und jedem Zoom. Läuft nur, solange die Arena sichtbar ist (kein
+-- Vollbild-Menü davor).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -219,13 +219,14 @@ function OceanScene.start()
 		waterShimmer = make(OceanAssets.water_shimmer, 36, 18, 0.45)
 	end
 
-	local function backgroundIsOcean(): boolean
-		local key = roundState:GetAttribute("Background")
-		return key == "ocean" or key == nil
-	end
-
 	local clock = 0
-	local cloudsShown = true
+	local cloudTintKey: unknown = false -- noch keine Färbung gesetzt
+	local CLOUD_TINTS: { [string]: Color3 } = {
+		ocean = Color3.new(1, 1, 1),
+		day = Color3.new(1, 1, 1),
+		sunset = Color3.fromRGB(255, 205, 175),
+		night = Color3.fromRGB(120, 130, 185),
+	}
 	local connection: RBXScriptConnection
 	connection = RunService.RenderStepped:Connect(function(dt: number)
 		if not folder.Parent then
@@ -240,15 +241,20 @@ function OceanScene.start()
 		dt = math.min(dt, 0.1)
 		clock += dt
 
-		-- Wolken nur beim Meer-Hintergrund
-		local showClouds = backgroundIsOcean()
-		if showClouds ~= cloudsShown then
-			cloudsShown = showClouds
+		-- Wolken bei jedem Hintergrund, passend eingefärbt (Sonnenuntergang warm, Nacht dunkel)
+		local tintKey = roundState:GetAttribute("Background")
+		if tintKey ~= cloudTintKey then
+			cloudTintKey = tintKey
+			local tint = CLOUD_TINTS[if typeof(tintKey) == "string" then tintKey else "ocean"] or CLOUD_TINTS.ocean
 			for _, cloud in clouds do
-				cloud.part.Parent = if showClouds then folder else nil
+				local gui = cloud.part:FindFirstChildOfClass("SurfaceGui")
+				local image = gui and gui:FindFirstChildOfClass("ImageLabel")
+				if image then
+					image.ImageColor3 = tint
+				end
 			end
 		end
-		if showClouds then
+		do
 			for _, cloud in clouds do
 				local center, viewWidth, viewHeight = view(camera, cloud.z)
 				cloud.u += cloud.speed * dt
