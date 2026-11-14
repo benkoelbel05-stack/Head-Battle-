@@ -634,7 +634,7 @@ function MainMenu.start()
 		chip.Position = at(382, y + 5)
 		chip.Size = dims(360, 44)
 		chip.BackgroundColor3 = CREAM
-		chip.Font = Enum.Font.GothamBold
+		chip.Font = Enum.Font.FredokaOne
 		chip.Text = key
 		chip.TextScaled = true
 		chip.TextColor3 = Color3.fromRGB(70, 37, 112)
