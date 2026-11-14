@@ -34,6 +34,10 @@ function StartScreen.open()
 	end
 end
 
+-- Die Fähigkeiten-Abzeichen haben im Bild einen durchsichtigen Rand: so weit vergrößern, dass der
+-- runde Rand des Abzeichens genau auf dem Auswahlring sitzt
+local BADGE_FILL = 1.2
+
 type Icon = { button: TextButton, ring: UIStroke }
 type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, image: ImageLabel, left: TextButton, right: TextButton }
 
@@ -514,7 +518,11 @@ function StartScreen.start()
 		button.LayoutOrder = index
 		button.BackgroundColor3 = info.color
 		button.Text = info.icon
-		if imageOn(button, AbilityIcons[id]) then
+		local gridImage = imageOn(button, AbilityIcons[id])
+		if gridImage then
+			gridImage.AnchorPoint = Vector2.new(0.5, 0.5)
+			gridImage.Position = UDim2.fromScale(0.5, 0.5)
+			gridImage.Size = UDim2.fromScale(BADGE_FILL, BADGE_FILL)
 			button.Text = ""
 			button.BackgroundTransparency = 1
 		end
@@ -552,7 +560,9 @@ function StartScreen.start()
 		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(90, 90), BODY_FONT, 48, WHITE)
 		local slotImage = Instance.new("ImageLabel")
 		slotImage.Name = "Image"
-		slotImage.Size = UDim2.fromScale(1, 1)
+		slotImage.AnchorPoint = Vector2.new(0.5, 0.5)
+		slotImage.Position = UDim2.fromScale(0.5, 0.5)
+		slotImage.Size = UDim2.fromScale(BADGE_FILL, BADGE_FILL)
 		slotImage.BackgroundTransparency = 1
 		slotImage.ScaleType = Enum.ScaleType.Fit
 		slotImage.ZIndex = button.ZIndex + 1

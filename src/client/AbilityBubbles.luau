@@ -140,8 +140,10 @@ local function setAbility(bubble: Bubble, id: string?)
 	if imageId and imageId ~= 0 then
 		-- Fertiges Abzeichen: eigener Hintergrund und Rand, also nur das Bild zeigen
 		bubble.image.Image = `rbxassetid://{imageId}`
-		bubble.image.Size = UDim2.fromScale(1, 1)
-		bubble.image.Position = UDim2.fromScale(0, 0)
+		-- Das Abzeichen hat im Bild einen durchsichtigen Rand: etwas größer, damit es den Kreis füllt
+		bubble.image.AnchorPoint = Vector2.new(0.5, 0.5)
+		bubble.image.Size = UDim2.fromScale(1.2, 1.2)
+		bubble.image.Position = UDim2.fromScale(0.5, 0.5)
 		bubble.image.Visible = true
 		bubble.emoji.Visible = false
 		bubble.group.BackgroundTransparency = 1
