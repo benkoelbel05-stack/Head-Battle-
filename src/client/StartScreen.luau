@@ -85,6 +85,24 @@ local function imageOn(parent: GuiObject, id: number?): ImageLabel?
 	return image
 end
 
+-- Gemalte Tafel als Hintergrund eines Panels (ersetzt Farbe und Rand). Gibt true zurück, wenn es
+-- ein Bild gibt. Muss direkt nach dem Anlegen des Panels aufgerufen werden (liegt dann hinter allem).
+local function panelImage(panel: GuiObject, id: number?): boolean
+	if not id or id == 0 then
+		return false
+	end
+	local image = Instance.new("ImageLabel")
+	image.Name = "PanelImage"
+	image.Size = UDim2.fromScale(1, 1)
+	image.BackgroundTransparency = 1
+	image.ScaleType = Enum.ScaleType.Stretch
+	image.Image = `rbxassetid://{id}`
+	image.ZIndex = panel.ZIndex
+	image.Parent = panel
+	panel.BackgroundTransparency = 1
+	return true
+end
+
 local function stroke(parent: Instance, color: Color3, thickness: number): UIStroke
 	local s = Instance.new("UIStroke")
 	s.Color = color
@@ -295,7 +313,9 @@ function StartScreen.start()
 
 	local abilityPanel = frame(content, "Abilities", Vector2.new(40, 80), Vector2.new(310, 600), PANEL)
 	corner(abilityPanel, UDim.new(0, 54))
-	stroke(abilityPanel, CREAM_RIM, 5)
+	if not panelImage(abilityPanel, UIAssets.panel_abilities_blue) then
+		stroke(abilityPanel, CREAM_RIM, 5)
+	end
 
 	-- Reiter über dem Panel (wie das Tastatur-Symbol im Vorbild)
 	local tab = frame(content, "InputTab", Vector2.new(110, 52), Vector2.new(165, 45), Color3.fromRGB(255, 234, 206))
@@ -336,7 +356,9 @@ function StartScreen.start()
 
 	local column = frame(content, "Player", Vector2.new(390, 80), Vector2.new(240, 600), ORANGE)
 	corner(column, UDim.new(0, 110))
-	stroke(column, CREAM_RIM, 5)
+	if not panelImage(column, UIAssets.panel_player_orange) then
+		stroke(column, CREAM_RIM, 5)
+	end
 
 	-- Kein Roblox-Avatar über dem mittleren Knete-Panel: die Kopfbild-Vorschau
 	-- hatte eine fremde Figur gezeigt und den Clay-Battle-Artstyle gebrochen.
@@ -616,7 +638,14 @@ function StartScreen.start()
 				local isBot = entry:GetAttribute("IsBot") == true
 				local card = frame(othersHolder, "Card", Vector2.new(x, 150), Vector2.new(180, 420), skinColor(skin):Lerp(PANEL, 0.35))
 				corner(card, UDim.new(0, 80))
-				stroke(card, CREAM_RIM, 5)
+				-- Tafel passend zur Figur: grün, gelb, sonst lila
+				local cardPanel = if skin == "green" or skin == "teal" or skin == "cyan"
+					then UIAssets.panel_bot_green
+					elseif skin == "yellow" or skin == "orange" then UIAssets.panel_bot_yellow
+					else UIAssets.panel_bot_purple
+				if not panelImage(card, cardPanel) then
+					stroke(card, CREAM_RIM, 5)
+				end
 				local name = entry:GetAttribute("DisplayName")
 				text(card, "Name", if typeof(name) == "string" then string.upper(name) else "?", Vector2.new(10, 34), Vector2.new(160, 60), TITLE_FONT, 24, WHITE)
 				local role = if isBot then `BOT · {string.upper(Constants.BOT_DIFFICULTIES[difficulty()].name)}` else "SPIELER"

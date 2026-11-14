@@ -9,19 +9,11 @@
 local InsertService = game:GetService("InsertService")
 
 local DECALS = {
-	wolken_links = 130289073994565,
-	wolken_rechts = 126053989467059,
-	wolken_fern_gesamt = 75855415667887,
-	wolke_klein_01 = 73531826914109,
-	wolke_klein_02 = 114695650889992,
-	wolke_klein_03 = 79818936500332,
-	wolke_klein_04 = 93198978993068,
-	wolke_klein_05 = 114974578305828,
-	wolke_klein_06 = 103860179237170,
-	wolke_klein_07 = 103403569038967,
-	wolke_klein_08 = 131678906702333,
-	ocean_water_base = 128025805325965,
-	ocean_water_shimmer = 116982427595679,
+	panel_abilities_blue = 124225716447370,
+	panel_bot_green = 136969832694743,
+	panel_bot_purple = 86310988857689,
+	panel_bot_yellow = 116136309972021,
+	panel_player_orange = 127788199510580,
 }
 
 local names = {}
