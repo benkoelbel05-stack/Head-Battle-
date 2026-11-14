@@ -110,7 +110,8 @@ end
 -- partOffset Studs vor dem Klebepunkt. Das Bild (Flammen unten) wird so gedreht, dass die Flammen von
 -- der Fläche weg zeigen, und so weit nach außen gesetzt, dass seine Oberkante auf der Fläche sitzt.
 -- Dreht sich die Plattform, dreht es jedes Bild mit. Etwas vor die Plattform (zur Kamera) gesetzt,
--- damit es nicht hinter ihrer Vorderseite verschwindet.
+-- damit es nicht hinter ihrer Vorderseite verschwindet. Der Versatz wird in Weltkoordinaten
+-- berechnet und dann in die Achsen des Teils umgerechnet (so erwartet es StudsOffsetWorldSpace).
 local SURFACE_TOP = 0.42 -- Abstand Bildmitte bis Oberkante des Packs (Anteil der Bildgröße)
 function ItemSpriteOverlay.attachToSurface(part: BasePart, seq: string, size: number, partOffset: number): boolean
 	return animate(part, seq, size, function(gui: BillboardGui, image: ImageLabel)
@@ -121,7 +122,11 @@ function ItemSpriteOverlay.attachToSurface(part: BasePart, seq: string, size: nu
 		end
 		flat = flat.Unit
 		local along = size * SURFACE_TOP - partOffset
-		gui.StudsOffsetWorldSpace = flat * along + Vector3.new(0, 0, (Constants.SPRITE_Z - 0.4) - part.Position.Z)
+		local worldOffset = flat * along + Vector3.new(0, 0, (Constants.SPRITE_Z - 0.4) - part.Position.Z)
+		-- StudsOffsetWorldSpace gilt trotz des Namens in den Achsen des Adornee (hier: X = aus der Fläche,
+		-- Z = entlang der Fläche). Ohne Umrechnung landete der Z-Versatz (5 Studs) entlang der Fläche:
+		-- das Bild stand neben der Figur statt unter ihr. Deshalb in Teil-Koordinaten umrechnen.
+		gui.StudsOffsetWorldSpace = part.CFrame:VectorToObjectSpace(worldOffset)
 		image.Rotation = -(math.deg(math.atan2(flat.Y, flat.X)) + 90)
 	end)
 end
