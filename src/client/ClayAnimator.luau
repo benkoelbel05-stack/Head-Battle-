@@ -290,7 +290,7 @@ function ClayAnimator.start()
 	end)
 
 	-- Nach Steuerung und Kamera, direkt vor dem Rendern
-	RunService:BindToRenderStep("HeadBattleClay", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
+	RunService:BindToRenderStep("ClayBattleClay", Enum.RenderPriority.Camera.Value + 2, function(dt: number)
 		frameTimer += dt
 		local newPose = frameTimer >= frameTime
 		if newPose then

@@ -405,7 +405,7 @@ local function trackHead(child: Instance)
 		table.clear(pendingAbilities)
 		chargingId = nil
 		AimPreview.hide()
-		print("[HeadBattle] Eigener Kopf gefunden")
+		print("[ClayBattle] Eigener Kopf gefunden")
 	end
 end
 
@@ -421,7 +421,7 @@ function HeadController.start()
 
 	-- Direkt vor dem Rendern (nicht danach): Eingaben wirken im selben Bild.
 	-- Reihenfolge: Plattformen weiterrechnen, dann den Kopf darauf bewegen.
-	RunService:BindToRenderStep("HeadBattleMovement", Enum.RenderPriority.Input.Value + 1, function(dt: number)
+	RunService:BindToRenderStep("ClayBattleMovement", Enum.RenderPriority.Input.Value + 1, function(dt: number)
 		PlatformClient.step(dt)
 		step(dt)
 	end)

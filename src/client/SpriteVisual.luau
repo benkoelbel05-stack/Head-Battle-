@@ -131,7 +131,7 @@ function SpriteVisual.preload()
 			end
 		end)
 		if isStudio then
-			print(`[HeadBattle] Sprites vorgeladen: {loaded} bereit, {failed} (noch) nicht, {missing} fehlen noch`)
+			print(`[ClayBattle] Sprites vorgeladen: {loaded} bereit, {failed} (noch) nicht, {missing} fehlen noch`)
 		end
 	end)
 end

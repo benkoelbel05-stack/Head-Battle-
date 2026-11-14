@@ -100,7 +100,7 @@ end
 
 function AbilityHUD.start()
 	local gui = Instance.new("ScreenGui")
-	gui.Name = "HeadBattleAbilities"
+	gui.Name = "ClayBattleAbilities"
 	gui.ResetOnSpawn = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 

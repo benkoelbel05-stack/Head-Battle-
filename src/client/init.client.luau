@@ -1,5 +1,5 @@
 --!strict
--- Head Battle – Client-Einstieg
+-- Clay Battle – Client-Einstieg
 --
 -- Ablauf in jedem Bild (vor dem Rendern, in dieser Reihenfolge):
 --   1. PlatformClient  Plattformen weiterrechnen (eigene Simulation)
@@ -7,7 +7,7 @@
 --   3. CameraController
 --   4. ClayAnimator    Knet-Look aller Köpfe
 
-print("[HeadBattle] Client startet")
+print("[ClayBattle] Client startet")
 
 local PlatformClient = require(script.PlatformClient)
 local HeadController = require(script.HeadController)

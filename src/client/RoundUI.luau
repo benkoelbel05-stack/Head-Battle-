@@ -59,7 +59,7 @@ function RoundUI.start()
 	local changeBots = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER):WaitForChild("ChangeBots") :: RemoteEvent
 
 	local gui = Instance.new("ScreenGui")
-	gui.Name = "HeadBattleRound"
+	gui.Name = "ClayBattleRound"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 	gui.Parent = player:WaitForChild("PlayerGui")

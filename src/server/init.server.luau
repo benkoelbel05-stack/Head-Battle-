@@ -1,5 +1,5 @@
 --!strict
--- Head Battle – Server-Einstieg
+-- Clay Battle – Server-Einstieg
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -180,4 +180,4 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 
-print("[HeadBattle] Server gestartet, Arena gebaut")
+print("[ClayBattle] Server gestartet, Arena gebaut")

@@ -1,5 +1,5 @@
 {
-  "name": "HeadBattle",
+  "name": "ClayBattle",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {

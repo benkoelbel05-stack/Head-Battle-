@@ -99,7 +99,7 @@ end
 function CameraController.start()
 	local headsFolder = Workspace:WaitForChild(Constants.HEADS_FOLDER)
 
-	RunService:BindToRenderStep("HeadBattleCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+	RunService:BindToRenderStep("ClayBattleCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 		local camera = Workspace.CurrentCamera
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = Constants.CAMERA_FOV
