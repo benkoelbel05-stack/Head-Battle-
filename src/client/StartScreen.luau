@@ -195,7 +195,7 @@ local function iconButton(parent: Instance, name: string, cx: number, cy: number
 	return b
 end
 
--- Fähigkeiten-Abzeichen in einer Fläche: Bild (oder Emoji), goldener Schimmer, wächst bei Auswahl
+-- Fähigkeiten-Abzeichen in einer Fläche: Bild (oder Emoji), wächst bei Auswahl
 local function makeBadge(parent: GuiObject): Badge
 	local holder = Instance.new("Frame")
 	holder.Name = "Badge"
