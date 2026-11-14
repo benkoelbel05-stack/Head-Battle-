@@ -8,12 +8,36 @@
 
 local InsertService = game:GetService("InsertService")
 
+-- Nur nötig, wenn der Ladebildschirm in Studio meldet, dass diese Bilder nicht laden.
+-- "FEHLER" bei einem Eintrag heißt meist: das ist schon eine Image-ID und passt so.
 local DECALS = {
-	panel_abilities_blue = 124225716447370,
-	panel_bot_green = 136969832694743,
-	panel_bot_purple = 86310988857689,
-	panel_bot_yellow = 116136309972021,
-	panel_player_orange = 127788199510580,
+	icon_back = 103659282157847,
+	icon_cancel = 135720387369837,
+	icon_confirm = 117036000882566,
+	icon_crown = 95644466899649,
+	icon_exit = 136467943148126,
+	icon_home = 85855978096404,
+	icon_music = 80002238861874,
+	icon_pause = 124564389148503,
+	icon_play = 138238448957877,
+	icon_settings_gear = 136688272736676,
+	icon_shop_cart = 127960994806570,
+	icon_sound = 101386347028651,
+	prop_hammer_star = 85772871682967,
+	prop_red_flag_left = 119817659521845,
+	prop_red_flag_right = 122158699621985,
+	prop_shield_star = 101887751852924,
+	prop_sword = 115198525694506,
+	button_optionen = 104053378200021,
+	button_shop = 107318057720196,
+	button_spielen = 76865933878187,
+	button_verlassen = 79245000873262,
+	button_zum_starten = 115580670848073,
+	char_blue_jump = 86343583704928,
+	char_green_hammer = 94421082607120,
+	char_red_sword = 130431979826668,
+	char_yellow_shield = 102024818087749,
+	logo_clay_battle_hd = 107299522262948,
 }
 
 local names = {}

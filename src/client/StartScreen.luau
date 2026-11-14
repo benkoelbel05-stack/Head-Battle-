@@ -54,7 +54,8 @@ local GRASS = Color3.fromRGB(110, 210, 60)
 local GRASS_EDGE = Color3.fromRGB(52, 140, 40)
 local SLOT_KEYS = { "LM", "MR", "RM" }
 
-local BADGE = 92 -- Durchmesser eines Fähigkeiten-Abzeichens
+local BADGE = 92 -- Durchmesser eines Fähigkeiten-Abzeichens (Liste links)
+local SLOT_BADGE = 72 -- Abzeichen in den eigenen Slots (schmalere Spalte)
 -- Die Abzeichen haben im Bild einen durchsichtigen Rand: so weit vergrößern, dass sie den Platz füllen
 local BADGE_FILL = 1.2
 local BADGE_GROW = 1.15 -- so viel größer wird das gerade gezeigte Abzeichen
@@ -402,15 +403,20 @@ function StartScreen.start()
 	local column = panel(content, "Player", UIAssets.panel_player_orange, ORANGE, 397, 96, 229, 581, 100)
 	local slotHeader = label(column, "Header", "", 14, 42, 201, 44, 36)
 
+	-- Maße der Spalte (229 breit): Taste links innen (16-52), Abzeichen mittig rechts davon (Mitte 132),
+	-- Pfeile direkt neben dem Abzeichen (berühren es nur knapp), alles innerhalb des Cremerands
 	local slots: { Slot } = {}
-	local rows = { 149, 249, 348 }
+	local rows = { 140, 234, 328 }
+	local SLOT_X = 132
+	local ARROW_OFFSET = 58
+	local ARROW_SIZE = 28
 	for index = 1, Abilities.MAX_SLOTS do
 		local y = rows[index]
-		label(column, `Key{index}`, SLOT_KEYS[index], 2, y - 16, 40, 32, 24)
-		local cell = button(column, `Slot{index}`, 120, y, BADGE, BADGE)
+		label(column, `Key{index}`, SLOT_KEYS[index], 16, y - 13, 36, 26, 21)
+		local cell = button(column, `Slot{index}`, SLOT_X, y, SLOT_BADGE, SLOT_BADGE)
 		local badge = makeBadge(cell)
-		local left = iconButton(column, `Left{index}`, 59, y, 36, UIAssets.icon_arrow_left, "◀")
-		local right = iconButton(column, `Right{index}`, 186, y, 36, UIAssets.icon_arrow_right, "▶")
+		local left = iconButton(column, `Left{index}`, SLOT_X - ARROW_OFFSET, y, ARROW_SIZE, UIAssets.icon_arrow_left, "◀")
+		local right = iconButton(column, `Right{index}`, SLOT_X + ARROW_OFFSET, y, ARROW_SIZE, UIAssets.icon_arrow_right, "▶")
 		left.ZIndex = 3
 		right.ZIndex = 3
 		slots[index] = { badge = badge, left = left, right = right }
@@ -426,11 +432,12 @@ function StartScreen.start()
 		end)
 	end
 
-	mound(column, 26, 470, 176, 34)
-	local character = picture(column, "Character", nil, 59, 383, 110, 110)
+	-- Figur auf einem kleinen Hügel, mit Abstand zum Knopf darunter
+	mound(column, 55, 458, 120, 20)
+	local character = picture(column, "Character", nil, 69, 380, 92, 92)
 
-	-- SPIELEN (vor dem Einstieg) bzw. übernehmen (im Spiel)
-	local ready = button(content, "Ready", 511, 635, 210, 78)
+	-- SPIELEN (vor dem Einstieg) bzw. übernehmen (im Spiel); sitzt auf dem unteren Rand der Spalte
+	local ready = button(content, "Ready", 511, 650, 210, 78)
 	local readyImage = picture(ready, "Image", UIAssets.button_spielen, 0, 0, 210, 78)
 	local readyText = label(ready, "Text", "▶ SPIELEN", 0, 0, 210, 78, 34)
 	local function styleReady()
@@ -610,8 +617,8 @@ function StartScreen.start()
 				label(card, "Name", if typeof(name) == "string" then string.upper(name) else "?", 14, 50, 158, 38, 30)
 				local isBot = entry:GetAttribute("IsBot") == true
 				label(card, "Role", if isBot then `BOT · {strength}` else "SPIELER", 14, 96, 158, 26, 20)
-				mound(card, 17, 296, 153, 34)
-				picture(card, "Character", nil, 38, 200, 110, 110).Image = if skin then SpriteAssets.frame(skin, "idle", 1) or "" else ""
+				mound(card, 33, 282, 120, 20)
+				picture(card, "Character", nil, 45, 202, 96, 96).Image = if skin then SpriteAssets.frame(skin, "idle", 1) or "" else ""
 			elseif x then
 				local waiting = picture(othersHolder, "Waiting", UIAssets.player_slot_empty, x + 8, 281, 170, 150)
 				if waiting.Image == "" then

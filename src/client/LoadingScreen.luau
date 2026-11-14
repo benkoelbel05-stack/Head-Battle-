@@ -1,13 +1,17 @@
 --!strict
--- Ladebildschirm beim Spielstart: liegt über allem, lädt einmal alle Bilder und Klänge vor
--- (AssetPreloader) und blendet dann zum Hauptmenü über. Zeigt einen hüpfenden Knetball und einen
--- Fortschrittsbalken. Spätestens nach MAX_WAIT geht es trotzdem weiter.
+-- Ladebildschirm beim Spielstart: liegt deckend über allem, lädt mit dem AssetPreloader einmal alle
+-- Bilder und Klänge vollständig (und scharf) vor und blendet dann zum Hauptmenü über.
+-- Zeigt das Logo (sobald es da ist), einen hüpfenden Knetball, einen Fortschrittsbalken und Tipps.
+-- Kein CanvasGroup (die würde den ganzen Bildschirm unscharf machen); ausgeblendet wird mit Fade.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ContentProvider = game:GetService("ContentProvider")
 
 local AssetPreloader = require(script.Parent.AssetPreloader)
+local MenuAssetIds = require(script.Parent.MenuAssetIds)
+local Fade = require(script.Parent.Fade)
 
 local LoadingScreen = {}
 
@@ -21,7 +25,7 @@ function LoadingScreen.waitUntilDone()
 	end
 end
 
-local MAX_WAIT = 60 -- Sekunden: länger wartet niemand
+local MAX_WAIT = 120 -- Sekunden: Notbremse, falls Roblox gar nicht antwortet
 local FONT = Enum.Font.FredokaOne
 local CREAM = Color3.fromRGB(255, 242, 219)
 local PURPLE = Color3.fromRGB(123, 42, 178)
@@ -34,6 +38,7 @@ local TIPS = {
 	"Ein Thruster kann eine ganze Plattform umdrehen.",
 	"Doppelsprung: in der Luft nochmal springen.",
 	"Fällst du ins Wasser, bist du raus.",
+	"Mit M öffnest du im Spiel das Menü.",
 }
 
 function LoadingScreen.start()
@@ -45,11 +50,13 @@ function LoadingScreen.start()
 	gui.DisplayOrder = 1000
 	gui.Parent = player:WaitForChild("PlayerGui")
 
-	local group = Instance.new("CanvasGroup")
-	group.Size = UDim2.fromScale(1, 1)
-	group.BackgroundColor3 = Color3.new(1, 1, 1)
-	group.BorderSizePixel = 0
-	group.Parent = gui
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.Size = UDim2.fromScale(1, 1)
+	root.BackgroundColor3 = Color3.new(1, 1, 1)
+	root.BorderSizePixel = 0
+	root.Active = true
+	root.Parent = gui
 	local sky = Instance.new("UIGradient")
 	sky.Rotation = 90
 	sky.Color = ColorSequence.new({
@@ -57,7 +64,7 @@ function LoadingScreen.start()
 		ColorSequenceKeypoint.new(0.7, Color3.fromRGB(150, 205, 250)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 205, 90)),
 	})
-	sky.Parent = group
+	sky.Parent = root
 
 	local function text(value: string, y: number, height: number, size: number): TextLabel
 		local l = Instance.new("TextLabel")
@@ -74,10 +81,37 @@ function LoadingScreen.start()
 		local limit = Instance.new("UITextSizeConstraint")
 		limit.MaxTextSize = size
 		limit.Parent = l
-		l.Parent = group
+		l.Parent = root
 		return l
 	end
-	text("CLAY BATTLE", 0.28, 0.16, 110)
+	local title = text("CLAY BATTLE", 0.28, 0.16, 110)
+
+	-- Logo: wird als Erstes geladen und ersetzt dann den Schriftzug
+	local logo = Instance.new("ImageLabel")
+	logo.Name = "Logo"
+	logo.AnchorPoint = Vector2.new(0.5, 0.5)
+	logo.Position = UDim2.fromScale(0.5, 0.27)
+	logo.Size = UDim2.fromScale(0.62, 0.4)
+	logo.BackgroundTransparency = 1
+	logo.ScaleType = Enum.ScaleType.Fit
+	logo.ImageTransparency = 1
+	logo.Parent = root
+	if MenuAssetIds.logo_clay_battle ~= 0 then
+		logo.Image = `rbxassetid://{MenuAssetIds.logo_clay_battle}`
+		task.spawn(function()
+			pcall(function()
+				ContentProvider:PreloadAsync({ logo })
+			end)
+			local started = os.clock()
+			while not logo.IsLoaded and os.clock() - started < 10 and logo.Parent do
+				task.wait(0.05)
+			end
+			if logo.IsLoaded and logo.Parent and not done then
+				TweenService:Create(logo, TweenInfo.new(0.35), { ImageTransparency = 0 }):Play()
+				TweenService:Create(title, TweenInfo.new(0.2), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			end
+		end)
+	end
 
 	-- Hüpfender Knetball (ohne Bild, damit er sofort da ist)
 	local ball = Instance.new("Frame")
@@ -85,7 +119,7 @@ function LoadingScreen.start()
 	ball.Size = UDim2.fromScale(0.06, 0.06)
 	ball.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	ball.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-	ball.Parent = group
+	ball.Parent = root
 	local ballCorner = Instance.new("UICorner")
 	ballCorner.CornerRadius = UDim.new(0.5, 0)
 	ballCorner.Parent = ball
@@ -100,7 +134,7 @@ function LoadingScreen.start()
 	bar.Position = UDim2.fromScale(0.5, 0.7)
 	bar.Size = UDim2.fromScale(0.5, 0.045)
 	bar.BackgroundColor3 = Color3.fromRGB(60, 34, 98)
-	bar.Parent = group
+	bar.Parent = root
 	local barCorner = Instance.new("UICorner")
 	barCorner.CornerRadius = UDim.new(0.5, 0)
 	barCorner.Parent = bar
@@ -136,14 +170,19 @@ function LoadingScreen.start()
 
 	-- Laden
 	if not game:IsLoaded() then
+		status.Text = "Verbinde …"
 		game.Loaded:Wait()
 	end
 	local finished = false
+	local lastFraction = 0
 	task.spawn(function()
 		local ok, problem = pcall(AssetPreloader.run, function(count: number, total: number, section: string)
 			local fraction = if total > 0 then count / total else 1
-			TweenService:Create(fill, TweenInfo.new(0.15), { Size = UDim2.fromScale(fraction, 1) }):Play()
-			status.Text = `Lädt {section} … {math.floor(fraction * 100 + 0.5)} %`
+			if fraction > lastFraction then
+				lastFraction = fraction
+				TweenService:Create(fill, TweenInfo.new(0.15), { Size = UDim2.fromScale(fraction, 1) }):Play()
+			end
+			status.Text = `Lädt {section} … {math.floor(lastFraction * 100 + 0.5)} %`
 		end)
 		if not ok then
 			warn(`[ClayBattle] Vorladen abgebrochen: {problem}`)
@@ -154,18 +193,18 @@ function LoadingScreen.start()
 	while not finished and os.clock() - started < MAX_WAIT do
 		task.wait(0.1)
 	end
+	TweenService:Create(fill, TweenInfo.new(0.15), { Size = UDim2.fromScale(1, 1) }):Play()
 	status.Text = "Fertig!"
-	task.wait(0.3)
+	task.wait(0.35)
 	done = true
 	doneEvent:Fire()
 
-	-- Ausblenden
-	local fade = TweenService:Create(group, TweenInfo.new(0.6), { GroupTransparency = 1 })
-	fade.Completed:Once(function()
+	-- Ausblenden (jedes Element einzeln, ohne CanvasGroup)
+	Fade.to(root, 1, 0.6)
+	task.delay(0.65, function()
 		connection:Disconnect()
 		gui:Destroy()
 	end)
-	fade:Play()
 end
 
 return LoadingScreen

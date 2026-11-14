@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local UIStyle = require(script.Parent.UIStyle)
+local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
 local SoundFX = require(script.Parent.SoundFX)
 
 local RoundUI = {}
@@ -69,6 +70,20 @@ function RoundUI.start()
 	-- Nachricht und Countdown
 	local message = makeLabel(gui, "Message", UDim2.new(1, 0, 0, 50), UDim2.fromOffset(0, 70), 38)
 	local countdown = makeLabel(gui, "Countdown", UDim2.new(1, 0, 0, 120), UDim2.new(0, 0, 0.35, 0), 110)
+
+	-- Krone über der Nachricht, wenn jemand eine Runde oder das Match gewinnt
+	local crown = Instance.new("ImageLabel")
+	crown.Name = "WinnerCrown"
+	crown.AnchorPoint = Vector2.new(0.5, 0.5)
+	crown.Position = UDim2.new(0.5, 0, 0, 40)
+	crown.Size = UDim2.fromOffset(58, 58)
+	crown.BackgroundTransparency = 1
+	crown.ScaleType = Enum.ScaleType.Fit
+	crown.Image = if UIAssets.icon_crown ~= 0 then `rbxassetid://{UIAssets.icon_crown}` else ""
+	crown.Visible = false
+	crown.Parent = gui
+	local crownScale = Instance.new("UIScale")
+	crownScale.Parent = crown
 
 	-- Punkte
 	local board = Instance.new("Frame")
@@ -141,6 +156,21 @@ function RoundUI.start()
 			dotCorner.CornerRadius = UDim.new(1, 0)
 			dotCorner.Parent = dot
 			dot.Parent = row
+
+			-- Der alleinige Führende trägt eine kleine Krone über seinem Punkt
+			local nextBest = entries[2] :: IntValue?
+			if index == 1 and value.Value > 0 and (not nextBest or nextBest.Value < value.Value) and UIAssets.icon_crown ~= 0 then
+				local leaderCrown = Instance.new("ImageLabel")
+				leaderCrown.Name = "Crown"
+				leaderCrown.AnchorPoint = Vector2.new(0.5, 1)
+				leaderCrown.Position = UDim2.new(0, 8, 0.5, -4)
+				leaderCrown.Size = UDim2.fromOffset(20, 20)
+				leaderCrown.BackgroundTransparency = 1
+				leaderCrown.ScaleType = Enum.ScaleType.Fit
+				leaderCrown.Image = `rbxassetid://{UIAssets.icon_crown}`
+				leaderCrown.ZIndex = 2
+				leaderCrown.Parent = row
+			end
 
 			local name = makeLabel(row, "Name", UDim2.new(1, -80, 1, 0), UDim2.fromOffset(24, 0), 20)
 			name.TextXAlignment = Enum.TextXAlignment.Left
@@ -225,8 +255,15 @@ function RoundUI.start()
 		updateCountdown(phase)
 		-- Runde / Match gewonnen: kurze Fanfare
 		if phase ~= lastPhaseSound then
-			if phase == "RoundEnd" or phase == "MatchEnd" then
+			local won = phase == "RoundEnd" or phase == "MatchEnd"
+			if won then
 				SoundFX.play("round_win")
+			end
+			-- Keine Krone bei "Unentschieden!"
+			crown.Visible = won and crown.Image ~= "" and string.find(message.Text, "gewinnt", 1, true) ~= nil
+			if crown.Visible then
+				crownScale.Scale = 0.2
+				TweenService:Create(crownScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 			end
 			lastPhaseSound = phase
 		end

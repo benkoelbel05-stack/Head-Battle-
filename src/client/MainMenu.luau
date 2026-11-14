@@ -5,10 +5,13 @@
 --   * "Optionen" -> Einstellungen über dem leicht abgedunkelten Titelbild (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
 --   * "Shop" -> noch kein Shop im Spiel: kurzer Hinweis
 --   * "Verlassen" -> Nachfrage, dann Spiel verlassen
--- Im Spiel öffnet der Knopf "☰ MENÜ" (oben rechts) oder die Taste M das Menü wieder; "Spielen" geht
+-- Im Spiel öffnet der Haus-Knopf (oben rechts) oder die Taste M das Menü wieder; "Spielen" geht
 -- dann direkt zurück ins Spiel. Das Spiel läuft währenddessen weiter (Mehrspieler), man steht aber still.
 -- Bilder kommen aus MenuAssetIds. Fehlt eine ID (0), gibt es einen Ersatz, damit das Menü benutzbar bleibt.
 -- Alle Positionen sind im Entwurfsraster 1672 x 941 (Menu_Vorschau.jpg) angegeben und skalieren mit.
+-- Bilder behalten ihre Proportionen (ScaleType Fit), nur der Hintergrund füllt per Crop.
+-- Titelbild und Optionen sind normale Frames (keine CanvasGroups: die machen alles unscharf);
+-- ein- und ausgeblendet wird mit Fade.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,15 +21,18 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
 local images = require(script.Parent.MenuAssetIds)
 local StartScreen = require(script.Parent.StartScreen)
 local SoundFX = require(script.Parent.SoundFX)
 local LoadingScreen = require(script.Parent.LoadingScreen)
+local Fade = require(script.Parent.Fade)
 
 local MainMenu = {}
 
 type AvatarData = { name: string, x: number, y: number, w: number, h: number, phase: number, amp: number, speed: number, tilt: number }
 type Avatar = { label: ImageLabel, x: number, y: number, phase: number, amp: number, speed: number, tilt: number }
+type Flag = { label: ImageLabel, x: number, y: number, phase: number }
 
 local W, H = 1672, 941
 local WHITE = Color3.fromRGB(255, 250, 241)
@@ -74,7 +80,7 @@ local function picture(parent: Instance, name: string, x: number, y: number, w: 
 	element.BorderSizePixel = 0
 	element.Position = at(x, y)
 	element.Size = dims(w, h)
-	element.ScaleType = Enum.ScaleType.Stretch
+	element.ScaleType = Enum.ScaleType.Fit -- Proportionen des Bildes behalten
 	element.Image = imageId(name)
 	element.ZIndex = z
 	element.Parent = parent
@@ -101,7 +107,44 @@ local function textLabel(parent: Instance, name: string, text: string, rect: { n
 	return label
 end
 
-local function boxButton(parent: Instance, name: string, text: string, rect: { number }, color: Color3, action: () -> ()): TextButton
+-- Symbol links in einen Knopf setzen; der Text rückt daneben (Maße im Entwurfsraster)
+local function addButtonIcon(button: GuiObject, iconId: number, width: number, height: number)
+	if iconId == 0 then
+		return
+	end
+	local icon = Instance.new("ImageLabel")
+	icon.Name = "Icon"
+	icon.AnchorPoint = Vector2.new(0, 0.5)
+	icon.Position = UDim2.fromScale(0.06 * height / width, 0.5)
+	icon.Size = UDim2.fromScale(0.8, 0.8)
+	icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	icon.BackgroundTransparency = 1
+	icon.ScaleType = Enum.ScaleType.Fit
+	icon.Image = `rbxassetid://{iconId}`
+	icon.ZIndex = button.ZIndex + 1
+	icon.Parent = button
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new((0.12 * height + 0.8 * height) / width, 0)
+	padding.Parent = button
+end
+
+-- Freistehendes Symbol im Entwurfsraster
+local function iconImage(parent: Instance, name: string, iconId: number, rect: { number }, z: number)
+	if iconId == 0 then
+		return
+	end
+	local icon = Instance.new("ImageLabel")
+	icon.Name = name
+	icon.BackgroundTransparency = 1
+	icon.Position = at(rect[1], rect[2])
+	icon.Size = dims(rect[3], rect[4])
+	icon.ScaleType = Enum.ScaleType.Fit
+	icon.Image = `rbxassetid://{iconId}`
+	icon.ZIndex = z
+	icon.Parent = parent
+end
+
+local function boxButton(parent: Instance, name: string, text: string, rect: { number }, color: Color3, action: () -> (), iconId: number?): TextButton
 	local button = Instance.new("TextButton")
 	button.Name = name
 	button.Size = dims(rect[3], rect[4])
@@ -125,6 +168,9 @@ local function boxButton(parent: Instance, name: string, text: string, rect: { n
 	local limit = Instance.new("UITextSizeConstraint")
 	limit.MaxTextSize = 26
 	limit.Parent = button
+	if iconId then
+		addButtonIcon(button, iconId, rect[3], rect[4])
+	end
 	button.Activated:Connect(function()
 		SoundFX.play("ui_click")
 		action()
@@ -210,16 +256,30 @@ function MainMenu.start()
 	-- Titelbild
 	-------------------------------------------------------------------------------------------------
 
-	local titleGroup = Instance.new("CanvasGroup")
+	local titleGroup = Instance.new("Frame")
 	titleGroup.Name = "TitleScreen"
 	titleGroup.Size = UDim2.fromScale(1, 1)
 	titleGroup.BackgroundTransparency = 1
-	titleGroup.GroupTransparency = 1
 	titleGroup.Parent = canvas
 
 	local background = picture(titleGroup, "menu_background", -20, -13, W + 40, H + 26, 1)
+	background.ScaleType = Enum.ScaleType.Crop -- füllt die Fläche ohne Verzerrung
 	if background.Image == "" then
 		fallbackBackground(titleGroup)
+	end
+
+	-- Rote Fahnen links und rechts vom Logo; schwingen leicht im Wind
+	local flags: { Flag } = {}
+	for _, data in {
+		{ name = "prop_red_flag_left", x = 300, y = 64, phase = 0 },
+		{ name = "prop_red_flag_right", x = 1222, y = 64, phase = 1.7 },
+	} do
+		if imageId(data.name) ~= "" then
+			local flag = picture(titleGroup, data.name, data.x, data.y, 150, 210, 2)
+			flag.AnchorPoint = Vector2.new(0.5, 0.5)
+			flag.Position = at(data.x + 75, data.y + 105)
+			table.insert(flags, { label = flag, x = data.x + 75, y = data.y + 105, phase = data.phase })
+		end
 	end
 
 	local logo = picture(titleGroup, "logo_clay_battle", 452, 0, 746, 388, 3)
@@ -282,6 +342,7 @@ function MainMenu.start()
 		button.BackgroundTransparency = 1
 		button.BorderSizePixel = 0
 		button.Image = imageId(`button_{name}`)
+		button.ScaleType = Enum.ScaleType.Fit -- freigestellte Knöpfe nicht verzerren
 		button.AutoButtonColor = false
 		button.ZIndex = 8
 		button.Parent = titleGroup
@@ -338,11 +399,10 @@ function MainMenu.start()
 	-- Optionen
 	-------------------------------------------------------------------------------------------------
 
-	local optionsGroup = Instance.new("CanvasGroup")
+	local optionsGroup = Instance.new("Frame")
 	optionsGroup.Name = "OptionsScreen"
 	optionsGroup.Size = UDim2.fromScale(1, 1)
 	optionsGroup.BackgroundTransparency = 1
-	optionsGroup.GroupTransparency = 1
 	optionsGroup.Visible = false
 	optionsGroup.ZIndex = 15
 	optionsGroup.Parent = canvas
@@ -358,6 +418,7 @@ function MainMenu.start()
 	dim.Parent = optionsGroup
 
 	textLabel(optionsGroup, "Heading", "OPTIONEN", { 574, 115, 510, 89 }, 65)
+	iconImage(optionsGroup, "HeadingIcon", UIAssets.icon_settings_gear, { 490, 122, 74, 74 }, 22)
 
 	-- Einstellungen: als Spieler-Attribute "ClayBattle_<Name>" abgelegt, damit andere Skripte sie
 	-- lesen können, und zusätzlich als Event "ClayBattleSettingsChanged" gemeldet.
@@ -443,7 +504,8 @@ function MainMenu.start()
 	end)
 
 	local SMALL_BUTTON = Color3.fromRGB(77, 76, 120)
-	local function settingRow(label: string, field: string, y: number)
+	local function settingRow(label: string, field: string, y: number, iconId: number)
+		iconImage(optionsGroup, `{field}Icon`, iconId, { 378, y + 3, 50, 48 }, 22)
 		textLabel(optionsGroup, `{field}Label`, label, { 440, y, 402, 54 }, 34)
 		local valueText = textLabel(optionsGroup, `{field}Value`, "", { 910, y, 120, 54 }, 29)
 		valueText.TextXAlignment = Enum.TextXAlignment.Center
@@ -460,8 +522,8 @@ function MainMenu.start()
 		end)
 		refresh()
 	end
-	settingRow("Musik", "music", 250)
-	settingRow("Soundeffekte", "sfx", 323)
+	settingRow("Musik", "music", 250, UIAssets.icon_music)
+	settingRow("Soundeffekte", "sfx", 323, UIAssets.icon_sound)
 
 	local function boolRow(label: string, field: string, y: number)
 		textLabel(optionsGroup, `{field}Label`, label, { 440, y, 410, 54 }, 33)
@@ -507,10 +569,11 @@ function MainMenu.start()
 		transitioning = true
 		optionsGroup.Visible = true
 		optionsGroup.Position = at(0, 34)
-		optionsGroup.GroupTransparency = 1
+		Fade.to(optionsGroup, 1, 0)
 		titleGroup.Interactable = false
-		tween(titleGroup, 0.22, { GroupTransparency = 0.15 })
-		tween(optionsGroup, 0.32, { GroupTransparency = 0, Position = at(0, 0) }, Enum.EasingStyle.Quart)
+		Fade.to(titleGroup, 0.15, 0.22)
+		Fade.to(optionsGroup, 0, 0.32, Enum.EasingStyle.Quart)
+		tween(optionsGroup, 0.32, { Position = at(0, 0) }, Enum.EasingStyle.Quart)
 		task.delay(0.33, function()
 			transitioning = false
 		end)
@@ -522,15 +585,18 @@ function MainMenu.start()
 		end
 		transitioning = true
 		titleGroup.Visible = true
-		tween(optionsGroup, 0.2, { GroupTransparency = 1, Position = at(0, 34) })
-		tween(titleGroup, 0.32, { GroupTransparency = 0 })
+		Fade.to(optionsGroup, 1, 0.2)
+		tween(optionsGroup, 0.2, { Position = at(0, 34) })
+		Fade.to(titleGroup, 0, 0.32)
 		task.delay(0.33, function()
 			optionsGroup.Visible = false
 			titleGroup.Interactable = true
 			transitioning = false
 		end)
 	end
-	boxButton(optionsGroup, "Back", "← Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle)
+	boxButton(optionsGroup, "Back", "Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle, UIAssets.icon_back)
+	-- Grundwerte der Optionen merken (alles ist jetzt gebaut) und unsichtbar starten
+	Fade.to(optionsGroup, 1, 0)
 
 	-- Solange ein Menü offen ist, nimmt die Steuerung keine Eingaben an (HeadController liest das)
 	local function setMenuOpen(open: boolean)
@@ -551,9 +617,9 @@ function MainMenu.start()
 		end
 		transitioning = true
 		local resume = inGame()
-		tween(titleGroup, 0.4, { GroupTransparency = 1 }, Enum.EasingStyle.Quart)
+		Fade.to(titleGroup, 1, 0.4, Enum.EasingStyle.Quart)
 		if optionsGroup.Visible then
-			tween(optionsGroup, 0.4, { GroupTransparency = 1 })
+			Fade.to(optionsGroup, 1, 0.4)
 		end
 		task.delay(0.41, function()
 			gui.Enabled = false
@@ -579,8 +645,8 @@ function MainMenu.start()
 		titleGroup.Visible = true
 		titleGroup.Interactable = true
 		optionsGroup.Visible = false
-		titleGroup.GroupTransparency = 1
-		tween(titleGroup, 0.35, { GroupTransparency = 0 })
+		Fade.to(titleGroup, 1, 0)
+		Fade.to(titleGroup, 0, 0.35)
 	end
 
 	-- Knopf oben rechts (nur im Spiel sichtbar, wenn kein Menü offen ist)
@@ -589,27 +655,52 @@ function MainMenu.start()
 	menuButtonGui.ResetOnSpawn = false
 	menuButtonGui.DisplayOrder = 5
 	menuButtonGui.Parent = playerGui
-	local menuButton = Instance.new("TextButton")
+	-- Mit Bild: runder Haus-Knopf; ohne Bild: lila Textknopf "☰ MENÜ"
+	local menuButton: GuiButton
+	if UIAssets.icon_home ~= 0 then
+		local homeButton = Instance.new("ImageButton")
+		homeButton.Size = UDim2.fromOffset(58, 58)
+		homeButton.BackgroundTransparency = 1
+		homeButton.ScaleType = Enum.ScaleType.Fit
+		homeButton.Image = `rbxassetid://{UIAssets.icon_home}`
+		menuButton = homeButton
+	else
+		local textButton = Instance.new("TextButton")
+		textButton.Size = UDim2.fromOffset(130, 44)
+		textButton.BackgroundColor3 = Color3.fromRGB(85, 49, 134)
+		textButton.Font = Enum.Font.FredokaOne
+		textButton.TextSize = 22
+		textButton.TextColor3 = WHITE
+		textButton.Text = "☰ MENÜ"
+		local menuCorner = Instance.new("UICorner")
+		menuCorner.CornerRadius = UDim.new(0, 14)
+		menuCorner.Parent = textButton
+		local menuStroke = Instance.new("UIStroke")
+		menuStroke.Color = Color3.fromRGB(250, 246, 225)
+		menuStroke.Thickness = 2
+		menuStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		menuStroke.Parent = textButton
+		menuButton = textButton
+	end
 	menuButton.Name = "Menu"
 	menuButton.AnchorPoint = Vector2.new(1, 0)
-	menuButton.Position = UDim2.new(1, -16, 0, 12)
-	menuButton.Size = UDim2.fromOffset(130, 44)
-	menuButton.BackgroundColor3 = Color3.fromRGB(85, 49, 134)
-	menuButton.Font = Enum.Font.FredokaOne
-	menuButton.TextSize = 22
-	menuButton.TextColor3 = WHITE
-	menuButton.Text = "☰ MENÜ"
+	menuButton.Position = UDim2.new(1, -14, 0, 10)
+	menuButton.AutoButtonColor = false
 	menuButton.Visible = false
-	local menuCorner = Instance.new("UICorner")
-	menuCorner.CornerRadius = UDim.new(0, 14)
-	menuCorner.Parent = menuButton
-	local menuStroke = Instance.new("UIStroke")
-	menuStroke.Color = Color3.fromRGB(250, 246, 225)
-	menuStroke.Thickness = 2
-	menuStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	menuStroke.Parent = menuButton
+	local menuScale = Instance.new("UIScale")
+	menuScale.Parent = menuButton
+	menuButton.MouseEnter:Connect(function()
+		SoundFX.play("ui_hover")
+		tween(menuScale, 0.12, { Scale = 1.08 }, Enum.EasingStyle.Back)
+	end)
+	menuButton.MouseLeave:Connect(function()
+		tween(menuScale, 0.12, { Scale = 1 })
+	end)
 	menuButton.Parent = menuButtonGui
-	menuButton.Activated:Connect(openMenu)
+	menuButton.Activated:Connect(function()
+		SoundFX.play("ui_click")
+		openMenu()
+	end)
 
 	local function refreshMenuButton()
 		menuButton.Visible = inGame() and player:GetAttribute("MenuOpen") ~= true
@@ -638,6 +729,10 @@ function MainMenu.start()
 		notice.TextXAlignment = Enum.TextXAlignment.Center
 		notice.BackgroundColor3 = Color3.fromRGB(70, 37, 112)
 		notice.BackgroundTransparency = 0.15
+		local noticeCorner = Instance.new("UICorner")
+		noticeCorner.CornerRadius = UDim.new(0.5, 0)
+		noticeCorner.Parent = notice
+		addButtonIcon(notice, UIAssets.icon_shop_cart, 735, 51)
 		task.delay(2.2, function()
 			if notice.Parent then
 				notice:Destroy()
@@ -676,7 +771,7 @@ function MainMenu.start()
 		question.TextScaled = true
 		question.ZIndex = 32
 		question.Parent = panel
-		local function confirmButton(text: string, x: number, color: Color3, action: () -> ())
+		local function confirmButton(text: string, x: number, color: Color3, iconId: number, action: () -> ())
 			local b = Instance.new("TextButton")
 			b.Size = UDim2.fromScale(0.38, 0.26)
 			b.Position = UDim2.fromScale(x, 0.6)
@@ -690,16 +785,18 @@ function MainMenu.start()
 			local c = Instance.new("UICorner")
 			c.CornerRadius = UDim.new(0.3, 0)
 			c.Parent = b
+			-- Knopfgröße im Entwurfsraster: 38 % x 26 % der Tafel (672 x 240)
+			addButtonIcon(b, iconId, 672 * 0.38, 240 * 0.26)
 			b.Activated:Connect(function()
 				SoundFX.play("ui_click")
 				action()
 			end)
 		end
-		confirmButton("Abbrechen", 0.08, Color3.fromRGB(33, 115, 217), function()
+		confirmButton("Abbrechen", 0.08, Color3.fromRGB(33, 115, 217), UIAssets.icon_cancel, function()
 			exitConfirmation = false
 			overlay:Destroy()
 		end)
-		confirmButton("Verlassen", 0.54, Color3.fromRGB(218, 55, 55), function()
+		confirmButton("Verlassen", 0.54, Color3.fromRGB(218, 55, 55), UIAssets.icon_confirm, function()
 			player:Kick("Du hast Clay Battle verlassen.")
 		end)
 	end
@@ -730,11 +827,17 @@ function MainMenu.start()
 			avatar.label.Position = at(avatar.x + drift, avatar.y + wave * avatar.amp)
 			avatar.label.Rotation = math.sin(clock * avatar.speed * 0.65 + avatar.phase) * avatar.tilt
 		end
+		for _, flag in flags do
+			flag.label.Rotation = math.sin(clock * 1.7 + flag.phase) * 3.5
+			flag.label.Position = at(flag.x, flag.y + math.sin(clock * 1.3 + flag.phase) * 3)
+		end
 		logoScale.Scale = 1 + math.sin(clock * 1.25) * 0.012
 		background.Position = at(-20 + math.sin(clock * 0.29) * 5, -13 + math.cos(clock * 0.23) * 3)
 	end)
 
-	tween(titleGroup, 0.75, { GroupTransparency = 0 })
+	-- Grundwerte des Titelbilds merken (alles ist gebaut), dann einblenden
+	Fade.to(titleGroup, 1, 0)
+	Fade.to(titleGroup, 0, 0.75)
 
 	-- Nur in Studio: nach ein paar Sekunden melden, welche Menübilder nicht geladen werden konnten
 	-- (z. B. Decal- statt Image-ID oder noch nicht von Roblox freigegeben)

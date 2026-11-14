@@ -13,7 +13,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
   - Schwert (Rücken): Hieb im Bogen (±65°) Richtung Maus, Reichweite 5; trifft alle Köpfe darin und schlägt Granaten zurück
   - Raketenrucksack (Rücken): Lenkrakete: Taste halten = sie fliegt extra langsam zum Mauszeiger, loslassen = geradeaus mit vollem Tempo; explodiert bei Plattform/Kopf oder nach 6 s; erwischt nur, wen sie direkt berührt (Hitbox = genau die Rakete)
-- [x] Hauptmenü (im Spiel über „☰ MENÜ“ oben rechts oder Taste M wieder erreichbar) mit wippenden Knetfiguren, Optionen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik), Shop-Hinweis, Verlassen; Bild-IDs in `src/client/MenuAssetIds.luau` (0 = Ersatzgrafik)
+- [x] Hauptmenü (im Spiel über den Haus-Knopf oben rechts oder Taste M wieder erreichbar; freigestellte Knöpfe, Figuren, HD-Logo und Fahnen, Symbole in Optionen und Nachfragen) mit wippenden Knetfiguren, Optionen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik), Shop-Hinweis, Verlassen; Bild-IDs in `src/client/MenuAssetIds.luau` (0 = Ersatzgrafik)
 - [x] Ausrüstungs-Wahl im Bopl-Stil nach „Spielen“: Fähigkeiten-Panel, eigene Spalte mit 3 Slots (Slot wählen, dann Fähigkeit oder ◀ ▶), Figur und Haken; rechts Mitspieler/Bots bzw. „Warte auf Spieler …“, Bots und Bot-Stärke; im Spiel „Ausrüstung“ unten links
 - [x] Knet-Texturen auf den Plattformen (Fläche + Kante, je Plattform `material` im Layout; IDs in `src/shared/PlatformTextures.luau`)
 - [x] Glücksrad vor jeder Runde: zufällige Karte (Basteltisch, Schwebeinseln, Knettreppe, Wackelbrücke) und Hintergrund
@@ -92,8 +92,10 @@ src/
     MainMenu.luau       Hauptmenü und Optionen (animiert)
     MenuAssetIds.luau   Bild-IDs für das Hauptmenü
     StartScreen.luau    Ausrüstungs-Wahl (Fähigkeiten, Bot-Stärke, Bots, Spielen)
-    LoadingScreen.luau  Ladebildschirm beim Start (lädt alles vor, dann Hauptmenü)
-    AssetPreloader.luau Liste aller Bilder und Klänge, Vorladen in Paketen (Menü zuerst, Sprites zuletzt)
+    LoadingScreen.luau  Ladebildschirm beim Start (Logo, Fortschritt; erst danach das Hauptmenü)
+    Fade.luau           Ein-/Ausblenden ohne CanvasGroup (CanvasGroups machen die Oberfläche unscharf)
+    AssetPreloader.luau Lädt alle Bilder/Klänge vollständig: zeigt jedes Bild einmal in Anzeigegröße unter dem
+                        Ladebildschirm, wartet auf IsLoaded, zweiter Versuch, meldet in Studio, was fehlt
     SoundFX.luau        Soundeffekte (IDs in src/shared/SoundIds.luau, Dateien in assets/sfx)
     SwordVisual.luau    Schwerthieb-Animation
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
