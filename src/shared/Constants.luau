@@ -24,7 +24,7 @@ Constants.JUMP_KEEP_ALONG = 0.6 -- so viel Laufgeschwindigkeit nimmt man in den 
 Constants.MAX_FALL_SPEED = 90
 Constants.JUMP_BUFFER = 0.12 -- Sprung kurz vor der Landung gedrückt zählt trotzdem
 Constants.WALL_JUMP_LIFT = 0.8 -- wie steil man von einer Wand nach oben abspringt
-Constants.DETACH_TIME = 0.12 -- nach dem Absprung so lange nicht wieder festkleben
+Constants.DETACH_TIME = 0.16 -- nach dem Absprung so lange nicht wieder an derselben Plattform festkleben
 
 -- Dash (Fliegerkappe)
 Constants.DASH_SPEED = 80

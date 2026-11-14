@@ -188,7 +188,10 @@ local function moveWithCollisions(motor: Motor, dt: number, shapes: { PlatformSh
 				local localNormal = if distance > 0.001
 					then (Vector3.new(localPoint.X, localPoint.Y, 0) - closest) / distance
 					else Vector3.yAxis
-				local sameSide = frame:VectorToWorldSpace(localNormal):Dot(motor.detachedNormal) > 0.5
+				-- "Gleiche Seite" großzügig: auch die angrenzende Rundung zählt dazu (sonst klebt man nach einem
+				-- Absprung nahe am Plattform-Ende sofort wieder fest). Nur eine deutlich andere Seite
+				-- (z. B. von der Seitenwand an die Unterseite) greift sofort.
+				local sameSide = frame:VectorToWorldSpace(localNormal):Dot(motor.detachedNormal) > 0.15
 				if now >= motor.detachUntil or shape ~= motor.detachedShape or not sameSide then
 					attachTo(motor, shape, now)
 					return true
