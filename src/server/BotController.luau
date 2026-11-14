@@ -385,7 +385,8 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 
 	-- 4a. Schwert: Gegner (vorausberechnet) in Reichweite -> zuschlagen
 	local soon = flat(target.position + target.velocity * 0.12 * level.lead - position)
-	if swordReady and soon.Magnitude < Constants.SWORD_RANGE + R and random:NextNumber() < level.swordChance then
+	local clearPath = (PlatformShapes.raycast(shapes, position, soon, soon.Magnitude) or math.huge) >= soon.Magnitude - R * 0.5
+	if swordReady and clearPath and soon.Magnitude < Constants.SWORD_RANGE + R and random:NextNumber() < level.swordChance then
 		context.swingSword(bot.id, soon)
 		swordReady = false
 	end

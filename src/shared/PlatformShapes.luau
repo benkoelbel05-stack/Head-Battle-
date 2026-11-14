@@ -132,6 +132,42 @@ function PlatformShapes.closest(halfLength: number, p: Vector3): (number, Vector
 	return (flat - c).Magnitude, c
 end
 
+-- Strahl in der Spielebene: Abstand bis zur ersten Plattform-Oberfläche oder nil (nichts bis maxDistance).
+-- Für Sichtlinien (Schwert). Abtasten über den Abstand zur nächsten Oberfläche ("Sphere Tracing").
+function PlatformShapes.raycast(shapes: { Shape }, origin: Vector3, direction: Vector3, maxDistance: number): number?
+	local flatDirection = Vector3.new(direction.X, direction.Y, 0)
+	if flatDirection.Magnitude < 1e-4 or #shapes == 0 then
+		return nil
+	end
+	flatDirection = flatDirection.Unit
+	local frames = table.create(#shapes)
+	for i, shape in shapes do
+		frames[i] = PlatformShapes.frame(shape)
+	end
+	local start = Vector3.new(origin.X, origin.Y, 0)
+	local t = 0
+	for _ = 1, 64 do
+		local point = start + flatDirection * t
+		local nearest = math.huge
+		for i, shape in shapes do
+			local frame = frames[i]
+			local localPoint = frame:PointToObjectSpace(Vector3.new(point.X, point.Y, frame.Position.Z))
+			local distance = PlatformShapes.closest(shape.halfLength, localPoint) - shape.radius
+			if distance < nearest then
+				nearest = distance
+			end
+		end
+		if nearest < 0.02 then
+			return t
+		end
+		t += nearest
+		if t > maxDistance then
+			return nil
+		end
+	end
+	return nil
+end
+
 -- Nächste Plattform-Oberfläche in Reichweite eines Kopfes: Normale in Weltkoordinaten oder nil.
 -- extra = wie weit der Kopf höchstens von der Oberfläche entfernt sein darf.
 function PlatformShapes.nearestNormal(shapes: { Shape }, worldPosition: Vector3, headRadius: number, extra: number): Vector3?

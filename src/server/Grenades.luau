@@ -160,11 +160,15 @@ function Grenades.step(dt: number)
 end
 
 -- Granaten in einem Bogen zurückschlagen (Schwert). cosArc = Kosinus des halben Öffnungswinkels.
-function Grenades.deflect(origin: Vector3, direction: Vector3, range: number, cosArc: number)
+function Grenades.deflect(origin: Vector3, direction: Vector3, range: number, cosArc: number, canReach: ((Vector3) -> boolean)?)
 	for _, grenade in active do
 		local offset = Vector3.new(grenade.position.X - origin.X, grenade.position.Y - origin.Y, 0)
 		local distance = offset.Magnitude
-		if distance <= range and (distance < 0.5 or offset.Unit:Dot(direction) >= cosArc) then
+		if
+			distance <= range
+			and (distance < 0.5 or offset.Unit:Dot(direction) >= cosArc)
+			and (canReach == nil or canReach(grenade.position))
+		then
 			grenade.velocity = direction * Constants.SWORD_DEFLECT_SPEED
 			context.events:FireAllClients("GrenadeDeflected", grenade.id, grenade.position, grenade.velocity)
 		end
