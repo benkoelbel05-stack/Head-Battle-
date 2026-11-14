@@ -23,7 +23,7 @@ local OFFSETS = {
 }
 local OUTLINE = Color3.fromRGB(34, 26, 40)
 
-type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, id: string?, fraction: number }
+type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, ring: UIStroke, id: string?, fraction: number }
 type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string }
 
 local function makeBubble(parent: Instance, index: number): Bubble
@@ -84,7 +84,7 @@ local function makeBubble(parent: Instance, index: number): Bubble
 	stroke.Thickness = 2
 	stroke.Parent = ring
 
-	return { group = group, cooldown = cooldown, emoji = emoji, image = image, id = nil, fraction = 0 }
+	return { group = group, cooldown = cooldown, emoji = emoji, image = image, ring = stroke, id = nil, fraction = 0 }
 end
 
 local function build(head: Model, body: BasePart, container: Instance): View
@@ -134,13 +134,20 @@ local function setAbility(bubble: Bubble, id: string?)
 	bubble.group.BackgroundColor3 = info.color:Lerp(Color3.new(1, 1, 1), 0.25)
 	local imageId = AbilityIcons[id]
 	if imageId and imageId ~= 0 then
+		-- Fertiges Abzeichen: eigener Hintergrund und Rand, also nur das Bild zeigen
 		bubble.image.Image = `rbxassetid://{imageId}`
+		bubble.image.Size = UDim2.fromScale(1, 1)
+		bubble.image.Position = UDim2.fromScale(0, 0)
 		bubble.image.Visible = true
 		bubble.emoji.Visible = false
+		bubble.group.BackgroundTransparency = 1
+		bubble.ring.Enabled = false
 	else
 		bubble.image.Visible = false
 		bubble.emoji.Visible = true
 		bubble.emoji.Text = info.icon
+		bubble.group.BackgroundTransparency = 0
+		bubble.ring.Enabled = true
 	end
 end
 

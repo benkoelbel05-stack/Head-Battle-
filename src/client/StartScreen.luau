@@ -16,6 +16,8 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
+local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
 local MenuAssetIds = require(script.Parent.MenuAssetIds)
 
 local StartScreen = {}
@@ -33,7 +35,7 @@ function StartScreen.open()
 end
 
 type Icon = { button: TextButton, ring: UIStroke }
-type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, left: TextButton, right: TextButton }
+type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, image: ImageLabel, left: TextButton, right: TextButton }
 
 -- Farben und Schrift
 local TITLE_FONT = Enum.Font.FredokaOne
@@ -61,6 +63,22 @@ local function corner(parent: Instance, radius: UDim)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = radius
 	c.Parent = parent
+end
+
+-- Bild aus UIAssets/AbilityIcons über die ganze Fläche legen (nil, wenn es keins gibt)
+local function imageOn(parent: GuiObject, id: number?): ImageLabel?
+	if not id or id == 0 then
+		return nil
+	end
+	local image = Instance.new("ImageLabel")
+	image.Name = "Image"
+	image.Size = UDim2.fromScale(1, 1)
+	image.BackgroundTransparency = 1
+	image.ScaleType = Enum.ScaleType.Fit
+	image.Image = `rbxassetid://{id}`
+	image.ZIndex = parent.ZIndex + 1
+	image.Parent = parent
+	return image
 end
 
 local function stroke(parent: Instance, color: Color3, thickness: number): UIStroke
@@ -279,7 +297,14 @@ function StartScreen.start()
 	local tab = frame(content, "InputTab", Vector2.new(110, 52), Vector2.new(165, 45), Color3.fromRGB(255, 234, 206))
 	corner(tab, UDim.new(0, 12))
 	stroke(tab, CREAM_RIM, 3)
-	text(tab, "Label", "FÄHIGKEITEN", Vector2.zero, Vector2.new(165, 45), TITLE_FONT, 21, NAVY)
+	local tabLabel = text(tab, "Label", "FÄHIGKEITEN", Vector2.zero, Vector2.new(165, 45), TITLE_FONT, 21, NAVY)
+	if UIAssets.icon_mouse ~= 0 then
+		local mouseIcon = frame(tab, "MouseIcon", Vector2.new(6, 6), Vector2.new(33, 33), Color3.new(1, 1, 1))
+		mouseIcon.BackgroundTransparency = 1
+		imageOn(mouseIcon, UIAssets.icon_mouse)
+		tabLabel.Position = UDim2.fromOffset(36, 0)
+		tabLabel.Size = UDim2.fromOffset(127, 45)
+	end
 
 	local abilityHeader = text(abilityPanel, "Header", "", Vector2.new(15, 22), Vector2.new(280, 40), TITLE_FONT, 30, WHITE)
 	local abilityDescription =
@@ -334,6 +359,22 @@ function StartScreen.start()
 	ready.ZIndex = 3
 	local readyMark = text(ready, "Mark", "▶  SPIELEN", Vector2.zero, Vector2.new(210, 64), TITLE_FONT, 25, WHITE)
 	readyMark.ZIndex = 4
+	-- Mit Bildern: "SPIELEN"-Knopf vor dem Einstieg, oranger Haken (übernehmen) im Spiel
+	local readyImage = imageOn(ready, UIAssets.button_spielen)
+	local readyStroke = ready:FindFirstChildOfClass("UIStroke")
+	local function styleReady(isJoined: boolean)
+		local id = if isJoined then UIAssets.button_ready_orange else UIAssets.button_spielen
+		if readyImage and id ~= 0 then
+			readyImage.Image = `rbxassetid://{id}`
+			readyImage.Visible = true
+			readyMark.Visible = false
+			ready.BackgroundTransparency = 1
+			if readyStroke then
+				readyStroke.Enabled = false
+			end
+		end
+	end
+	styleReady(false)
 
 	-------------------------------------------------------------------------------------------------
 	-- Rechts: andere Teilnehmer, Bots und Stärke
@@ -348,20 +389,31 @@ function StartScreen.start()
 	local botBar = frame(content, "BotBar", Vector2.new(670, 600), Vector2.new(570, 72), PANEL)
 	corner(botBar, UDim.new(0, 30))
 	stroke(botBar, CREAM_RIM, 4)
+	local barImage = imageOn(botBar, UIAssets.bot_control_bar_static)
+	if barImage then
+		barImage.ScaleType = Enum.ScaleType.Stretch
+		barImage.ZIndex = botBar.ZIndex
+		botBar.BackgroundTransparency = 1
+	end
 	text(botBar, "BotsLabel", "BOTS", Vector2.new(18, 0), Vector2.new(80, 72), TITLE_FONT, 26, WHITE)
-	local function roundButton(name: string, x: number, label: string, font: Enum.Font, size: number): TextButton
+	local function roundButton(name: string, x: number, label: string, font: Enum.Font, size: number, imageId: number?): TextButton
 		local button = bouncyButton(botBar, name, Vector2.new(x, 14), Vector2.new(44, 44), Color3.fromRGB(66, 56, 162))
 		corner(button, UDim.new(0.5, 0))
-		text(button, "T", label, Vector2.zero, Vector2.new(44, 44), font, size, WHITE)
+		button.ZIndex = 3
+		if imageOn(button, imageId) then
+			button.BackgroundTransparency = 1
+		else
+			text(button, "T", label, Vector2.zero, Vector2.new(44, 44), font, size, WHITE).ZIndex = 4
+		end
 		return button
 	end
-	local minus = roundButton("Minus", 100, "–", TITLE_FONT, 30)
-	local plus = roundButton("Plus", 152, "+", TITLE_FONT, 30)
+	local minus = roundButton("Minus", 100, "–", TITLE_FONT, 30, UIAssets.icon_minus)
+	local plus = roundButton("Plus", 152, "+", TITLE_FONT, 30, UIAssets.icon_plus)
 	text(botBar, "StrengthLabel", "STÄRKE", Vector2.new(222, 0), Vector2.new(110, 72), TITLE_FONT, 26, WHITE)
-	local weaker = roundButton("Weaker", 334, "◀", BODY_FONT, 22)
+	local weaker = roundButton("Weaker", 334, "◀", BODY_FONT, 22, UIAssets.icon_arrow_left)
 	local strengthText =
 		text(botBar, "Strength", "", Vector2.new(380, 0), Vector2.new(126, 72), TITLE_FONT, 26, Color3.fromRGB(255, 220, 90))
-	local stronger = roundButton("Stronger", 508, "▶", BODY_FONT, 22)
+	local stronger = roundButton("Stronger", 508, "▶", BODY_FONT, 22, UIAssets.icon_arrow_right)
 
 	local function difficulty(): number
 		local value = roundState:GetAttribute("BotDifficulty")
@@ -415,8 +467,12 @@ function StartScreen.start()
 		end
 		for index, slot in slots do
 			local info = Abilities.list[chosen[index]]
-			slot.icon.Text = info.icon
+			local iconId = AbilityIcons[info.id]
+			local hasImage = iconId ~= nil and iconId ~= 0
+			slot.icon.Text = if hasImage then "" else info.icon
+			slot.image.Image = if hasImage then `rbxassetid://{iconId}` else ""
 			slot.button.BackgroundColor3 = info.color
+			slot.button.BackgroundTransparency = if hasImage then 1 else 0
 			local active = index == activeSlot
 			slot.ring.Color = if active then CREAM_RIM else BROWN
 			slot.ring.Thickness = if active then 6 else 4
@@ -427,6 +483,7 @@ function StartScreen.start()
 		local skin = player:GetAttribute("Skin")
 		character.Image = if typeof(skin) == "string" then SpriteAssets.frame(skin, "idle", 1) or "" else ""
 		readyMark.Text = if joined then "✔  ÜBERNEHMEN" else "▶  SPIELEN"
+		styleReady(joined)
 	end
 
 	-- Fähigkeit in den gewählten Slot legen (steckt sie schon woanders, tauschen die beiden)
@@ -461,6 +518,10 @@ function StartScreen.start()
 		button.LayoutOrder = index
 		button.BackgroundColor3 = info.color
 		button.Text = info.icon
+		if imageOn(button, AbilityIcons[id]) then
+			button.Text = ""
+			button.BackgroundTransparency = 1
+		end
 		button.TextSize = 38
 		button.Font = BODY_FONT
 		button.AutoButtonColor = false
@@ -493,13 +554,24 @@ function StartScreen.start()
 		corner(button, UDim.new(0.5, 0))
 		local ring = stroke(button, CREAM_RIM, 4)
 		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(100, 100), BODY_FONT, 52, WHITE)
-		local left = bouncyButton(column, `Left{index}`, Vector2.new(30, y + 30), Vector2.new(36, 40), ORANGE)
+		local slotImage = Instance.new("ImageLabel")
+		slotImage.Name = "Image"
+		slotImage.Size = UDim2.fromScale(1, 1)
+		slotImage.BackgroundTransparency = 1
+		slotImage.ScaleType = Enum.ScaleType.Fit
+		slotImage.ZIndex = button.ZIndex + 1
+		slotImage.Parent = button
+		local left = bouncyButton(column, `Left{index}`, Vector2.new(26, y + 30), Vector2.new(40, 40), ORANGE)
 		left.BackgroundTransparency = 1
-		text(left, "T", "◀", Vector2.zero, Vector2.new(36, 40), BODY_FONT, 28, BROWN)
-		local right = bouncyButton(column, `Right{index}`, Vector2.new(174, y + 30), Vector2.new(36, 40), ORANGE)
+		if not imageOn(left, UIAssets.icon_arrow_left) then
+			text(left, "T", "◀", Vector2.zero, Vector2.new(40, 40), BODY_FONT, 28, BROWN)
+		end
+		local right = bouncyButton(column, `Right{index}`, Vector2.new(174, y + 30), Vector2.new(40, 40), ORANGE)
 		right.BackgroundTransparency = 1
-		text(right, "T", "▶", Vector2.zero, Vector2.new(36, 40), BODY_FONT, 28, BROWN)
-		slots[index] = { button = button, ring = ring, icon = icon, left = left, right = right }
+		if not imageOn(right, UIAssets.icon_arrow_right) then
+			text(right, "T", "▶", Vector2.zero, Vector2.new(40, 40), BODY_FONT, 28, BROWN)
+		end
+		slots[index] = { button = button, ring = ring, icon = icon, image = slotImage, left = left, right = right }
 		button.Activated:Connect(function()
 			activeSlot = index
 			refresh()
@@ -553,10 +625,15 @@ function StartScreen.start()
 				picture.Parent = card
 			else
 				local box = frame(othersHolder, "Waiting", Vector2.new(x + 5, 300), Vector2.new(170, 150), PANEL)
-				corner(box, UDim.new(0, 34))
-				stroke(box, CREAM_RIM, 5)
-				local label = text(box, "Text", `WARTE AUF\nSPIELER{string.rep(".", waitingDots)}`, Vector2.new(8, 0), Vector2.new(154, 150), TITLE_FONT, 23, WHITE)
-				label.TextYAlignment = Enum.TextYAlignment.Center
+				if imageOn(box, UIAssets.player_slot_empty) then
+					-- Fertiges Bild mit "Warte auf Spieler"
+					box.BackgroundTransparency = 1
+				else
+					corner(box, UDim.new(0, 34))
+					stroke(box, CREAM_RIM, 5)
+					local label = text(box, "Text", `WARTE AUF\nSPIELER{string.rep(".", waitingDots)}`, Vector2.new(8, 0), Vector2.new(154, 150), TITLE_FONT, 23, WHITE)
+					label.TextYAlignment = Enum.TextYAlignment.Center
+				end
 			end
 		end
 

@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local UIStyle = require(script.Parent.UIStyle)
+local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 
 local AbilityHUD = {}
 
@@ -19,6 +20,7 @@ local KEY_NAMES = { "Linke Maus", "Mausrad", "Rechte Maus" }
 
 type SlotView = {
 	frame: Frame,
+	icon: ImageLabel,
 	name: TextLabel,
 	key: TextLabel,
 	cooldown: Frame,
@@ -41,7 +43,7 @@ end
 
 local function makeSlot(parent: Instance, index: number): SlotView
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.fromOffset(130, 70)
+	frame.Size = UDim2.fromOffset(150, 70)
 	frame.LayoutOrder = index
 	UIStyle.panel(frame)
 
@@ -57,8 +59,20 @@ local function makeSlot(parent: Instance, index: number): SlotView
 	stripeCorner.Parent = stripe
 	stripe.Parent = frame
 
-	local name = label(frame, UDim2.new(1, -8, 0, 26), UDim2.fromOffset(4, 16), 18)
-	local key = label(frame, UDim2.new(1, -8, 0, 20), UDim2.fromOffset(4, 44), 14)
+	-- Symbol links, Name und Taste rechts daneben
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.fromOffset(42, 42)
+	icon.Position = UDim2.fromOffset(6, 18)
+	icon.BackgroundTransparency = 1
+	icon.ScaleType = Enum.ScaleType.Fit
+	icon.ZIndex = 3
+	icon.Parent = frame
+	local name = label(frame, UDim2.new(1, -56, 0, 26), UDim2.fromOffset(50, 16), 18)
+	name.TextScaled = true
+	local nameLimit = Instance.new("UITextSizeConstraint")
+	nameLimit.MaxTextSize = 18
+	nameLimit.Parent = name
+	local key = label(frame, UDim2.new(1, -56, 0, 20), UDim2.fromOffset(50, 44), 14)
 	key.TextTransparency = 0.35
 
 	-- Abklingzeit: dunkle Fläche, die von oben nach unten schrumpft
@@ -78,7 +92,7 @@ local function makeSlot(parent: Instance, index: number): SlotView
 	seconds.ZIndex = 5
 
 	frame.Parent = parent
-	return { frame = frame, name = name, key = key, cooldown = cooldown, seconds = seconds }
+	return { frame = frame, icon = icon, name = name, key = key, cooldown = cooldown, seconds = seconds }
 end
 
 local function findOwnHead(): Model?
@@ -104,7 +118,7 @@ function AbilityHUD.start()
 	local bar = Instance.new("Frame")
 	bar.AnchorPoint = Vector2.new(0.5, 1)
 	bar.Position = UDim2.new(0.5, 0, 1, -16)
-	bar.Size = UDim2.fromOffset(3 * 130 + 2 * 10, 70)
+	bar.Size = UDim2.fromOffset(3 * 150 + 2 * 10, 70)
 	bar.BackgroundTransparency = 1
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
@@ -129,7 +143,9 @@ function AbilityHUD.start()
 				local info = if id then Abilities.list[id] else nil
 				view.frame.Visible = info ~= nil
 				if info then
-					view.name.Text = info.itemName
+					view.name.Text = info.label
+					local iconId = AbilityIcons[info.id]
+					view.icon.Image = if iconId and iconId ~= 0 then `rbxassetid://{iconId}` else ""
 					view.key.Text = KEY_NAMES[index] or ""
 					local stripe = view.frame:FindFirstChild("Stripe") :: Frame
 					stripe.BackgroundColor3 = info.color
