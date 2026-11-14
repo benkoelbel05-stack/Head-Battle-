@@ -309,25 +309,9 @@ function StartScreen.start()
 	corner(column, UDim.new(0, 110))
 	stroke(column, CREAM_RIM, 5)
 
-	-- Abzeichen oben: eigenes Roblox-Bild
-	local badge = Instance.new("ImageLabel")
-	badge.Name = "Badge"
-	badge.AnchorPoint = Vector2.new(0.5, 0.5)
-	badge.Position = UDim2.fromOffset(390 + 120, 80)
-	badge.Size = UDim2.fromOffset(72, 72)
-	badge.BackgroundColor3 = Color3.fromRGB(245, 235, 225)
-	badge.ZIndex = 3
-	corner(badge, UDim.new(0.5, 0))
-	stroke(badge, CREAM_RIM, 4)
-	badge.Parent = content
-	task.spawn(function()
-		local ok, image = pcall(function()
-			return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-		end)
-		if ok then
-			badge.Image = image
-		end
-	end)
+	-- Kein Roblox-Avatar über dem mittleren Knete-Panel: die Kopfbild-Vorschau
+	-- hatte eine fremde Figur gezeigt und den Clay-Battle-Artstyle gebrochen.
+	-- Die echte Knetefigur auf der grünen Plattform unten bleibt erhalten.
 
 	local slotHeader = text(column, "Header", "", Vector2.new(10, 44), Vector2.new(220, 36), TITLE_FONT, 28, WHITE)
 	local slots: { Slot } = {}
