@@ -459,8 +459,8 @@ function MainMenu.start()
 	-- Im Spiel blendet sie weich aus, außer "Musik im Spiel" ist an: dann läuft sie leiser weiter.
 	-- Das Stück hat am Ende ~1 s Stille: die Schleife springt schon vorher zurück an den Anfang.
 	local THEME_LOOP_END = 63.55
-	local THEME_VOLUME = 0.6
-	local THEME_VOLUME_IN_GAME = 0.3
+	local THEME_VOLUME = 0.22 -- das Stück ist laut abgemischt: bewusst leise (früher 0,6)
+	local THEME_VOLUME_IN_GAME = 0.1
 	local theme: Sound? = nil
 	if images.menu_theme and images.menu_theme ~= 0 then
 		local sound = Instance.new("Sound")
