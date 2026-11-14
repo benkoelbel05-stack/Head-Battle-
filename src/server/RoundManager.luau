@@ -195,6 +195,17 @@ local function playRound(): Participant?
 		context.spawn(participant)
 	end
 
+	-- Jede Runde ein anderer Hintergrund (Tag, Sonnenuntergang, Nacht)
+	local backgrounds = { "day", "sunset", "night" }
+	local current = stateFolder:GetAttribute("Background")
+	local options = {}
+	for _, key in backgrounds do
+		if key ~= current then
+			table.insert(options, key)
+		end
+	end
+	stateFolder:SetAttribute("Background", options[math.random(1, #options)])
+
 	setPhase("Countdown", `Runde {round}`, Constants.COUNTDOWN_TIME)
 	updateScoreboard()
 	task.wait(Constants.COUNTDOWN_TIME)
@@ -250,6 +261,7 @@ function RoundManager.init(roundContext: Context)
 	scoresFolder.Name = "Scores"
 	scoresFolder.Parent = stateFolder
 	stateFolder.Parent = ReplicatedStorage
+	stateFolder:SetAttribute("Background", "day")
 	setPhase("Waiting", "")
 
 	task.spawn(function()
