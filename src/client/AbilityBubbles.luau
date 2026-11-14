@@ -1,6 +1,7 @@
 --!strict
 -- Fähigkeiten schweben wie in Bopl Battle als drei runde Symbole im Bogen über jeder Figur
--- (Slot 1 links, Slot 2 oben, Slot 3 rechts). Während der Abklingzeit liegt ein dunkler Kreis über
+-- (Slot 1 links, Slot 2 oben, Slot 3 rechts). Über der eigenen Figur zeigt zusätzlich ein kleiner,
+-- leicht durchsichtiger Pfeil, wer man selbst ist. Während der Abklingzeit liegt ein dunkler Kreis über
 -- dem Symbol, der zur Mitte hin schrumpft.
 
 local Players = game:GetService("Players")
@@ -14,17 +15,20 @@ local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 
 local AbilityBubbles = {}
 
-local BUBBLE_SIZE = 1.5 -- Durchmesser eines Symbols in Studs
+local BUBBLE_SIZE = 2.1 -- Durchmesser eines Symbols in Studs
 -- Bogen über dem Kopf (Studs, von der Kopfmitte aus, immer "oben" in der Welt)
 local OFFSETS = {
-	Vector2.new(-1.75, 2.75),
-	Vector2.new(0, 3.55),
-	Vector2.new(1.75, 2.75),
+	Vector2.new(-2.3, 3.05),
+	Vector2.new(0, 4.05),
+	Vector2.new(2.3, 3.05),
 }
+-- Pfeil über der eigenen Figur (über dem Bogen)
+local ARROW_SIZE = 1.1
+local ARROW_HEIGHT = 4.05 + BUBBLE_SIZE / 2 + 0.85
 local OUTLINE = Color3.fromRGB(34, 26, 40)
 
 type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, ring: UIStroke, id: string?, fraction: number }
-type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string }
+type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string, arrow: BillboardGui? }
 
 local function makeBubble(parent: Instance, index: number): Bubble
 	-- Position im Billboard: Mitte bei (BUBBLE/2 + Versatz) relativ zur Fläche
@@ -159,11 +163,47 @@ function AbilityBubbles.start()
 	local headsFolder = Workspace:WaitForChild(Constants.HEADS_FOLDER)
 	local views: { [Model]: View } = {}
 
+	-- Kleiner Pfeil nach unten in der eigenen Farbe
+	local function makeArrow(head: Model, body: BasePart): BillboardGui
+		local arrow = Instance.new("BillboardGui")
+		arrow.Name = "OwnArrow"
+		arrow.Adornee = body
+		arrow.Size = UDim2.fromScale(ARROW_SIZE, ARROW_SIZE)
+		arrow.StudsOffsetWorldSpace = Vector3.new(0, ARROW_HEIGHT, 0)
+		arrow.AlwaysOnTop = true
+		arrow.LightInfluence = 0
+		arrow.ResetOnSpawn = false
+		arrow.MaxDistance = 1e6
+		arrow.Parent = container
+		local skin = head:GetAttribute("Skin")
+		local color = Color3.fromRGB(255, 255, 255)
+		for _, entry in Constants.SKINS do
+			if entry.key == skin then
+				color = entry.color
+			end
+		end
+		local glyph = Instance.new("TextLabel")
+		glyph.Size = UDim2.fromScale(1, 1)
+		glyph.BackgroundTransparency = 1
+		glyph.Font = Enum.Font.FredokaOne
+		glyph.Text = "▼"
+		glyph.TextScaled = true
+		glyph.TextColor3 = color
+		glyph.TextTransparency = 0.3
+		glyph.TextStrokeColor3 = OUTLINE
+		glyph.TextStrokeTransparency = 0.5
+		glyph.Parent = arrow
+		return arrow
+	end
+
 	RunService.RenderStepped:Connect(function()
 		local now = Workspace:GetServerTimeNow()
 		for head, view in views do
 			if not head.Parent then
 				view.gui:Destroy()
+				if view.arrow then
+					view.arrow:Destroy()
+				end
 				views[head] = nil
 			end
 		end
@@ -173,6 +213,9 @@ function AbilityBubbles.start()
 				local view = views[child]
 				if not view then
 					view = build(child, body, container)
+					if child:GetAttribute("UserId") == player.UserId then
+						view.arrow = makeArrow(child, body)
+					end
 					views[child] = view
 				end
 				local loadoutText = child:GetAttribute("Loadout")
