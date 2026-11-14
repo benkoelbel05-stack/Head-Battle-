@@ -6,7 +6,7 @@
 --   * Jede Plattform hängt an einer weichen Feder an ihrem Startplatz (Position und Drehung)
 --   * Thruster schieben die Plattform; sitzt der Thruster am Rand, dreht sie sich
 --   * Stöße (Explosionen, Landungen) und Kräfte (Gewicht der Köpfe)
---   * Höchstens PLATFORM_MAX_OFFSET Studs Versatz und PLATFORM_MAX_ANGLE Kippen
+--   * Höchstens PLATFORM_MAX_OFFSET Studs Versatz; drehen können sie sich ganz (360°)
 --   * Plattformen stoßen exakt (als Knetwürste) aneinander, mit Masse, Drehung und leichtem Abprallen
 --   * Feste Zeitschritte (SIM_RATE pro Sekunde), damit alle Rechner möglichst gleich rechnen
 
@@ -166,13 +166,16 @@ local function stepPlatform(state: PlatformState, dt: number, now: number, pendi
 
 	-- Feder zurück zum Startplatz + Dämpfung
 	acceleration += -state.offset * Constants.PLATFORM_SPRING - state.velocity * Constants.PLATFORM_DAMPING
-	angularAcceleration += -state.angle * Constants.PLATFORM_ANGULAR_SPRING
+	-- Die Rückdreh-Kraft wächst nur bis PLATFORM_ANGULAR_SPRING_LIMIT: darüber reicht ein kräftiger Schub,
+	-- um die Plattform ganz herumzudrehen (360°). Zurück geht es immer auf dem kürzeren Weg.
+	local springAngle = math.clamp(state.angle, -Constants.PLATFORM_ANGULAR_SPRING_LIMIT, Constants.PLATFORM_ANGULAR_SPRING_LIMIT)
+	angularAcceleration += -springAngle * Constants.PLATFORM_ANGULAR_SPRING
 		- state.angularVelocity * Constants.PLATFORM_ANGULAR_DAMPING
 
 	state.velocity += acceleration * dt
 	state.angularVelocity += angularAcceleration * dt
 
-	-- Grenzen: Versatz und Kippen
+	-- Grenze: Versatz (Drehen geht dagegen frei um 360°)
 	local nextOffset = state.offset + state.velocity * dt
 	if nextOffset.Magnitude > Constants.PLATFORM_MAX_OFFSET then
 		local outward = nextOffset.Unit
@@ -181,11 +184,6 @@ local function stepPlatform(state: PlatformState, dt: number, now: number, pendi
 			state.velocity -= outward * outwardSpeed
 		end
 	end
-	local nextAngle = state.angle + state.angularVelocity * dt
-	if math.abs(nextAngle) > Constants.PLATFORM_MAX_ANGLE and state.angularVelocity * nextAngle > 0 then
-		state.angularVelocity = 0
-	end
-
 	state.offset += state.velocity * dt
 	state.offset = Vector3.new(state.offset.X, state.offset.Y, 0)
 	state.angle = wrapAngle(state.angle + state.angularVelocity * dt)

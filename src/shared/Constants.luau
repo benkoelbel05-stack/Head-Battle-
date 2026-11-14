@@ -94,7 +94,7 @@ Constants.PLATFORM_DAMPING = 2.8 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfede
 Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich eine Plattform nie
 Constants.PLATFORM_ANGULAR_SPRING = 8 -- wie stark eine gekippte Plattform zurückgedreht wird (kleiner = langsamer)
 Constants.PLATFORM_ANGULAR_DAMPING = 5.7 -- ca. 2 * Wurzel(ANGULAR_SPRING) = ohne Nachwackeln
-Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
+Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(60) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
 Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (Knete: wenig)
 
 -- Netzwerk-Abgleich der Plattformen (jeder Rechner simuliert selbst, der Server gleicht ab)
