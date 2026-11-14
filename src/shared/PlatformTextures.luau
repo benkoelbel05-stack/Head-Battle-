@@ -1,26 +1,26 @@
 --!strict
--- Knet-Texturen für die Plattformen (Roblox-IMAGE-IDs).
+-- Knet-Texturen für die Plattformen (Roblox-IMAGE-IDs, umgewandelt mit tools/ConvertArenaDecals.luau).
 --   tex  = Fläche (512 x 512, kachelbar), liegt auf der Vorderseite der Plattform
 --   trim = Kante (512 x 128), liegt oben auf dem hellen Rand (z. B. Gras auf Erde)
 -- In ArenaLayouts bekommt jede Plattform ein "material", z. B. material = "grass".
 
 local Textures = {
-	stone = 100644710923693,
-	wood = 78244742680082,
-	cheese = 91744391332634,
-	dirt = 71884214731037,
-	grass = 128595781820177,
-	ice = 91765426722063,
-	lava = 94119887868556,
-	purple_clay = 102742265604041,
-	snow = 109586056503657,
+	stone = 74798227722916,
+	wood = 81523256479120,
+	cheese = 126067958864375,
+	dirt = 95557357987203,
+	grass = 89983785250381,
+	ice = 78026613970796,
+	lava = 110154795974533,
+	purple_clay = 104955789397818,
+	snow = 84715782404917,
 }
 
 local Trims = {
-	grass = 102013673595652,
-	lava = 74430856514665,
-	purple_clay = 77228275085435,
-	snow = 102342609421760,
+	grass = 140387261223350,
+	lava = 103990847604397,
+	purple_clay = 124293240412548,
+	snow = 95652427740734,
 }
 
 export type Material = { tex: number, trim: number? }
