@@ -600,10 +600,10 @@ function StartScreen.start()
 	for index = 1, Abilities.MAX_SLOTS do
 		local y = 88 + (index - 1) * 110
 		-- Taste (LM/MR/RM) rechts neben dem Slot, Pfeile außen links und rechts
-		local key = text(column, `Key{index}`, SLOT_KEYS[index], Vector2.new(163, y + 31), Vector2.new(30, 28), TITLE_FONT, 16, WHITE)
+		local key = text(column, `Key{index}`, SLOT_KEYS[index], Vector2.new(172, y + 31), Vector2.new(30, 28), TITLE_FONT, 16, WHITE)
 		key.TextXAlignment = Enum.TextXAlignment.Left
 		key.ZIndex = 5
-		local button = bouncyButton(column, `Slot{index}`, Vector2.new(62, y), Vector2.new(90, 90), WHITE)
+		local button = bouncyButton(column, `Slot{index}`, Vector2.new(52, y), Vector2.new(90, 90), WHITE)
 		corner(button, UDim.new(0.5, 0))
 		local ring = stroke(button, CREAM_RIM, 4)
 		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(90, 90), BODY_FONT, 48, WHITE)
@@ -616,12 +616,12 @@ function StartScreen.start()
 		slotImage.ScaleType = Enum.ScaleType.Fit
 		slotImage.ZIndex = button.ZIndex + 1
 		slotImage.Parent = button
-		local left = bouncyButton(column, `Left{index}`, Vector2.new(16, y + 28), Vector2.new(34, 34), ORANGE)
+		local left = bouncyButton(column, `Left{index}`, Vector2.new(6, y + 28), Vector2.new(34, 34), ORANGE)
 		left.BackgroundTransparency = 1
 		if not imageOn(left, UIAssets.icon_arrow_left) then
 			text(left, "T", "◀", Vector2.zero, Vector2.new(34, 34), BODY_FONT, 26, BROWN)
 		end
-		local right = bouncyButton(column, `Right{index}`, Vector2.new(194, y + 28), Vector2.new(34, 34), ORANGE)
+		local right = bouncyButton(column, `Right{index}`, Vector2.new(202, y + 28), Vector2.new(34, 34), ORANGE)
 		right.BackgroundTransparency = 1
 		if not imageOn(right, UIAssets.icon_arrow_right) then
 			text(right, "T", "▶", Vector2.zero, Vector2.new(34, 34), BODY_FONT, 26, BROWN)
