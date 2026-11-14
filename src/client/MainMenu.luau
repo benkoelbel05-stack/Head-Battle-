@@ -76,6 +76,7 @@ end
 -- Ersatz zeigen, wenn ein Bild keine ID hat oder nicht lädt (z. B. Decal- statt Image-ID, noch in Prüfung):
 -- so bleibt das Menü immer sichtbar und bedienbar. Nach LOAD_GRACE Sekunden wird nachgesehen.
 local LOAD_GRACE = 2.5
+local SHOW_FLAGS = false -- schwebende Fahnen neben dem Logo (für später aufgehoben)
 local function whenMissing(element: GuiObject, fallback: () -> ())
 	local image = element :: any
 	if image.Image == "" then
@@ -288,13 +289,15 @@ function MainMenu.start()
 		fallbackBackground(titleGroup)
 	end
 
-	-- Rote Fahnen links und rechts vom Logo; schwingen leicht im Wind
+	-- Rote Fahnen links und rechts vom Logo; schwingen leicht im Wind. Zurzeit aus (SHOW_FLAGS),
+	-- die Bilder bleiben in MenuAssetIds für später.
 	local flags: { Flag } = {}
-	for _, data in {
+	local flagLayout = {
 		{ name = "prop_red_flag_left", x = 300, y = 64, phase = 0 },
 		{ name = "prop_red_flag_right", x = 1222, y = 64, phase = 1.7 },
-	} do
-		if imageId(data.name) ~= "" then
+	}
+	for _, data in flagLayout do
+		if SHOW_FLAGS and imageId(data.name) ~= "" then
 			local flag = picture(titleGroup, data.name, data.x, data.y, 150, 210, 2)
 			flag.AnchorPoint = Vector2.new(0.5, 0.5)
 			flag.Position = at(data.x + 75, data.y + 105)

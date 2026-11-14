@@ -67,6 +67,11 @@ local SKIP: { [string]: boolean } = {
 	arena_sunset = true,
 	arena_night = true,
 	bot_control_bar_static = true,
+	prop_red_flag_left = true,
+	prop_red_flag_right = true,
+	prop_hammer_star = true,
+	prop_shield_star = true,
+	prop_sword = true,
 }
 
 type Item = { name: string, content: string, class: SizeClass }

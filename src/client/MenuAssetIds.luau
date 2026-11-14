@@ -20,8 +20,8 @@ return {
 	arena_sunset = 73285968060700,
 	arena_night = 85048047291829,
 	-- Requisiten (freigestellt)
-	prop_red_flag_left = 85026269947215, -- Fahne links neben dem Logo (Decal 119817659521845)
-	prop_red_flag_right = 95103356777266, -- Fahne rechts neben dem Logo (Decal 122158699621985)
+	prop_red_flag_left = 85026269947215, -- für später aufgehoben, zurzeit nicht im Menü (Decal 119817659521845)
+	prop_red_flag_right = 95103356777266, -- für später aufgehoben, zurzeit nicht im Menü (Decal 122158699621985)
 	prop_hammer_star = 120399468373303, -- noch nicht platziert (Decal 85772871682967)
 	prop_shield_star = 109160301114424, -- noch nicht platziert (Decal 101887751852924)
 	prop_sword = 110679197349244, -- noch nicht platziert (Decal 115198525694506)
