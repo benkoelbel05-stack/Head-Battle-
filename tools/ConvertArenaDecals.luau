@@ -1,4 +1,4 @@
--- Wandelt die Decal-IDs der Arena-Bilder (Plattform-Texturen und Hintergründe) in Image-IDs um.
+-- Wandelt Decal-IDs (z. B. aus Open-Cloud-Uploads) in Image-IDs um. Die Liste DECALS bei Bedarf austauschen.
 -- Roblox meldet diese Uploads als "Decal" – Texturen und Bildflächen im Spiel brauchen aber die Image-ID.
 --
 -- Benutzung:
@@ -9,22 +9,22 @@
 local InsertService = game:GetService("InsertService")
 
 local DECALS = {
-	tex_stone = 100644710923693,
-	tex_wood = 78244742680082,
-	tex_cheese = 91744391332634,
-	tex_dirt = 71884214731037,
-	tex_grass = 128595781820177,
-	tex_ice = 91765426722063,
-	tex_lava = 94119887868556,
-	tex_purple_clay = 102742265604041,
-	tex_snow = 109586056503657,
-	trim_grass = 102013673595652,
-	trim_lava = 74430856514665,
-	trim_purple_clay = 77228275085435,
-	trim_snow = 102342609421760,
-	arena_day = 104043879202825,
-	arena_sunset = 77320705436559,
-	arena_night = 75529436510801,
+	ability_dash = 133589046424620,
+	ability_grenade = 115182418895603,
+	ability_missile = 133740377680607,
+	ability_sword = 70909575194183,
+	ability_thruster = 113745614423780,
+	icon_arrow_left = 72288701381741,
+	icon_arrow_right = 136796167336045,
+	icon_check_cream = 120038562063595,
+	icon_minus = 71367765696394,
+	icon_mouse = 119228889141929,
+	icon_play_triangle = 84028554424940,
+	icon_plus = 113016617157508,
+	bot_control_bar_static = 106382209174968,
+	button_ready_orange = 115094442191254,
+	button_spielen = 110760932849666,
+	player_slot_empty = 124154352933672,
 }
 
 local names = {}
