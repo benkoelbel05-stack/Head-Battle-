@@ -14,10 +14,10 @@ return {
 	button_ready_orange = 99558000165672,
 	button_spielen = 98531982695949,
 	player_slot_empty = 98187466625813,
-	-- Tafeln der Ausrüstungs-Wahl (noch Decal-IDs umzuwandeln, siehe tools/ConvertArenaDecals.luau)
-	panel_abilities_blue = 0,
-	panel_player_orange = 0,
-	panel_bot_green = 0,
-	panel_bot_purple = 0,
-	panel_bot_yellow = 0,
+	-- Tafeln der Ausrüstungs-Wahl
+	panel_abilities_blue = 132936371469456,
+	panel_player_orange = 104798035918957,
+	panel_bot_green = 92986174486061,
+	panel_bot_purple = 82685424866580,
+	panel_bot_yellow = 87894327948717,
 } :: { [string]: number }
