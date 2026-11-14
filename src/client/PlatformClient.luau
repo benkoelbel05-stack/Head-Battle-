@@ -38,6 +38,137 @@ local PlatformClient = {}
 
 local player = Players.LocalPlayer
 local sim = PlatformSim.new()
+
+---------------------------------------------------------------------------------------------------
+-- Abgleich mit dem Server ohne Zucken
+-- Ein Abgleich ist beim Ankommen schon etwas alt. Früher wurde die Plattform direkt in Richtung dieses
+-- alten Stands gezogen: schnelle Plattformen (z. B. seitlich mit Thruster) sprangen dadurch alle 0,2 s
+-- ein Stück zurück. Jetzt merkt sich der Client seinen eigenen Verlauf, vergleicht den Abgleich mit dem
+-- eigenen Stand ZUR SELBEN ZEIT und gleicht nur echte Abweichungen aus, verteilt über ein paar Bilder.
+---------------------------------------------------------------------------------------------------
+
+type Sample = { t: number, offset: Vector3, angle: number, velocity: Vector3, angularVelocity: number }
+type Fix = { offset: Vector3, angle: number, velocity: Vector3, angularVelocity: number }
+local HISTORY_TIME = 1 -- Sekunden Verlauf
+local CORRECT_SHARE = 0.7 -- so viel der echten Abweichung wird pro Abgleich ausgeglichen
+local CORRECT_TIME = 0.12 -- Sekunden, über die ein Ausgleich verteilt wird
+local history: { [Model]: { Sample } } = {}
+local pendingFix: { [Model]: Fix } = {}
+
+local function wrapAngle(angle: number): number
+	return (angle + math.pi) % (2 * math.pi) - math.pi
+end
+
+local function recordHistory(now: number)
+	for model, state in sim.platforms do
+		local list = history[model]
+		if not list then
+			list = {}
+			history[model] = list
+		end
+		table.insert(list, {
+			t = now,
+			offset = state.offset,
+			angle = state.angle,
+			velocity = state.velocity,
+			angularVelocity = state.angularVelocity,
+		})
+		while #list > 2 and now - list[1].t > HISTORY_TIME do
+			table.remove(list, 1)
+		end
+	end
+	for model in history do
+		if not sim.platforms[model] then
+			history[model] = nil
+			pendingFix[model] = nil
+		end
+	end
+end
+
+-- Eigener Stand einer Plattform zur Zeit t (zwischen zwei Aufzeichnungen weich gemischt)
+local function sampleAt(model: Model, t: number): Sample?
+	local list = history[model]
+	if not list or #list == 0 then
+		return nil
+	end
+	if t <= list[1].t then
+		return list[1]
+	end
+	for index = #list, 1, -1 do
+		local a = list[index]
+		if a.t <= t then
+			local b = list[index + 1]
+			if not b then
+				return a
+			end
+			local alpha = (t - a.t) / math.max(b.t - a.t, 1e-4)
+			return {
+				t = t,
+				offset = a.offset:Lerp(b.offset, alpha),
+				angle = a.angle + wrapAngle(b.angle - a.angle) * alpha,
+				velocity = a.velocity:Lerp(b.velocity, alpha),
+				angularVelocity = a.angularVelocity + (b.angularVelocity - a.angularVelocity) * alpha,
+			}
+		end
+	end
+	return list[1]
+end
+
+local function onSnapshot(data: unknown, serverTime: unknown)
+	if typeof(data) ~= "table" then
+		return
+	end
+	if typeof(serverTime) ~= "number" then
+		PlatformSim.correct(sim, data, Constants.SNAPSHOT_BLEND) -- alter Server ohne Zeitstempel
+		return
+	end
+	for _, entry in data :: { any } do
+		local model, offset, angle, velocity, angularVelocity = entry[1], entry[2], entry[3], entry[4], entry[5]
+		if
+			typeof(model) == "Instance"
+			and model:IsA("Model")
+			and sim.platforms[model]
+			and typeof(offset) == "Vector3"
+			and typeof(angle) == "number"
+			and typeof(velocity) == "Vector3"
+			and typeof(angularVelocity) == "number"
+		then
+			local past = sampleAt(model, serverTime)
+			if past then
+				-- Ersetzt einen noch laufenden Ausgleich: der neue Vergleich enthält dessen Rest schon
+				pendingFix[model] = {
+					offset = (offset - past.offset) * CORRECT_SHARE,
+					angle = wrapAngle(angle - past.angle) * CORRECT_SHARE,
+					velocity = (velocity - past.velocity) * CORRECT_SHARE,
+					angularVelocity = (angularVelocity - past.angularVelocity) * CORRECT_SHARE,
+				}
+			end
+		end
+	end
+end
+
+-- Laufende Ausgleiche ein Stück weiter anwenden (weich über CORRECT_TIME)
+local function applyFixes(dt: number)
+	local share = 1 - math.exp(-dt / CORRECT_TIME)
+	for model, fix in pendingFix do
+		local state = sim.platforms[model]
+		if not state then
+			pendingFix[model] = nil
+			continue
+		end
+		state.offset += fix.offset * share
+		state.angle = wrapAngle(state.angle + fix.angle * share)
+		state.velocity += fix.velocity * share
+		state.angularVelocity += fix.angularVelocity * share
+		fix.offset *= 1 - share
+		fix.angle *= 1 - share
+		fix.velocity *= 1 - share
+		fix.angularVelocity *= 1 - share
+		if fix.offset.Magnitude < 1e-3 and math.abs(fix.angle) < 1e-4 and fix.velocity.Magnitude < 1e-3 then
+			pendingFix[model] = nil
+		end
+	end
+end
 local weightTracker = HeadWeight.newTracker()
 local grenades: { [string]: LocalGrenade } = {}
 local knownExplosions: { [string]: boolean } = {}
@@ -340,9 +471,7 @@ function PlatformClient.start()
 	local events = remotes:WaitForChild("PlatformEvents") :: RemoteEvent
 	local snapshot = remotes:WaitForChild("PlatformSnapshot") :: UnreliableRemoteEvent
 	events.OnClientEvent:Connect(onEvent)
-	snapshot.OnClientEvent:Connect(function(data: unknown)
-		PlatformSim.correct(sim, data, Constants.SNAPSHOT_BLEND)
-	end)
+	snapshot.OnClientEvent:Connect(onSnapshot)
 end
 
 -- Jeden Frame vor der Kopf-Steuerung: Plattformen und Granaten weiterrechnen
@@ -363,7 +492,9 @@ function PlatformClient.step(dt: number)
 	HeadWeight.step(weightTracker, sim, shapes, heads)
 
 	PlatformSim.step(sim, dt, now)
+	applyFixes(dt)
 	PlatformSim.apply(sim)
+	recordHistory(now)
 
 	-- Granaten fliegen lassen; bei Zündung verschwinden sie (die Explosion kommt vom Server)
 	for id, grenade in grenades do

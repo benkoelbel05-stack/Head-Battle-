@@ -102,7 +102,7 @@ Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (
 -- Netzwerk-Abgleich der Plattformen (jeder Rechner simuliert selbst, der Server gleicht ab)
 Constants.SIM_RATE = 120 -- feste Physik-Schritte pro Sekunde
 Constants.SNAPSHOT_INTERVAL = 0.2 -- so oft schickt der Server einen Abgleich (Sekunden)
-Constants.SNAPSHOT_BLEND = 0.25 -- so viel der Abweichung wird pro Abgleich korrigiert (weich, ohne Springen)
+Constants.SNAPSHOT_BLEND = 0.25 -- nur noch Rückfall ohne Zeitstempel; sonst gleicht PlatformClient zeitrichtig aus
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
 Constants.HEAD_WEIGHT_FORCE = 140 -- Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)

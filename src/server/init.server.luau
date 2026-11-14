@@ -346,7 +346,8 @@ RunService.Heartbeat:Connect(function(dt)
 	local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
 	local shapes = PlatformShapes.collect(arena)
 	HeadWeight.step(weightTracker, sim, shapes, headList)
-	PlatformSim.step(sim, dt, Workspace:GetServerTimeNow())
+	local stepTime = Workspace:GetServerTimeNow()
+	PlatformSim.step(sim, dt, stepTime)
 	HeadSpawner.checkCrush(shapes)
 	Grenades.step(dt)
 	Missiles.step(dt)
@@ -355,7 +356,8 @@ RunService.Heartbeat:Connect(function(dt)
 	snapshotTimer += dt
 	if snapshotTimer >= Constants.SNAPSHOT_INTERVAL then
 		snapshotTimer = 0
-		platformSnapshot:FireAllClients(PlatformSim.snapshot(sim))
+		-- Mit Zeitstempel: der Client vergleicht mit seinem eigenen Stand zu genau dieser Zeit
+		platformSnapshot:FireAllClients(PlatformSim.snapshot(sim), stepTime)
 	end
 end)
 
