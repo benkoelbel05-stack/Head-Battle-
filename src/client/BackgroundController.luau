@@ -15,7 +15,9 @@ local ContentProvider = game:GetService("ContentProvider")
 local BackgroundController = {}
 
 local BACKGROUND_Z = Constants.PLANE_Z - 60 -- weit hinter allem anderen
-local OVERSIZE = 1.06 -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
+local OVERSIZE = 1.12 -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
+-- Größe nur ändern, wenn sie sich merklich ändert: jede Größenänderung zeichnet das Bild neu (teuer)
+local RESIZE_THRESHOLD = 0.04
 
 -- Nur in Studio: melden, welche Arena-Bilder (Hintergründe, Plattform-Texturen) nicht laden
 local function checkAssets()
@@ -139,6 +141,13 @@ function BackgroundController.start()
 	depthOfField.FarIntensity = 0.35
 	depthOfField.InFocusRadius = 30
 	depthOfField.Parent = game:GetService("Lighting")
+	-- Grafikqualität aus den Optionen: "Niedrig" schaltet die Unschärfe ab
+	local player = game:GetService("Players").LocalPlayer
+	local function applyGraphics()
+		depthOfField.Enabled = player:GetAttribute("ClayBattle_graphics") ~= "Niedrig"
+	end
+	player:GetAttributeChangedSignal("ClayBattle_graphics"):Connect(applyGraphics)
+	applyGraphics()
 
 	-- Nach der Kamera (Camera+1)
 	RunService:BindToRenderStep("ClayBattleBackground", Enum.RenderPriority.Camera.Value + 2, function()
@@ -152,7 +161,11 @@ function BackgroundController.start()
 		local height = 2 * distance * math.tan(math.rad(camera.FieldOfView) / 2) * OVERSIZE
 		local viewport = camera.ViewportSize
 		local aspect = if viewport.Y > 0 then viewport.X / viewport.Y else 16 / 9
-		part.Size = Vector3.new(height * aspect, height, 0.1)
+		local current = part.Size
+		if math.abs(current.Y - height) > current.Y * RESIZE_THRESHOLD or math.abs(current.X - height * aspect) > current.X * RESIZE_THRESHOLD then
+			-- etwas Reserve, damit kleine Zoom-Änderungen kein neues Zeichnen auslösen
+			part.Size = Vector3.new(height * aspect * 1.05, height * 1.05, 0.1)
+		end
 		part.CFrame = CFrame.new(position.X, position.Y, BACKGROUND_Z)
 	end)
 end

@@ -310,7 +310,11 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 				size *= math.max(0.05, 1 + (back + 1) * u * u * u + back * u * u) -- "Back"-Kurve
 			end
 		end
-		sprite.part.Size = Vector3.new(size * scale.X, size * scale.Y, 0.05)
+		-- Größe nur bei echter Änderung setzen: jede Änderung zeichnet das Bild neu
+		local newSize = Vector3.new(size * scale.X, size * scale.Y, 0.05)
+		if (sprite.part.Size - newSize).Magnitude > 0.02 then
+			sprite.part.Size = newSize
+		end
 		local front = Vector3.new(0, 0, Constants.SPRITE_Z + state.layer * Constants.SPRITE_LAYER_STEP - headFrame.Z)
 		local offset = if state.onTop then Constants.SPRITE_OFFSET_Y else Constants.SPRITE_OFFSET_Y_OTHER
 		sprite.part.CFrame = (headFrame + front) * CFrame.new(0, offset * scale.Y, 0)

@@ -71,6 +71,8 @@ local context: Context
 local bots: { Bot } = {}
 local nextBotNumber = 1
 local difficulty = Constants.BOT_DEFAULT_DIFFICULTY
+-- Granatenwürfe vorauszuberechnen ist teuer: höchstens ein Plan pro Frame für alle Bots zusammen
+local planBudget = 1
 
 function BotController.setDifficulty(level: number)
 	difficulty = math.clamp(math.floor(level), 1, #Constants.BOT_DIFFICULTIES)
@@ -191,11 +193,11 @@ local function planThrow(from: Vector3, aimPoint: Vector3, shapes: { PlatformSha
 	local bestDirection: Vector3? = nil
 	local bestCharge = 1
 	local bestError = math.huge
-	local dt = 1 / 15
+	local dt = 1 / 12
 	local selfSafe = Constants.GRENADE_BLAST_RADIUS + R + 1.5
 
-	local angleStep = if fine then 12 else 20
-	local charges = if fine then { 0.2, 0.4, 0.6, 0.8, 1 } else { 0.3, 0.65, 1 }
+	local angleStep = if fine then 15 else 24
+	local charges = if fine then { 0.25, 0.5, 0.75, 1 } else { 0.3, 0.65, 1 }
 	for angle = 0, 359, angleStep do
 		local direction = Vector3.new(math.cos(math.rad(angle)), math.sin(math.rad(angle)), 0)
 		for _, charge in charges do
@@ -423,17 +425,20 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 		table.find(equipped, "Grenade")
 		and context.grenadeReady(bot.id)
 		and now >= bot.nextPlanAt
+		and planBudget > 0
 		and distance > 6
 		and distance < 40
 		and random:NextNumber() < level.throwChance
 	then
 		local aimError = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(-1, 1), 0) * level.aimError
 		local lead = flat(target.velocity) * 0.5 * level.lead
+		planBudget -= 1
+		bot.nextPlanAt = now + 0.5
 		local direction, charge, errorDistance = planThrow(position, target.position + lead + aimError, shapes, level.lead >= 0.85)
 		if direction and errorDistance < Constants.GRENADE_BLAST_RADIUS * 0.8 then
 			context.throwGrenade(bot.id, direction, charge, nextId(bot))
 		else
-			bot.nextPlanAt = now + 0.3
+			bot.nextPlanAt = now + 0.6
 		end
 	end
 
@@ -521,6 +526,7 @@ function BotController.step(dt: number)
 	if #bots == 0 then
 		return
 	end
+	planBudget = 1
 	local now = os.clock()
 	local phase = context.getPhase()
 	local frozen = phase == "Countdown" or phase == "MapSelect"

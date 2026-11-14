@@ -99,7 +99,20 @@ function RoundUI.start()
 		changeBots:FireServer(-1)
 	end)
 
+	local lastSignature = ""
 	local function refreshScores()
+		-- Nur neu aufbauen, wenn sich etwas geändert hat (sonst unnötige Arbeit 4x pro Sekunde)
+		local parts = { tostring(roundState:GetAttribute("WinPoints")) }
+		for _, entry in scores:GetChildren() do
+			local value = entry :: IntValue
+			table.insert(parts, `{value.Name}:{value.Value}:{value:GetAttribute("Alive")}:{value:GetAttribute("DisplayName")}`)
+		end
+		table.sort(parts)
+		local signature = table.concat(parts, "|")
+		if signature == lastSignature then
+			return
+		end
+		lastSignature = signature
 		for _, child in board:GetChildren() do
 			if child:IsA("Frame") then
 				child:Destroy()

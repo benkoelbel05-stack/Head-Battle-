@@ -1,7 +1,7 @@
 --!strict
 -- Fähigkeiten schweben wie in Bopl Battle als drei runde Symbole im Bogen über jeder Figur
--- (Slot 1 links, Slot 2 oben, Slot 3 rechts). Während der Abklingzeit ist das Symbol abgedunkelt und
--- ein dunkler Balken leert sich von oben nach unten.
+-- (Slot 1 links, Slot 2 oben, Slot 3 rechts). Während der Abklingzeit liegt ein dunkler Kreis über
+-- dem Symbol, der zur Mitte hin schrumpft.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,7 +23,7 @@ local OFFSETS = {
 }
 local OUTLINE = Color3.fromRGB(34, 26, 40)
 
-type Bubble = { group: CanvasGroup, cooldown: Frame, emoji: TextLabel, image: ImageLabel, id: string? }
+type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, id: string?, fraction: number }
 type View = { gui: BillboardGui, bubbles: { Bubble }, loadout: string }
 
 local function makeBubble(parent: Instance, index: number): Bubble
@@ -34,7 +34,8 @@ local function makeBubble(parent: Instance, index: number): Bubble
 	holder.BackgroundTransparency = 1
 	holder.Parent = parent
 
-	local group = Instance.new("CanvasGroup")
+	-- Einfache Frames statt CanvasGroup (die wäre pro Symbol ein eigenes, teures Zwischenbild)
+	local group = Instance.new("Frame")
 	group.Size = UDim2.fromScale(1, 1)
 	group.BackgroundColor3 = Color3.new(1, 1, 1)
 	group.Parent = holder
@@ -57,9 +58,12 @@ local function makeBubble(parent: Instance, index: number): Bubble
 	emoji.Parent = group
 
 	local cooldown = Instance.new("Frame")
-	cooldown.AnchorPoint = Vector2.new(0, 1)
-	cooldown.Position = UDim2.fromScale(0, 1)
-	cooldown.Size = UDim2.fromScale(1, 0)
+	cooldown.AnchorPoint = Vector2.new(0.5, 0.5)
+	cooldown.Position = UDim2.fromScale(0.5, 0.5)
+	cooldown.Size = UDim2.fromScale(0, 0)
+	local cooldownCorner = Instance.new("UICorner")
+	cooldownCorner.CornerRadius = UDim.new(0.5, 0)
+	cooldownCorner.Parent = cooldown
 	cooldown.BackgroundColor3 = Color3.fromRGB(20, 14, 30)
 	cooldown.BackgroundTransparency = 0.35
 	cooldown.BorderSizePixel = 0
@@ -80,7 +84,7 @@ local function makeBubble(parent: Instance, index: number): Bubble
 	stroke.Thickness = 2
 	stroke.Parent = ring
 
-	return { group = group, cooldown = cooldown, emoji = emoji, image = image, id = nil }
+	return { group = group, cooldown = cooldown, emoji = emoji, image = image, id = nil, fraction = 0 }
 end
 
 local function build(head: Model, body: BasePart, container: Instance): View
@@ -180,8 +184,11 @@ function AbilityBubbles.start()
 						local remaining = if typeof(readyAt) == "number" then readyAt - now else 0
 						local total = Abilities.list[id].cooldown
 						local fraction = if remaining > 0 and total > 0 then math.clamp(remaining / total, 0, 1) else 0
-						bubble.cooldown.Size = UDim2.fromScale(1, fraction)
-						bubble.group.GroupTransparency = if fraction > 0 then 0.25 else 0
+						-- Nur bei sichtbarer Änderung setzen
+						if math.abs(fraction - bubble.fraction) > 0.01 or (fraction == 0) ~= (bubble.fraction == 0) then
+							bubble.fraction = fraction
+							bubble.cooldown.Size = UDim2.fromScale(fraction, fraction)
+						end
 					end
 				end
 			end
