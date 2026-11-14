@@ -48,7 +48,8 @@ local function buildImage(part: BasePart, size: number): (BillboardGui, ImageLab
 	return gui, image
 end
 
-local function animate(part: BasePart, seq: string, size: number, angleFromPart: boolean): boolean
+-- update (optional): wird jedes Bild aufgerufen und richtet Bild und Lage aus (Drehung, Versatz)
+local function animate(part: BasePart, seq: string, size: number, update: ((BillboardGui, ImageLabel) -> ())?): boolean
 	if not valid(seq) then return false end
 	if active[part] then return true end
 	active[part] = true
@@ -67,6 +68,9 @@ local function animate(part: BasePart, seq: string, size: number, angleFromPart:
 	end
 	died = part.Destroying:Connect(cleanup)
 	image.Image = "rbxassetid://" .. tostring(frames[1])
+	if update then
+		update(gui, image) -- gleich richtig ausgerichtet, nicht erst ab dem nächsten Bild
+	end
 	connection = RunService.RenderStepped:Connect(function(dt: number)
 		if not part.Parent then cleanup(); return end
 		elapsed += math.min(dt, 0.1)
@@ -79,18 +83,43 @@ local function animate(part: BasePart, seq: string, size: number, angleFromPart:
 		end
 		local uri = "rbxassetid://" .. tostring(frames[index])
 		if image.Image ~= uri then image.Image = uri end
-		if angleFromPart then
-			-- The original missile art points about 35 degrees above horizontal.
-			-- Frame.Rotation increases clockwise; horizontal right is 0.
-			local v = part.CFrame.RightVector
-			image.Rotation = 35 - math.deg(math.atan2(v.Y, v.X))
+		if update then
+			update(gui, image)
 		end
 	end)
 	return true
 end
 
 function ItemSpriteOverlay.attach(part: BasePart, seq: string, size: number, angleFromPart: boolean?): boolean
-	return animate(part, seq, size, angleFromPart == true)
+	if angleFromPart ~= true then
+		return animate(part, seq, size, nil)
+	end
+	return animate(part, seq, size, function(_gui: BillboardGui, image: ImageLabel)
+		-- The original missile art points about 35 degrees above horizontal.
+		-- Frame.Rotation increases clockwise; horizontal right is 0.
+		local v = part.CFrame.RightVector
+		image.Rotation = 35 - math.deg(math.atan2(v.Y, v.X))
+	end)
+end
+
+-- An einer Fläche festgemacht (Thruster): part.RightVector zeigt aus der Fläche heraus, der Teil sitzt
+-- partOffset Studs vor dem Klebepunkt. Das Bild (Flammen unten) wird so gedreht, dass die Flammen von
+-- der Fläche weg zeigen, und so weit nach außen gesetzt, dass seine Oberkante auf der Fläche sitzt.
+-- Dreht sich die Plattform, dreht es jedes Bild mit. Etwas vor die Plattform (zur Kamera) gesetzt,
+-- damit es nicht hinter ihrer Vorderseite verschwindet.
+local SURFACE_TOP = 0.42 -- Abstand Bildmitte bis Oberkante des Packs (Anteil der Bildgröße)
+function ItemSpriteOverlay.attachToSurface(part: BasePart, seq: string, size: number, partOffset: number): boolean
+	return animate(part, seq, size, function(gui: BillboardGui, image: ImageLabel)
+		local outward = part.CFrame.RightVector
+		local flat = Vector3.new(outward.X, outward.Y, 0)
+		if flat.Magnitude < 1e-3 then
+			return
+		end
+		flat = flat.Unit
+		local along = size * SURFACE_TOP - partOffset
+		gui.StudsOffsetWorldSpace = flat * along + Vector3.new(0, 0, (Constants.SPRITE_Z - 0.4) - part.Position.Z)
+		image.Rotation = -(math.deg(math.atan2(flat.Y, flat.X)) + 90)
+	end)
 end
 
 function ItemSpriteOverlay.burst(position: Vector3, seq: string, size: number, rotationDegrees: number?): boolean
@@ -106,7 +135,7 @@ function ItemSpriteOverlay.burst(position: Vector3, seq: string, size: number, r
 	anchor.CastShadow = false
 	anchor.Position = Vector3.new(position.X, position.Y, Constants.SPRITE_Z + 1.9)
 	anchor.Parent = Workspace
-	local success = animate(anchor, seq, size, false)
+	local success = animate(anchor, seq, size, nil)
 	if success and rotationDegrees then
 		local sprite = anchor:FindFirstChild("ClayItemSprite")
 		local image = sprite and sprite:FindFirstChild("Frame")

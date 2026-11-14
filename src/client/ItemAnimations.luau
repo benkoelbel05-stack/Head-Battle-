@@ -163,8 +163,15 @@ end
 -- Thruster: gerippte Düsenmanschette, warme Lichtpunkte und Rauch. Das vorhandene
 -- Feuer und die physikalische Befestigung werden nicht verändert.
 function ItemAnimations.thruster(part: BasePart)
-	if ItemSpriteOverlay.attach(part, "thruster_burst", 3.8) then
+	-- Der Thruster-Teil sitzt 0,6 Studs vor dem Klebepunkt (ThrusterVisual)
+	if ItemSpriteOverlay.attachToSurface(part, "thruster_burst", 3.8, 0.6) then
 		part.LocalTransparencyModifier = 1
+		-- Das Bild hat eigene Flammen: die gebauten Partikel-Flammen ausschalten
+		for _, child in part:GetChildren() do
+			if child:IsA("ParticleEmitter") then
+				child.Enabled = false
+			end
+		end
 		return
 	end
 	if part:FindFirstChild("ClayNozzleRing") then
