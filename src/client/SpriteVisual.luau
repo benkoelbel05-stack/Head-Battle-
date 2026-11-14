@@ -16,8 +16,13 @@ export type Sprite = {
 	image: ImageLabel, -- gerade sichtbare Ebene
 	back: ImageLabel, -- Ebene, in die das nächste Bild geladen wird
 	wanted: string, -- Bild, das gezeigt werden soll
+	pendingSince: number, -- seit wann das gewünschte Bild lädt
 	flip: boolean,
 }
+
+-- Spätestens nach dieser Zeit wird auf das neue Bild gewechselt, auch wenn Roblox es noch nicht als
+-- geladen meldet (bei unsichtbaren Ebenen meldet Roblox "geladen" teils gar nicht)
+local MAX_WAIT = 0.1
 
 local SpriteVisual = {}
 
@@ -57,7 +62,7 @@ function SpriteVisual.create(name: string, parent: Instance): Sprite
 	back.ImageTransparency = 1
 
 	part.Parent = parent
-	return { part = part, image = image, back = back, wanted = "", flip = false }
+	return { part = part, image = image, back = back, wanted = "", pendingSince = 0, flip = false }
 end
 
 local function applyFlip(layer: ImageLabel, flip: boolean)
@@ -86,10 +91,12 @@ function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
 	-- Neues Bild in die hintere Ebene laden ...
 	if sprite.back.Image ~= wanted then
 		sprite.back.Image = wanted
+		sprite.pendingSince = os.clock()
 	end
 	sprite.wanted = wanted
-	-- ... und erst tauschen, wenn es geladen ist (bis dahin bleibt das alte Bild sichtbar)
-	if sprite.back.IsLoaded or sprite.image.Image == "" then
+	-- ... und tauschen, sobald es geladen ist (spätestens nach MAX_WAIT)
+	local waited = os.clock() - sprite.pendingSince
+	if sprite.back.IsLoaded or waited >= MAX_WAIT or sprite.image.Image == "" then
 		local front = sprite.image
 		sprite.image = sprite.back
 		sprite.back = front
@@ -99,11 +106,10 @@ function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
 end
 
 -- Alle Sprites vorladen (verhindert Flackern beim ersten Abspielen).
--- In Roblox Studio werden außerdem kaputte IDs (Tippfehler, gelöschte Bilder) im Output gemeldet.
+-- In Roblox Studio steht im Output, wie viele bereit sind.
 function SpriteVisual.preload()
 	local list = SpriteAssets.allIds()
 	local content = {}
-	local lookup: { [string]: { skin: string, animation: string, index: number } } = {}
 	local missing = 0
 	for _, entry in list do
 		if entry.id == 0 then
@@ -111,24 +117,21 @@ function SpriteVisual.preload()
 		else
 			local assetId = `rbxassetid://{entry.id}`
 			table.insert(content, assetId)
-			lookup[assetId] = entry
 		end
 	end
 
-	local broken = 0
+	local loaded, failed = 0, 0
 	local isStudio = RunService:IsStudio()
 	task.spawn(function()
-		ContentProvider:PreloadAsync(content, function(assetId: string, status: Enum.AssetFetchStatus)
-			if isStudio and status == Enum.AssetFetchStatus.Failure then
-				broken += 1
-				local entry = lookup[assetId]
-				if entry then
-					warn(`[HeadBattle] Sprite lädt nicht: {entry.skin} {entry.animation}_0{entry.index} ({assetId})`)
-				end
+		ContentProvider:PreloadAsync(content, function(_assetId: string, status: Enum.AssetFetchStatus)
+			if status == Enum.AssetFetchStatus.Success then
+				loaded += 1
+			else
+				failed += 1
 			end
 		end)
 		if isStudio then
-			print(`[HeadBattle] Sprites geprüft: {#content} geladen, {broken} kaputt, {missing} fehlen noch (Processing)`)
+			print(`[HeadBattle] Sprites vorgeladen: {loaded} bereit, {failed} (noch) nicht, {missing} fehlen noch`)
 		end
 	end)
 end
