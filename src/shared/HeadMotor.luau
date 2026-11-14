@@ -275,12 +275,20 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 	local pressedInTime = now - motor.jumpPressedAt <= Constants.JUMP_BUFFER
 	if pressedInTime and (not onCeiling or motor.jumpPressedAt >= motor.attachedAt) then
 		motor.jumpPressedAt = -math.huge
+		-- Sprungstärke je nach Fläche: Oberseite voll, Wand schräg und schwächer, Unterseite nur loslassen
 		local jumpDirection = worldNormal
-		if math.abs(worldNormal.X) > 0.5 then
+		local strength = Constants.JUMP_VELOCITY
+		local keepAlong = Constants.JUMP_KEEP_ALONG
+		if worldNormal.Y < -0.5 then
+			strength = Constants.CEILING_JUMP_VELOCITY
+			keepAlong = Constants.WALL_JUMP_KEEP_ALONG
+		elseif worldNormal.Y <= 0.5 then
 			jumpDirection = (worldNormal + Vector3.new(0, Constants.WALL_JUMP_LIFT, 0)).Unit
+			strength = Constants.WALL_JUMP_VELOCITY
+			keepAlong = Constants.WALL_JUMP_KEEP_ALONG
 		end
-		motor.velocity = jumpDirection * Constants.JUMP_VELOCITY
-			+ worldTangent * motor.alongSpeed * Constants.JUMP_KEEP_ALONG
+		motor.velocity = jumpDirection * strength
+			+ worldTangent * motor.alongSpeed * keepAlong
 			+ platformVelocity
 		HeadMotor.detach(motor, now, Constants.DETACH_TIME)
 		return
