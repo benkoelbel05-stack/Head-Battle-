@@ -92,6 +92,7 @@ src/
     MainMenu.luau       Hauptmenü und Optionen (animiert)
     MenuAssetIds.luau   Bild-IDs für das Hauptmenü
     StartScreen.luau    Ausrüstungs-Wahl (Fähigkeiten, Bot-Stärke, Bots, Spielen)
+    AssetPreloader.luau Bilder und Musik vorladen (Menü zuerst, Sprites zuletzt)
     SwordVisual.luau    Schwerthieb-Animation
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```

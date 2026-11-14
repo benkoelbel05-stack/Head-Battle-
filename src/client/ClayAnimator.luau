@@ -348,9 +348,7 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 end
 
 function ClayAnimator.start()
-	if Constants.USE_SPRITES and SpriteAssets.hasImages() then
-		SpriteVisual.preload()
-	end
+	-- (Vorladen der Sprites übernimmt AssetPreloader, nach Menü- und Arena-Bildern)
 	Workspace:WaitForChild(Constants.ARENA_FOLDER)
 	local headsFolder = Workspace:WaitForChild(Constants.HEADS_FOLDER)
 	local frameTime = 1 / Constants.STOP_MOTION_FPS
