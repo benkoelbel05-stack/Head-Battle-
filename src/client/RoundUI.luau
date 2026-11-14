@@ -150,7 +150,7 @@ function RoundUI.start()
 
 	-- Countdown groß und knetig: jede Zahl ploppt auf, am Ende "LOS!"
 	countdown.Size = UDim2.new(1, 0, 0, 170)
-	countdown.Font = Enum.Font.LuckiestGuy
+	countdown.Font = Enum.Font.FredokaOne
 	countdown.TextSize = 150
 	countdown.TextStrokeTransparency = 1
 	local countdownStroke = Instance.new("UIStroke")

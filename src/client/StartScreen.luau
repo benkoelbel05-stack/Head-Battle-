@@ -35,7 +35,7 @@ type Icon = { button: TextButton, ring: UIStroke }
 type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, left: TextButton, right: TextButton }
 
 -- Farben und Schrift
-local TITLE_FONT = Enum.Font.LuckiestGuy
+local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.FredokaOne
 local SKY = Color3.fromRGB(36, 130, 228)
 local SKY_DOT = Color3.fromRGB(62, 158, 246)
