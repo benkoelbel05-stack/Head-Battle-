@@ -1,6 +1,6 @@
 --!strict
 -- Hauptmenü und Optionen (übernommen aus ClayBattleMenu_Code, angepasst an das Projekt).
---   * Titelbild mit wippenden Knetfiguren, Logo und Knöpfen (Hover-Zoom, Klick-Squash, Ein-/Ausblenden)
+--   * Titelbild (Hintergrund steht still) mit sanft wippenden Knetfiguren, leicht schwebendem Logo und Knöpfen (Hover-Zoom, Klick-Squash, Ein-/Ausblenden)
 --   * "Spielen" -> Ausrüstungs-Wahl (StartScreen) -> JoinGame
 --   * "Optionen" -> Einstellungen über dem leicht abgedunkelten Titelbild (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
 --   * "Shop" -> noch kein Shop im Spiel: kurzer Hinweis
@@ -308,9 +308,10 @@ function MainMenu.start()
 		end
 	end
 
-	local logo = picture(titleGroup, "logo_clay_battle", 452, 0, 746, 388, 3)
-	local logoScale = Instance.new("UIScale")
-	logoScale.Parent = logo
+	-- Schild "Clay Battle": schwebt nur ganz leicht auf und ab (LOGO_BOB Entwurfspixel)
+	local LOGO_Y = 6
+	local LOGO_BOB = 6
+	local logo = picture(titleGroup, "logo_clay_battle", 452, LOGO_Y, 746, 388, 3)
 	whenMissing(logo, function()
 		local fallback = Instance.new("TextLabel")
 		fallback.Name = "FallbackTitle"
@@ -330,10 +331,10 @@ function MainMenu.start()
 	-- Knetfiguren: eigenständige, transparente Bilder, die sanft wippen und schweben
 	--   Rot: Wippen ~6 px mit 1-2° Neigung, Blau: Hüpfen ~9 px, Gelb/Grün: versetztes Schweben
 	local avatarLayout: { AvatarData } = {
-		{ name = "character_red_sword", x = 17, y = 495, w = 336, h = 336, phase = 0, amp = 6, speed = 1.55, tilt = 1.2 },
-		{ name = "character_blue_jump", x = 342, y = 539, w = 257, h = 219, phase = 1.6, amp = 9, speed = 1.85, tilt = 2.4 },
-		{ name = "character_yellow_shield", x = 1022, y = 590, w = 298, h = 232, phase = 2.8, amp = 5, speed = 1.40, tilt = 1.5 },
-		{ name = "character_green_hammer", x = 1266, y = 458, w = 373, h = 371, phase = 4.2, amp = 6, speed = 1.48, tilt = 1.3 },
+		{ name = "character_red_sword", x = 17, y = 495, w = 336, h = 336, phase = 0, amp = 8, speed = 1.25, tilt = 1.5 },
+		{ name = "character_blue_jump", x = 342, y = 539, w = 257, h = 219, phase = 1.6, amp = 10, speed = 1.45, tilt = 2.2 },
+		{ name = "character_yellow_shield", x = 1022, y = 590, w = 298, h = 232, phase = 2.8, amp = 7, speed = 1.15, tilt = 1.6 },
+		{ name = "character_green_hammer", x = 1266, y = 458, w = 373, h = 371, phase = 4.2, amp = 8, speed = 1.2, tilt = 1.4 },
 	}
 	local avatars: { Avatar } = {}
 	for _, data in avatarLayout do
@@ -848,18 +849,18 @@ function MainMenu.start()
 			return
 		end
 		clock += math.min(delta, 0.1)
+		-- Eine ruhige Sinus-Bewegung pro Figur: auf und ab, dazu passend ganz leicht gekippt
+		-- (kein seitliches Zittern mehr, Hintergrund steht still)
 		for _, avatar in avatars do
-			local wave = math.sin(clock * avatar.speed + avatar.phase)
-			local drift = math.sin(clock * avatar.speed * 0.57 + avatar.phase) * 2.2
-			avatar.label.Position = at(avatar.x + drift, avatar.y + wave * avatar.amp)
-			avatar.label.Rotation = math.sin(clock * avatar.speed * 0.65 + avatar.phase) * avatar.tilt
+			local t = clock * avatar.speed + avatar.phase
+			avatar.label.Position = at(avatar.x, avatar.y + math.sin(t) * avatar.amp)
+			avatar.label.Rotation = math.cos(t) * avatar.tilt
 		end
 		for _, flag in flags do
 			flag.label.Rotation = math.sin(clock * 1.7 + flag.phase) * 3.5
 			flag.label.Position = at(flag.x, flag.y + math.sin(clock * 1.3 + flag.phase) * 3)
 		end
-		logoScale.Scale = 1 + math.sin(clock * 1.25) * 0.012
-		background.Position = at(-20 + math.sin(clock * 0.29) * 5, -13 + math.cos(clock * 0.23) * 3)
+		logo.Position = at(452, LOGO_Y + math.sin(clock * 1.1) * LOGO_BOB)
 	end)
 
 	-- Grundwerte des Titelbilds merken (alles ist gebaut), dann einblenden
