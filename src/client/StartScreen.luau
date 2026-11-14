@@ -53,7 +53,7 @@ local GOLD = Color3.fromRGB(255, 214, 90)
 local GRASS = Color3.fromRGB(110, 210, 60)
 local GRASS_EDGE = Color3.fromRGB(52, 140, 40)
 
-local BADGE = 92 -- Durchmesser eines Fähigkeiten-Abzeichens (Liste links)
+local BADGE = 80 -- Durchmesser eines Fähigkeiten-Abzeichens (Liste links; sichtbar ~91, vergrößert ~105)
 local SLOT_BADGE = 72 -- Abzeichen in den eigenen Slots (schmalere Spalte)
 -- Die Abzeichen haben im Bild einen durchsichtigen Rand: so weit vergrößern, dass sie den Platz füllen
 local BADGE_FILL = 1.2
@@ -140,7 +140,8 @@ local function panel(parent: Instance, name: string, imageId: number?, color: Co
 end
 
 -- Knopf (unsichtbare Klickfläche) mit Hover-Zoom und Klick-Squash
-local function button(parent: Instance, name: string, cx: number, cy: number, w: number, h: number): TextButton
+-- still = true: kein Hover-/Klick-Zoom (für Abzeichen, die beim Zeigen schon selbst größer werden)
+local function button(parent: Instance, name: string, cx: number, cy: number, w: number, h: number, still: boolean?): TextButton
 	local b = Instance.new("TextButton")
 	b.Name = name
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -153,6 +154,9 @@ local function button(parent: Instance, name: string, cx: number, cy: number, w:
 	local scale = Instance.new("UIScale")
 	scale.Parent = b
 	local function to(value: number, time: number)
+		if still then
+			return
+		end
 		TweenService:Create(scale, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = value }):Play()
 	end
 	b.MouseEnter:Connect(function()
@@ -351,11 +355,11 @@ function StartScreen.start()
 
 	local abilityPanel = panel(content, "Abilities", UIAssets.panel_abilities_blue, BLUE, 80, 88, 307, 574, 50)
 	local abilityHeader = label(abilityPanel, "Header", "", 20, 38, 267, 44, 36)
-	local divider = box(abilityPanel, "Divider", 31, 402, 245, 3)
+	local divider = box(abilityPanel, "Divider", 31, 416, 245, 3)
 	divider.BackgroundTransparency = 0.15
 	divider.BackgroundColor3 = CREAM
 	corner(divider, 2)
-	local abilityDescription = label(abilityPanel, "Description", "", 24, 420, 259, 110, 23)
+	local abilityDescription = label(abilityPanel, "Description", "", 24, 430, 259, 108, 23)
 	abilityDescription.TextYAlignment = Enum.TextYAlignment.Top
 
 	local tab = box(content, "Tab", 121, 60, 212, 53)
@@ -370,13 +374,21 @@ function StartScreen.start()
 		tabLabel.Size = UDim2.fromOffset(192, 37)
 	end
 
-	-- 2 Spalten, gleichmäßig verteilt
+	-- 2 Spalten um die Mitte der Tafel (153,5); Abstände so, dass sich auch ein vergrößertes Abzeichen
+	-- nicht mit den Nachbarn überschneidet. Steht in der letzten Reihe nur eins, sitzt es mittig.
 	local gridBadges: { [string]: Badge } = {}
-	local columns = { 98, 211 }
+	local PANEL_MID = 153.5
+	local COLUMN_GAP = 120 -- Abstand der Spaltenmitten
+	local ROW_GAP = 104 -- Abstand der Reihen
+	local FIRST_ROW = 143
+	local columns = { PANEL_MID - COLUMN_GAP / 2, PANEL_MID + COLUMN_GAP / 2 }
+	local count = #Abilities.ORDER
 	for index, id in Abilities.ORDER do
 		local column = (index - 1) % 2 + 1
 		local row = (index - 1) // 2
-		local cell = button(abilityPanel, id, columns[column], 138 + row * 103, BADGE, BADGE)
+		local alone = column == 1 and index == count -- einzelnes Abzeichen in der letzten Reihe
+		local x = if alone then PANEL_MID else columns[column]
+		local cell = button(abilityPanel, id, x, FIRST_ROW + row * ROW_GAP, BADGE, BADGE, true)
 		local badge = makeBadge(cell)
 		setBadge(badge, id)
 		gridBadges[id] = badge
@@ -411,7 +423,7 @@ function StartScreen.start()
 	local ARROW_SIZE = 28
 	for index = 1, Abilities.MAX_SLOTS do
 		local y = rows[index]
-		local cell = button(column, `Slot{index}`, SLOT_X, y, SLOT_BADGE, SLOT_BADGE)
+		local cell = button(column, `Slot{index}`, SLOT_X, y, SLOT_BADGE, SLOT_BADGE, true)
 		local badge = makeBadge(cell)
 		local left = iconButton(column, `Left{index}`, SLOT_X - ARROW_OFFSET, y, ARROW_SIZE, UIAssets.icon_arrow_left, "◀")
 		local right = iconButton(column, `Right{index}`, SLOT_X + ARROW_OFFSET, y, ARROW_SIZE, UIAssets.icon_arrow_right, "▶")
