@@ -16,6 +16,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local MenuAssetIds = require(script.Parent.MenuAssetIds)
 
 local StartScreen = {}
 
@@ -37,17 +38,17 @@ type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, left: TextBut
 -- Farben und Schrift
 local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.FredokaOne
-local SKY = Color3.fromRGB(36, 130, 228)
-local SKY_DOT = Color3.fromRGB(62, 158, 246)
-local CLOUD = Color3.fromRGB(236, 245, 255)
-local CLOUD_EDGE = Color3.fromRGB(196, 222, 248)
-local PANEL = Color3.fromRGB(40, 118, 214)
-local NAVY = Color3.fromRGB(22, 58, 112)
-local ORANGE = Color3.fromRGB(228, 106, 60)
-local BROWN = Color3.fromRGB(112, 42, 22)
-local WHITE = Color3.fromRGB(255, 255, 255)
-local GRASS = Color3.fromRGB(122, 200, 72)
-local GRASS_EDGE = Color3.fromRGB(56, 120, 40)
+-- Knet-Materialfarben: sichtbare Glanzkante, warme helle Ränder und plastische Abstufungen.
+local SKY = Color3.fromRGB(50, 147, 235)
+local PANEL = Color3.fromRGB(31, 116, 223)
+local NAVY = Color3.fromRGB(61, 36, 104)
+local ORANGE = Color3.fromRGB(236, 108, 51)
+local BROWN = Color3.fromRGB(110, 48, 63)
+local WHITE = Color3.fromRGB(255, 246, 224)
+local GRASS = Color3.fromRGB(99, 207, 50)
+local GRASS_EDGE = Color3.fromRGB(42, 136, 36)
+local CREAM_RIM = Color3.fromRGB(255, 242, 219)
+local PURPLE = Color3.fromRGB(123, 42, 178)
 local SLOT_KEYS = { "LM", "MR", "RM" }
 
 local DESIGN = Vector2.new(1280, 720)
@@ -71,6 +72,17 @@ local function stroke(parent: Instance, color: Color3, thickness: number): UIStr
 	return s
 end
 
+local function clayGradient(parent: Instance, color: Color3)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, color:Lerp(Color3.new(1, 1, 1), 0.25)),
+		ColorSequenceKeypoint.new(0.38, color),
+		ColorSequenceKeypoint.new(1, color:Lerp(Color3.new(0, 0, 0), 0.18)),
+	})
+	gradient.Parent = parent
+end
+
 local function frame(parent: Instance, name: string, position: Vector2, size: Vector2, color: Color3): Frame
 	local f = Instance.new("Frame")
 	f.Name = name
@@ -78,6 +90,7 @@ local function frame(parent: Instance, name: string, position: Vector2, size: Ve
 	f.Size = UDim2.fromOffset(size.X, size.Y)
 	f.BackgroundColor3 = color
 	f.BorderSizePixel = 0
+	clayGradient(f, color)
 	f.Parent = parent
 	return f
 end
@@ -102,6 +115,8 @@ local function text(
 	label.TextColor3 = color
 	label.Text = value
 	label.TextWrapped = true
+	label.TextStrokeColor3 = Color3.fromRGB(62, 31, 79)
+	label.TextStrokeTransparency = if color == WHITE then 0.68 else 0.92
 	label.Parent = parent
 	return label
 end
@@ -116,6 +131,7 @@ local function bouncyButton(parent: Instance, name: string, position: Vector2, s
 	button.BackgroundColor3 = color
 	button.AutoButtonColor = false
 	button.Text = ""
+	clayGradient(button, color)
 	button.Parent = parent
 	local scale = Instance.new("UIScale")
 	scale.Parent = button
@@ -188,7 +204,8 @@ function StartScreen.start()
 	gui.DisplayOrder = 10
 	gui.Parent = player:WaitForChild("PlayerGui")
 
-	-- Himmel mit Punktmuster
+	-- Dieselbe leere Wasserfall-Knetwelt wie das bestehende Hauptmenü.
+	-- Bild-ID ist bereits in MenuAssetIds vorhanden, keine neue Asset-ID nötig.
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "Backdrop"
 	backdrop.Size = UDim2.fromScale(1, 1)
@@ -198,55 +215,25 @@ function StartScreen.start()
 	backdrop.ClipsDescendants = true
 	backdrop.Parent = gui
 
-	local dots = Instance.new("Frame")
-	dots.Name = "Dots"
-	dots.AnchorPoint = Vector2.new(0.5, 0.5)
-	dots.Position = UDim2.fromScale(0.5, 0.5)
-	dots.Size = UDim2.fromOffset(2400, 1400)
-	dots.BackgroundTransparency = 1
-	dots.Parent = backdrop
-	local dotGrid = Instance.new("UIGridLayout")
-	dotGrid.CellSize = UDim2.fromOffset(72, 72)
-	dotGrid.CellPadding = UDim2.fromOffset(26, 26)
-	dotGrid.Parent = dots
-	for _ = 1, 25 * 15 do
-		local dot = Instance.new("Frame")
-		dot.BackgroundColor3 = SKY_DOT
-		dot.BorderSizePixel = 0
-		corner(dot, UDim.new(0.5, 0))
-		dot.Parent = dots
-	end
+	local scenery = Instance.new("ImageLabel")
+	scenery.Name = "ClayWorld"
+	scenery.Size = UDim2.fromScale(1, 1)
+	scenery.BackgroundTransparency = 1
+	scenery.ScaleType = Enum.ScaleType.Crop
+	scenery.Image = if MenuAssetIds.menu_background and MenuAssetIds.menu_background ~= 0
+		then `rbxassetid://{MenuAssetIds.menu_background}` else ""
+	scenery.Parent = backdrop
 
-	-- Wolkenrand: überlappende Kreise an allen Rändern
-	local clouds = Instance.new("Frame")
-	clouds.Name = "Clouds"
-	clouds.Size = UDim2.fromScale(1, 1)
-	clouds.BackgroundTransparency = 1
-	clouds.Parent = backdrop
-	local function cloud(x: number, y: number, size: number)
-		local puff = Instance.new("Frame")
-		puff.AnchorPoint = Vector2.new(0.5, 0.5)
-		puff.Position = UDim2.fromScale(x, y)
-		puff.Size = UDim2.fromScale(size, size)
-		puff.SizeConstraint = Enum.SizeConstraint.RelativeYY
-		puff.BackgroundColor3 = CLOUD
-		puff.BorderSizePixel = 0
-		corner(puff, UDim.new(0.5, 0))
-		stroke(puff, CLOUD_EDGE, 3)
-		puff.Parent = clouds
-	end
-	for i = 0, 9 do
-		local t = i / 9
-		cloud(-0.02, t, 0.22 + (i % 3) * 0.05) -- links
-		cloud(1.02, t, 0.22 + ((i + 1) % 3) * 0.05) -- rechts
-	end
-	for i = 0, 12 do
-		local t = i / 12
-		cloud(t, -0.04, 0.2 + (i % 3) * 0.05) -- oben
-		cloud(t, 1.04, 0.2 + ((i + 2) % 3) * 0.05) -- unten
-	end
+	-- Farbliche Schicht für gut lesbare Karten und Kontrast vor den Wasserfällen.
+	local tint = Instance.new("Frame")
+	tint.Name = "ClayOverlay"
+	tint.Size = UDim2.fromScale(1, 1)
+	tint.BackgroundColor3 = Color3.fromRGB(68, 30, 119)
+	tint.BackgroundTransparency = 0.65
+	tint.BorderSizePixel = 0
+	tint.Parent = backdrop
 
-	-- Inhalt im Entwurfsraster 1280 x 720, passt sich der Bildschirmgröße an
+		-- Inhalt im Entwurfsraster 1280 x 720, passt sich der Bildschirmgröße an
 	local content = Instance.new("Frame")
 	content.Name = "Content"
 	content.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -268,9 +255,13 @@ function StartScreen.start()
 		Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
 	end
 
-	local title = text(content, "Title", "AUSRÜSTUNG", Vector2.new(860, 14), Vector2.new(400, 54), TITLE_FONT, 46, WHITE)
-	title.TextXAlignment = Enum.TextXAlignment.Right
-	stroke(title, NAVY, 3).ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	local title = text(content, "Title", "AUSRÜSTUNG", Vector2.new(394, 5), Vector2.new(742, 64), TITLE_FONT, 48, WHITE)
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.BackgroundColor3 = PURPLE
+	title.BackgroundTransparency = 0.03
+	corner(title, UDim.new(0, 26))
+	stroke(title, CREAM_RIM, 4)
+	clayGradient(title, PURPLE)
 
 	-------------------------------------------------------------------------------------------------
 	-- Links: Fähigkeiten
@@ -278,28 +269,28 @@ function StartScreen.start()
 
 	local abilityPanel = frame(content, "Abilities", Vector2.new(40, 80), Vector2.new(310, 600), PANEL)
 	corner(abilityPanel, UDim.new(0, 54))
-	stroke(abilityPanel, NAVY, 5)
+	stroke(abilityPanel, CREAM_RIM, 5)
 
 	-- Reiter über dem Panel (wie das Tastatur-Symbol im Vorbild)
-	local tab = frame(content, "InputTab", Vector2.new(125, 52), Vector2.new(140, 40), Color3.fromRGB(236, 240, 246))
+	local tab = frame(content, "InputTab", Vector2.new(110, 52), Vector2.new(165, 45), Color3.fromRGB(255, 234, 206))
 	corner(tab, UDim.new(0, 12))
-	stroke(tab, NAVY, 3)
-	text(tab, "Label", "🖱 MAUS", Vector2.zero, Vector2.new(140, 40), TITLE_FONT, 22, NAVY)
+	stroke(tab, CREAM_RIM, 3)
+	text(tab, "Label", "FÄHIGKEITEN", Vector2.zero, Vector2.new(165, 45), TITLE_FONT, 21, NAVY)
 
-	local abilityHeader = text(abilityPanel, "Header", "", Vector2.new(15, 22), Vector2.new(280, 36), TITLE_FONT, 30, NAVY)
+	local abilityHeader = text(abilityPanel, "Header", "", Vector2.new(15, 22), Vector2.new(280, 40), TITLE_FONT, 30, WHITE)
 	local abilityDescription =
-		text(abilityPanel, "Description", "", Vector2.new(28, 330), Vector2.new(254, 200), BODY_FONT, 22, WHITE)
+		text(abilityPanel, "Description", "", Vector2.new(27, 357), Vector2.new(255, 180), BODY_FONT, 21, WHITE)
 	abilityDescription.TextYAlignment = Enum.TextYAlignment.Top
 
 	local iconHolder = Instance.new("Frame")
 	iconHolder.Name = "Icons"
-	iconHolder.Position = UDim2.fromOffset(30, 80)
-	iconHolder.Size = UDim2.fromOffset(250, 230)
+	iconHolder.Position = UDim2.fromOffset(30, 84)
+	iconHolder.Size = UDim2.fromOffset(250, 262)
 	iconHolder.BackgroundTransparency = 1
 	iconHolder.Parent = abilityPanel
 	local iconGrid = Instance.new("UIGridLayout")
-	iconGrid.CellSize = UDim2.fromOffset(70, 70)
-	iconGrid.CellPadding = UDim2.fromOffset(20, 20)
+	iconGrid.CellSize = UDim2.fromOffset(92, 75)
+	iconGrid.CellPadding = UDim2.fromOffset(17, 10)
 	iconGrid.SortOrder = Enum.SortOrder.LayoutOrder
 	iconGrid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	iconGrid.Parent = iconHolder
@@ -312,7 +303,7 @@ function StartScreen.start()
 
 	local column = frame(content, "Player", Vector2.new(390, 80), Vector2.new(240, 600), ORANGE)
 	corner(column, UDim.new(0, 110))
-	stroke(column, BROWN, 5)
+	stroke(column, CREAM_RIM, 5)
 
 	-- Abzeichen oben: eigenes Roblox-Bild
 	local badge = Instance.new("ImageLabel")
@@ -323,7 +314,7 @@ function StartScreen.start()
 	badge.BackgroundColor3 = Color3.fromRGB(245, 235, 225)
 	badge.ZIndex = 3
 	corner(badge, UDim.new(0.5, 0))
-	stroke(badge, BROWN, 4)
+	stroke(badge, CREAM_RIM, 4)
 	badge.Parent = content
 	task.spawn(function()
 		local ok, image = pcall(function()
@@ -334,7 +325,7 @@ function StartScreen.start()
 		end
 	end)
 
-	local slotHeader = text(column, "Header", "", Vector2.new(10, 44), Vector2.new(220, 36), TITLE_FONT, 28, BROWN)
+	local slotHeader = text(column, "Header", "", Vector2.new(10, 44), Vector2.new(220, 36), TITLE_FONT, 28, WHITE)
 	local slots: { Slot } = {}
 
 	local mound = frame(column, "Mound", Vector2.new(30, 500), Vector2.new(180, 48), GRASS)
@@ -349,11 +340,11 @@ function StartScreen.start()
 	character.ZIndex = 2
 	character.Parent = column
 
-	local ready = bouncyButton(content, "Ready", Vector2.new(390 + 120 - 42, 80 + 600 - 42), Vector2.new(84, 84), Color3.fromRGB(196, 78, 40))
-	corner(ready, UDim.new(0.5, 0))
-	stroke(ready, BROWN, 5)
+	local ready = bouncyButton(content, "Ready", Vector2.new(405, 609), Vector2.new(210, 64), Color3.fromRGB(35, 194, 66))
+	corner(ready, UDim.new(0, 29))
+	stroke(ready, CREAM_RIM, 5)
 	ready.ZIndex = 3
-	local readyMark = text(ready, "Mark", "✔", Vector2.zero, Vector2.new(84, 84), TITLE_FONT, 46, WHITE)
+	local readyMark = text(ready, "Mark", "▶  SPIELEN", Vector2.zero, Vector2.new(210, 64), TITLE_FONT, 25, WHITE)
 	readyMark.ZIndex = 4
 
 	-------------------------------------------------------------------------------------------------
@@ -368,10 +359,10 @@ function StartScreen.start()
 
 	local botBar = frame(content, "BotBar", Vector2.new(670, 600), Vector2.new(570, 72), PANEL)
 	corner(botBar, UDim.new(0, 30))
-	stroke(botBar, NAVY, 4)
+	stroke(botBar, CREAM_RIM, 4)
 	text(botBar, "BotsLabel", "BOTS", Vector2.new(18, 0), Vector2.new(80, 72), TITLE_FONT, 26, WHITE)
 	local function roundButton(name: string, x: number, label: string, font: Enum.Font, size: number): TextButton
-		local button = bouncyButton(botBar, name, Vector2.new(x, 14), Vector2.new(44, 44), NAVY)
+		local button = bouncyButton(botBar, name, Vector2.new(x, 14), Vector2.new(44, 44), Color3.fromRGB(66, 56, 162))
 		corner(button, UDim.new(0.5, 0))
 		text(button, "T", label, Vector2.zero, Vector2.new(44, 44), font, size, WHITE)
 		return button
@@ -414,7 +405,8 @@ function StartScreen.start()
 	reopen.Text = "AUSRÜSTUNG"
 	reopen.Visible = false
 	corner(reopen, UDim.new(0, 14))
-	stroke(reopen, BROWN, 3)
+	stroke(reopen, CREAM_RIM, 3)
+	clayGradient(reopen, ORANGE)
 	reopen.Parent = gui
 
 	-------------------------------------------------------------------------------------------------
@@ -430,7 +422,7 @@ function StartScreen.start()
 
 		for id, icon in icons do
 			local slot = table.find(chosen, id)
-			icon.ring.Color = if slot == activeSlot then Color3.fromRGB(120, 230, 255) elseif slot then WHITE else NAVY
+			icon.ring.Color = if slot == activeSlot then Color3.fromRGB(255, 235, 96) elseif slot then CREAM_RIM else NAVY
 			icon.ring.Thickness = if slot == activeSlot then 6 elseif slot then 4 else 3
 		end
 		for index, slot in slots do
@@ -438,7 +430,7 @@ function StartScreen.start()
 			slot.icon.Text = info.icon
 			slot.button.BackgroundColor3 = info.color
 			local active = index == activeSlot
-			slot.ring.Color = if active then WHITE else BROWN
+			slot.ring.Color = if active then CREAM_RIM else BROWN
 			slot.ring.Thickness = if active then 6 else 4
 			slot.left.Visible = active
 			slot.right.Visible = active
@@ -446,6 +438,7 @@ function StartScreen.start()
 
 		local skin = player:GetAttribute("Skin")
 		character.Image = if typeof(skin) == "string" then SpriteAssets.frame(skin, "idle", 1) or "" else ""
+		readyMark.Text = if joined then "✔  ÜBERNEHMEN" else "▶  SPIELEN"
 	end
 
 	-- Fähigkeit in den gewählten Slot legen (steckt sie schon woanders, tauschen die beiden)
@@ -482,9 +475,12 @@ function StartScreen.start()
 		button.Text = info.icon
 		button.TextSize = 38
 		button.Font = BODY_FONT
-		button.AutoButtonColor = true
+		button.AutoButtonColor = false
+		clayGradient(button, info.color)
 		corner(button, UDim.new(0.5, 0))
-		local ring = stroke(button, NAVY, 3)
+		local ring = stroke(button, CREAM_RIM, 4)
+		button.TextStrokeColor3 = NAVY
+		button.TextStrokeTransparency = 0.65
 		button.Parent = iconHolder
 		icons[id] = { button = button, ring = ring }
 		button.MouseEnter:Connect(function()
@@ -507,7 +503,7 @@ function StartScreen.start()
 		text(column, `Key{index}`, SLOT_KEYS[index], Vector2.new(6, y + 30), Vector2.new(40, 40), TITLE_FONT, 18, BROWN)
 		local button = bouncyButton(column, `Slot{index}`, Vector2.new(70, y), Vector2.new(100, 100), WHITE)
 		corner(button, UDim.new(0.5, 0))
-		local ring = stroke(button, BROWN, 4)
+		local ring = stroke(button, CREAM_RIM, 4)
 		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(100, 100), BODY_FONT, 52, WHITE)
 		local left = bouncyButton(column, `Left{index}`, Vector2.new(30, y + 30), Vector2.new(36, 40), ORANGE)
 		left.BackgroundTransparency = 1
@@ -551,7 +547,7 @@ function StartScreen.start()
 				local isBot = entry:GetAttribute("IsBot") == true
 				local card = frame(othersHolder, "Card", Vector2.new(x, 150), Vector2.new(180, 420), skinColor(skin):Lerp(PANEL, 0.35))
 				corner(card, UDim.new(0, 80))
-				stroke(card, NAVY, 5)
+				stroke(card, CREAM_RIM, 5)
 				local name = entry:GetAttribute("DisplayName")
 				text(card, "Name", if typeof(name) == "string" then string.upper(name) else "?", Vector2.new(10, 34), Vector2.new(160, 60), TITLE_FONT, 24, WHITE)
 				local role = if isBot then `BOT · {string.upper(Constants.BOT_DIFFICULTIES[difficulty()].name)}` else "SPIELER"
@@ -570,8 +566,8 @@ function StartScreen.start()
 			else
 				local box = frame(othersHolder, "Waiting", Vector2.new(x + 5, 300), Vector2.new(170, 150), PANEL)
 				corner(box, UDim.new(0, 34))
-				stroke(box, NAVY, 5)
-				local label = text(box, "Text", `WARTE AUF\nSPIELER{string.rep(".", waitingDots)}`, Vector2.new(8, 0), Vector2.new(154, 150), TITLE_FONT, 24, NAVY)
+				stroke(box, CREAM_RIM, 5)
+				local label = text(box, "Text", `WARTE AUF\nSPIELER{string.rep(".", waitingDots)}`, Vector2.new(8, 0), Vector2.new(154, 150), TITLE_FONT, 23, WHITE)
 				label.TextYAlignment = Enum.TextYAlignment.Center
 			end
 		end
