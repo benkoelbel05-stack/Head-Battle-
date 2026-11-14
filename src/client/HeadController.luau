@@ -17,6 +17,7 @@ local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local AimPreview = require(script.Parent.AimPreview)
 local PlatformClient = require(script.Parent.PlatformClient)
 local SwordVisual = require(script.Parent.SwordVisual)
+local ItemAnimations = require(script.Parent.ItemAnimations)
 local SoundFX = require(script.Parent.SoundFX)
 local MissileShape = require(ReplicatedStorage.Shared.MissileShape)
 
@@ -285,7 +286,9 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 		if now >= dashReadyAt then
 			dashReadyAt = now + Constants.DASH_COOLDOWN
 			-- In Mausrichtung (bzw. rechter Stick), sonst gedrückte Richtung oder Blickrichtung
-			HeadMotor.startDash(motor, now, freeAim() or aimDirection(input, false))
+			local dashDirection = freeAim() or aimDirection(input, false)
+			HeadMotor.startDash(motor, now, dashDirection)
+			ItemAnimations.dash(motor.position, dashDirection)
 			SoundFX.play("dash")
 			head:SetAttribute(Abilities.readyAttribute("Dash"), Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
 		end
@@ -297,6 +300,7 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			local direction = freeAim() or aimDirection(input, false)
 			head:SetAttribute(Abilities.readyAttribute("Sword"), Workspace:GetServerTimeNow() + Constants.SWORD_COOLDOWN)
 			SwordVisual.play(motor.position, direction)
+			ItemAnimations.sword(motor.position, direction)
 			swingSwordRemote:FireServer(direction, motor.position)
 		end
 	elseif id == "Missile" then
