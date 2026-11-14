@@ -19,4 +19,6 @@ return {
 	button_start_prompt = 137425263851321, -- nicht benutzt (Knopf entfernt)
 	arena_sunset = 73285968060700,
 	arena_night = 85048047291829,
+	-- Musik im Hauptmenü (Audio-ID aus dem Creator Hub; 0 = keine Musik)
+	menu_theme = 0, -- echobrainz-retro-arcade.mp3
 } :: { [string]: number }

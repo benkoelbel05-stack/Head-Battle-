@@ -383,6 +383,56 @@ function MainMenu.start()
 		updateSetting(field, value)
 	end
 
+	-- Musik: läuft in Endlosschleife, solange ein Menü offen ist (Hauptmenü, Optionen, Ausrüstung),
+	-- und blendet beim Spielen weich aus. Lautstärke über "Musik" in den Optionen (SoundGroup Music).
+	-- Das Stück hat am Ende ~1 s Stille: die Schleife springt schon vorher zurück an den Anfang.
+	local THEME_LOOP_END = 63.55
+	local THEME_VOLUME = 0.6
+	local theme: Sound? = nil
+	if images.menu_theme and images.menu_theme ~= 0 then
+		local sound = Instance.new("Sound")
+		sound.Name = "ClayBattleMenuTheme"
+		sound.SoundId = `rbxassetid://{images.menu_theme}`
+		sound.Looped = true
+		sound.Volume = 0
+		sound.SoundGroup = soundGroup("Music")
+		pcall(function()
+			(sound :: any).PlaybackRegionsEnabled = true
+			(sound :: any).LoopRegion = NumberRange.new(0, THEME_LOOP_END)
+		end)
+		sound.Parent = SoundService
+		theme = sound
+	end
+	local function setThemePlaying(playing: boolean)
+		local sound = theme
+		if not sound then
+			return
+		end
+		if playing then
+			if not sound.IsPlaying then
+				sound:Play()
+			end
+			TweenService:Create(sound, TweenInfo.new(1.2), { Volume = THEME_VOLUME }):Play()
+		elseif sound.IsPlaying then
+			local fade = TweenService:Create(sound, TweenInfo.new(1.2), { Volume = 0 })
+			fade.Completed:Once(function()
+				if player:GetAttribute("MenuOpen") ~= true then
+					sound:Pause()
+				end
+			end)
+			fade:Play()
+		end
+	end
+	player:GetAttributeChangedSignal("MenuOpen"):Connect(function()
+		setThemePlaying(player:GetAttribute("MenuOpen") == true)
+	end)
+	setThemePlaying(true)
+	gui.Destroying:Connect(function()
+		if theme then
+			theme:Destroy()
+		end
+	end)
+
 	local SMALL_BUTTON = Color3.fromRGB(77, 76, 120)
 	local function settingRow(label: string, field: string, y: number)
 		textLabel(optionsGroup, `{field}Label`, label, { 440, y, 402, 54 }, 34)
