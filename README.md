@@ -11,6 +11,9 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
   - Fliegerkappe (Hut): Dash
   - Schweißerbrille (Brille): Thruster an Plattform kleben, schiebt und dreht sie
   - Granatengürtel (Gürtel): Taste halten lädt die Wurfkraft auf (mit Zielstreifen), Loslassen wirft; prallt an Plattformen ab, explodiert beim Aufprall auf einen Kopf oder nach 1,6 s
+  - Schwert (Rücken): Hieb im Bogen (±65°) Richtung Maus, Reichweite 5; trifft alle Köpfe darin und schlägt Granaten zurück
+  - Raketenrucksack (Rücken): Lenkrakete, folgt dem Mauszeiger; nochmal drücken = zünden, sonst explodiert sie bei Plattform/Kopf oder nach 3,5 s
+- [x] Ausrüstung wählen (unten links): 3 von 5 Fähigkeiten, Klick-Reihenfolge = Slot; Bots bekommen zufällige Ausrüstung
 - [x] Eigene Plattform-Physik: Feder zurück zum Startplatz, max. 12 Studs Versatz, max. 60° Kippen
 - [x] Köpfe beeinflussen Plattformen: Gewicht (Wippe), Landestoß, Gegenschub beim Laufen
 - [x] Masse je nach Größe und Dichte: große/schwere Plattformen bewegen und drehen sich weniger
@@ -24,7 +27,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 - [x] 2D-Charakter-Sprites (12 Farben, Animationen idle/run/jump/land/hit/respawn), Fallback auf 3D-Knetköpfe
 - [x] Anzeige der Fähigkeiten mit Abklingzeit unten in der Mitte
 - [x] Bots (Knöpfe „+ Bot“ / „– Bot“ unten rechts): verfolgen, springen, werfen gezielte Granaten, weichen aus, retten sich per Dash
-- [ ] Kopfnuss, weitere Fähigkeiten
+- [ ] Kopfnuss, weitere Fähigkeiten (Bogen, Mine, Schild …)
 - [ ] Auswahl der Kleidung vor der Runde
 - [ ] Touch-Steuerung für Handys (Phase 3)
 
@@ -39,7 +42,8 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 | Fähigkeit in Slot 3 | Rechte Maustaste (oder 3) | B |
 
 Zielen: Fähigkeiten gehen in die gedrückte Richtung (auch schräg), ohne Eingabe in Blickrichtung.
-Dash und Granate zielt man frei in alle Richtungen (360°): mit dem Mauszeiger oder dem rechten Stick.
+Dash, Granate, Schwert und Rakete zielt man frei in alle Richtungen (360°): mit dem Mauszeiger oder dem rechten Stick.
+Die Lenkrakete folgt danach weiter dem Mauszeiger (ohne Maus: Richtungstasten).
 Der Thruster klebt genau dort an die Plattform, wo man gerade steht. In der Luft geht er an die nächste Plattform in Zielrichtung.
 
 ## Projektstruktur
@@ -66,6 +70,8 @@ src/
     BotController.luau  Bot-KI
     Thrusters.luau      Fähigkeit Thruster (prüfen und verteilen)
     Grenades.luau       Fähigkeit Granate (echte Granate, entscheidet wer ausscheidet)
+    Swords.luau         Fähigkeit Schwert (Treffer im Bogen, Granaten zurückschlagen)
+    Missiles.luau       Fähigkeit Lenkrakete (Flug, Treffer, Explosion)
   client/   StarterPlayerScripts.Client
     init.client.luau    Einstieg (Reihenfolge pro Bild)
     PlatformClient.luau Plattformen lokal rechnen, Thruster/Granaten/Explosionen anzeigen
@@ -75,6 +81,7 @@ src/
     SpriteVisual.luau   Sprite-Bild in der Welt (Spiegeln, Vorladen, ID-Prüfung)
     AbilityHUD.luau     Anzeige der Fähigkeiten und Abklingzeiten
     AimPreview.luau     Zielstreifen für die Granate
+    SwordVisual.luau    Schwerthieb-Animation
     RoundUI.luau        Anzeige: Nachricht, Countdown, Punkte, Bot-Knöpfe
 ```
 

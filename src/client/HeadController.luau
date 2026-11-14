@@ -16,10 +16,13 @@ local HeadMotor = require(ReplicatedStorage.Shared.HeadMotor)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local AimPreview = require(script.Parent.AimPreview)
 local PlatformClient = require(script.Parent.PlatformClient)
+local SwordVisual = require(script.Parent.SwordVisual)
 
 local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
 local placeThrusterRemote = remotes:WaitForChild("PlaceThruster") :: RemoteEvent
 local throwGrenadeRemote = remotes:WaitForChild("ThrowGrenade") :: RemoteEvent
+local swingSwordRemote = remotes:WaitForChild("SwingSword") :: RemoteEvent
+local fireMissileRemote = remotes:WaitForChild("FireMissile") :: RemoteEvent
 local roundState = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
 
 local player = Players.LocalPlayer
@@ -64,6 +67,9 @@ local chargingSlot = 0
 local chargingSince = 0
 local dashReadyAt = 0
 local actionCounter = 0 -- für eindeutige IDs von Thrustern und Granaten
+
+-- Eigene Lenkraketen: aktuelle Flugrichtung pro Rakete
+local missileDirections: { [BasePart]: Vector3 } = {}
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterType = Enum.RaycastFilterType.Include
@@ -266,6 +272,24 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 		end
 	elseif id == "Thruster" then
 		useThruster(head, input)
+	elseif id == "Sword" then
+		if abilityReady(head, "Sword") then
+			-- In Mausrichtung schlagen; sofort anzeigen, Treffer entscheidet der Server
+			local direction = freeAim() or aimDirection(input, false)
+			head:SetAttribute(Abilities.readyAttribute("Sword"), Workspace:GetServerTimeNow() + Constants.SWORD_COOLDOWN)
+			SwordVisual.play(motor.position, direction)
+			swingSwordRemote:FireServer(direction)
+		end
+	elseif id == "Missile" then
+		-- Fliegt schon eine eigene Rakete: zünden. Sonst abfeuern.
+		local flying = next(missileDirections) ~= nil
+		if flying or abilityReady(head, "Missile") then
+			actionCounter += 1
+			if not flying then
+				head:SetAttribute(Abilities.readyAttribute("Missile"), Workspace:GetServerTimeNow() + Constants.MISSILE_COOLDOWN)
+			end
+			fireMissileRemote:FireServer(freeAim() or aimDirection(input, false), tostring(actionCounter))
+		end
 	elseif id == "Grenade" then
 		if abilityReady(head, "Grenade") then
 			local aim = throwAim(input)
@@ -355,6 +379,50 @@ local function step(rawDt: number)
 	body.CFrame = CFrame.new(HeadMotor.renderPosition(motor, alpha))
 	body.AssemblyLinearVelocity = motor.velocity
 	body.AssemblyAngularVelocity = Vector3.zero
+
+	-- Eigene Lenkraketen mit der Maus lenken (sonst mit den Richtungstasten)
+	local missiles = Workspace:FindFirstChild(Constants.MISSILES_FOLDER)
+	local myKey = tostring(player.UserId)
+	for part in missileDirections do
+		if not part.Parent then
+			missileDirections[part] = nil
+		end
+	end
+	if missiles then
+		for _, part in missiles:GetChildren() do
+			if part:IsA("BasePart") and part:GetAttribute("OwnerKey") == myKey then
+				local direction = missileDirections[part] or part.CFrame.RightVector
+				local position = Vector3.new(part.Position.X, part.Position.Y, Constants.PLANE_Z)
+				local wanted: Vector3? = nil
+				local mouseAim = freeAim()
+				if mouseAim then
+					-- Zum Mauszeiger hin (freeAim zeigt vom Kopf aus, deshalb hier vom Raketen-Punkt neu rechnen)
+					local camera = Workspace.CurrentCamera
+					local mouse = UserInputService:GetMouseLocation()
+					local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
+					if math.abs(ray.Direction.Z) > 0.0001 then
+						local point = ray.Origin + ray.Direction * ((Constants.PLANE_Z - ray.Origin.Z) / ray.Direction.Z)
+						local toMouse = Vector3.new(point.X - position.X, point.Y - position.Y, 0)
+						wanted = if toMouse.Magnitude > 0.5 then toMouse.Unit else nil
+					end
+				elseif input.Magnitude > 0.1 then
+					wanted = input.Unit
+				end
+				if wanted then
+					local current = math.atan2(direction.Y, direction.X)
+					local desired = math.atan2(wanted.Y, wanted.X)
+					local difference = (desired - current + math.pi) % (2 * math.pi) - math.pi
+					local maxTurn = Constants.MISSILE_TURN_RATE * dt
+					local angle = current + math.clamp(difference, -maxTurn, maxTurn)
+					direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
+				end
+				missileDirections[part] = direction
+				local nextPosition = position + direction * Constants.MISSILE_SPEED * dt
+				part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
+				part.AssemblyLinearVelocity = direction * Constants.MISSILE_SPEED
+			end
+		end
+	end
 
 	-- Zielstreifen, solange eine Granate aufgeladen wird
 	if chargingId == "Grenade" then

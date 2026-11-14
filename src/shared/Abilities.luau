@@ -12,11 +12,12 @@
 --   "Top"     oben auf dem Kopf (Hüte, Mützen, Helme) – mehrere werden gestapelt
 --   "Eyes"    Band auf Augenhöhe (Brillen, Masken) – die Augen bleiben sichtbar
 --   "Bottom"  Band unten am Kopf (Schals, Gürtel, Halstücher)
+--   "Back"    hinter dem Kopf, schräg (Schwert, Rucksack) – mehrere werden nebeneinander gesetzt
 -- Neue Stellen (z. B. "Side" für Ohrenschützer) lassen sich in ClayAnimator.placeWearable ergänzen.
 
 local Constants = require(script.Parent.Constants)
 
-export type WearAt = "Top" | "Eyes" | "Bottom"
+export type WearAt = "Top" | "Eyes" | "Bottom" | "Back"
 
 export type AbilityInfo = {
 	id: string,
@@ -65,7 +66,28 @@ Abilities.list = {
 		size = Vector3.new(R * 2.05, R * 0.38, R * 1.9),
 		color = Constants.GRENADE_COLOR,
 	},
+	Sword = {
+		id = "Sword",
+		itemName = "Schwert",
+		cooldown = Constants.SWORD_COOLDOWN,
+		wearAt = "Back",
+		shape = Enum.PartType.Block,
+		size = Vector3.new(R * 0.22, R * 2.2, R * 0.22),
+		color = Constants.SWORD_COLOR,
+	},
+	Missile = {
+		id = "Missile",
+		itemName = "Raketenrucksack",
+		cooldown = Constants.MISSILE_COOLDOWN,
+		wearAt = "Back",
+		shape = Enum.PartType.Block,
+		size = Vector3.new(R * 0.7, R * 1.1, R * 0.5),
+		color = Constants.MISSILE_COLOR,
+	},
 } :: { [string]: AbilityInfo }
+
+-- Reihenfolge in der Ausrüstungs-Auswahl
+Abilities.ORDER = { "Dash", "Thruster", "Grenade", "Sword", "Missile" }
 
 -- Bis es einen Auswahlbildschirm gibt, startet jeder mit dieser Ausrüstung
 Abilities.DEFAULT_LOADOUT = { "Dash", "Thruster", "Grenade" }

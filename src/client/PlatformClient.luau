@@ -19,6 +19,7 @@ local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local SpriteVisual = require(script.Parent.SpriteVisual)
+local SwordVisual = require(script.Parent.SwordVisual)
 
 type LocalGrenade = {
 	id: string,
@@ -62,12 +63,12 @@ local function makeEffectPart(name: string, size: Vector3, color: Color3, positi
 end
 
 -- Knet-Explosion: eine Kugel, die schnell wächst und verblasst
-local function explosionEffect(position: Vector3)
+local function explosionEffect(position: Vector3, radius: number?)
 	local blob = makeEffectPart("Blast", Vector3.one, Color3.fromRGB(255, 196, 92), position)
 	local tween = TweenService:Create(
 		blob,
 		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = Vector3.one * Constants.GRENADE_BLAST_RADIUS * 2, Transparency = 1 }
+		{ Size = Vector3.one * (radius or Constants.GRENADE_BLAST_RADIUS) * 2, Transparency = 1 }
 	)
 	tween:Play()
 	tween.Completed:Once(function()
@@ -232,8 +233,22 @@ local function onEvent(kind: unknown, ...: any)
 			grenade.part:Destroy()
 		end
 		table.clear(grenades)
+	elseif kind == "Slash" then
+		local ownerKey, origin, direction = ...
+		-- Eigene Schläge wurden schon sofort angezeigt
+		if ownerKey ~= tostring(player.UserId) and typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
+			SwordVisual.play(origin, direction)
+		end
+	elseif kind == "GrenadeDeflected" then
+		local id, position, velocity = ...
+		local grenade = if typeof(id) == "string" then grenades[id] else nil
+		if grenade and typeof(position) == "Vector3" and typeof(velocity) == "Vector3" then
+			grenade.position = position
+			grenade.velocity = velocity
+			grenade.accumulator = 0
+		end
 	elseif kind == "Explosion" then
-		local id, position = ...
+		local id, position, blastRadius, pushRadius, impulse = ...
 		if typeof(id) == "string" and typeof(position) == "Vector3" then
 			knownExplosions[id] = true
 			local grenade = grenades[id]
@@ -242,8 +257,15 @@ local function onEvent(kind: unknown, ...: any)
 				grenade.part:Destroy()
 				grenades[id] = nil
 			end
-			explosionEffect(position)
-			GrenadePhysics.applyExplosion(sim, PlatformShapes.collect(arena), position)
+			local radius = if typeof(blastRadius) == "number" then blastRadius else nil
+			explosionEffect(position, radius)
+			GrenadePhysics.applyExplosion(
+				sim,
+				PlatformShapes.collect(arena),
+				position,
+				if typeof(pushRadius) == "number" then pushRadius else nil,
+				if typeof(impulse) == "number" then impulse else nil
+			)
 			task.delay(5, function()
 				knownExplosions[id] = nil
 			end)

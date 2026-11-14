@@ -16,6 +16,9 @@ local Arena = require(script.Arena)
 local HeadSpawner = require(script.HeadSpawner)
 local Thrusters = require(script.Thrusters)
 local Grenades = require(script.Grenades)
+local Swords = require(script.Swords)
+local Missiles = require(script.Missiles)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local RoundManager = require(script.RoundManager)
 local BotController = require(script.BotController)
 
@@ -49,6 +52,9 @@ end
 local placeThruster = makeRemote("RemoteEvent", "PlaceThruster") :: RemoteEvent -- Client -> Server
 local throwGrenade = makeRemote("RemoteEvent", "ThrowGrenade") :: RemoteEvent -- Client -> Server
 local changeBots = makeRemote("RemoteEvent", "ChangeBots") :: RemoteEvent -- Client -> Server (+1 / -1)
+local swingSword = makeRemote("RemoteEvent", "SwingSword") :: RemoteEvent -- Client -> Server
+local fireMissile = makeRemote("RemoteEvent", "FireMissile") :: RemoteEvent -- Client -> Server
+local setLoadout = makeRemote("RemoteEvent", "SetLoadout") :: RemoteEvent -- Client -> Server
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
@@ -90,6 +96,23 @@ Grenades.init(throwGrenade, {
 	events = platformEvents,
 })
 
+Swords.init(swingSword, {
+	getHead = HeadSpawner.getHead,
+	getHeads = HeadSpawner.getHeads,
+	eliminate = HeadSpawner.eliminate,
+	keyOf = HeadSpawner.keyOf,
+	deflectGrenades = Grenades.deflect,
+	events = platformEvents,
+})
+Missiles.init(fireMissile, {
+	sim = sim,
+	getHead = HeadSpawner.getHead,
+	getHeads = HeadSpawner.getHeads,
+	eliminate = HeadSpawner.eliminate,
+	keyOf = HeadSpawner.keyOf,
+	events = platformEvents,
+})
+
 RoundManager.init({
 	spawn = HeadSpawner.spawn,
 	despawn = HeadSpawner.despawn,
@@ -101,7 +124,9 @@ RoundManager.init({
 	resetArena = function()
 		PlatformSim.reset(sim)
 		Grenades.clear()
+		Missiles.clear()
 		Thrusters.resetCooldowns()
+		Swords.resetCooldowns()
 		platformEvents:FireAllClients("Reset")
 	end,
 })
@@ -118,13 +143,38 @@ BotController.init({
 		HeadSpawner.removeParticipant(botId)
 		Grenades.removeParticipant(botId)
 		Thrusters.removeParticipant(botId)
+		Swords.removeParticipant(botId)
+		Missiles.removeParticipant(botId)
 	end,
 	throwGrenade = Grenades.throw,
 	grenadeReady = Grenades.isReady,
 	activeGrenades = Grenades.getActive,
 	placeThruster = Thrusters.place,
 	thrusterReady = Thrusters.isReady,
+	swingSword = Swords.swing,
+	swordReady = Swords.isReady,
+	fireMissile = Missiles.fire,
+	missileReady = Missiles.isReady,
+	missileActive = Missiles.hasActive,
+	setLoadout = HeadSpawner.setLoadout,
 })
+
+-- Ausrüstung wählen (bis zu 3 Fähigkeiten). Gilt ab dem nächsten Erscheinen; beim freien Spielen sofort.
+setLoadout.OnServerEvent:Connect(function(player: Player, list: unknown)
+	if typeof(list) ~= "table" then
+		return
+	end
+	local ids = {}
+	for _, id in list :: { any } do
+		if typeof(id) == "string" and Abilities.list[id] and not table.find(ids, id) and #ids < Abilities.MAX_SLOTS then
+			table.insert(ids, id)
+		end
+	end
+	HeadSpawner.setLoadout(player, ids)
+	if RoundManager.getPhase() == "Waiting" and HeadSpawner.getHead(player) then
+		HeadSpawner.spawn(player)
+	end
+end)
 
 -- Bots über die Knöpfe auf dem Bildschirm hinzufügen / entfernen
 changeBots.OnServerEvent:Connect(function(_player: Player, change: unknown)
@@ -145,6 +195,8 @@ Players.PlayerRemoving:Connect(function(player)
 	HeadSpawner.removeParticipant(player)
 	Thrusters.removeParticipant(player)
 	Grenades.removeParticipant(player)
+	Swords.removeParticipant(player)
+	Missiles.removeParticipant(player)
 end)
 for _, player in Players:GetPlayers() do
 	task.spawn(RoundManager.addParticipant, player)
@@ -171,6 +223,7 @@ RunService.Heartbeat:Connect(function(dt)
 	PlatformSim.step(sim, dt, Workspace:GetServerTimeNow())
 	HeadSpawner.checkCrush(shapes)
 	Grenades.step(dt)
+	Missiles.step(dt)
 
 	-- Regelmäßiger Abgleich an alle Clients
 	snapshotTimer += dt

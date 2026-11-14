@@ -88,16 +88,24 @@ end
 
 -- Explosion stößt Plattformen weg (am stärksten nah an der Explosion; neben der Mitte: sie drehen sich).
 -- Läuft auf Server und Clients gleich, damit alle dieselbe Bewegung sehen.
-function GrenadePhysics.applyExplosion(sim: PlatformSim.Sim, shapes: { PlatformShapes.Shape }, position: Vector3)
+function GrenadePhysics.applyExplosion(
+	sim: PlatformSim.Sim,
+	shapes: { PlatformShapes.Shape },
+	position: Vector3,
+	pushRadius: number?,
+	impulse: number?
+)
+	local radius = pushRadius or Constants.GRENADE_PUSH_RADIUS
+	local maxImpulse = impulse or Constants.GRENADE_IMPULSE
 	for _, shape in shapes do
 		local frame = PlatformShapes.frame(shape)
 		local p = frame:PointToObjectSpace(position)
 		local distance, closest = PlatformShapes.closest(shape.halfLength, p)
 		local gap = math.max(distance - shape.radius, 0)
-		if gap < Constants.GRENADE_PUSH_RADIUS then
+		if gap < radius then
 			local localDirection = if distance > 0.001 then (closest - Vector3.new(p.X, p.Y, 0)) / distance else -Vector3.yAxis
 			local direction = frame:VectorToWorldSpace(localDirection)
-			local strength = Constants.GRENADE_IMPULSE * (1 - gap / Constants.GRENADE_PUSH_RADIUS)
+			local strength = maxImpulse * (1 - gap / radius)
 			local surfacePoint = frame:PointToWorldSpace(closest - localDirection * shape.radius)
 			PlatformSim.addImpulse(sim, shape.model, surfacePoint, direction * strength)
 		end

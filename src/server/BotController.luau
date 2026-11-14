@@ -34,6 +34,12 @@ export type Context = {
 	activeGrenades: () -> { Grenade },
 	placeThruster: (Participant, Model, Vector3, Vector3, string) -> boolean,
 	thrusterReady: (Participant) -> boolean,
+	swingSword: (Participant, Vector3) -> boolean,
+	swordReady: (Participant) -> boolean,
+	fireMissile: (Participant, Vector3, string) -> boolean,
+	missileReady: (Participant) -> boolean,
+	missileActive: (Participant) -> boolean,
+	setLoadout: (Participant, { string }) -> (),
 }
 
 type Bot = {
@@ -73,6 +79,14 @@ function BotController.add(): string?
 	nextBotNumber += 1
 	local names = Constants.BOT_NAMES
 	context.setBotName(id, names[((nextBotNumber - 2) % #names) + 1])
+
+	-- Zufällige Ausrüstung: 3 verschiedene Fähigkeiten
+	local pool = table.clone(Abilities.ORDER)
+	local loadout = {}
+	for _ = 1, math.min(Abilities.MAX_SLOTS, #pool) do
+		table.insert(loadout, table.remove(pool, random:NextInteger(1, #pool)))
+	end
+	context.setLoadout(id, loadout)
 	table.insert(bots, {
 		id = id,
 		head = nil,
@@ -176,7 +190,9 @@ local function planThrow(from: Vector3, aimPoint: Vector3, shapes: { PlatformSha
 end
 
 local function dashReady(bot: Bot, now: number): boolean
-	return now >= bot.dashReadyAt
+	local head = bot.head
+	local equipped = head and table.find(Abilities.parseLoadout(head:GetAttribute("Loadout")), "Dash")
+	return equipped ~= nil and now >= bot.dashReadyAt
 end
 
 local function dash(bot: Bot, motor: HeadMotor.Motor, now: number, direction: Vector3)
@@ -240,9 +256,38 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 
 	local toTarget = flat(target - position)
 	local distance = toTarget.Magnitude
+	local head = bot.head
+	local equipped = if head then Abilities.parseLoadout(head:GetAttribute("Loadout")) else {}
+
+	-- Schwert: Gegner nah genug -> zuschlagen
+	if
+		table.find(equipped, "Sword")
+		and context.swordReady(bot.id)
+		and distance < Constants.SWORD_RANGE + R
+	then
+		context.swingSword(bot.id, toTarget)
+	end
+
+	-- Lenkrakete: auf mittlere Entfernung abfeuern (lenkt dann selbst zum Ziel)
+	if
+		table.find(equipped, "Missile")
+		and not context.missileActive(bot.id)
+		and context.missileReady(bot.id)
+		and distance > 10
+		and distance < 45
+		and random:NextNumber() < 0.08
+	then
+		context.fireMissile(bot.id, toTarget, nextId(bot))
+	end
 
 	-- 3. Granate werfen
-	if context.grenadeReady(bot.id) and distance > 6 and distance < 40 and random:NextNumber() < Constants.BOT_THROW_CHANCE then
+	if
+		table.find(equipped, "Grenade")
+		and context.grenadeReady(bot.id)
+		and distance > 6
+		and distance < 40
+		and random:NextNumber() < Constants.BOT_THROW_CHANCE
+	then
 		local aimError = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(-1, 1), 0) * Constants.BOT_AIM_ERROR
 		local direction, charge, errorDistance = planThrow(position, target + aimError, shapes)
 		if direction and errorDistance < Constants.GRENADE_BLAST_RADIUS * 0.8 then
@@ -252,7 +297,7 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 
 	-- 4. Thruster unter sich (Chaos auf der eigenen Plattform, wenn der Gegner in der Nähe ist)
 	local shape = motor.attachedShape
-	if shape and normal and context.thrusterReady(bot.id) and distance < 18 and random:NextNumber() < 0.06 then
+	if shape and normal and table.find(equipped, "Thruster") and context.thrusterReady(bot.id) and distance < 18 and random:NextNumber() < 0.06 then
 		local root = shape.model.PrimaryPart
 		if root then
 			local frame = PlatformShapes.frame(shape)

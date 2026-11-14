@@ -202,6 +202,7 @@ local function placeWearables(head: Model, headFrame: CFrame, state: HeadState)
 	local scale = state.scale
 	local now = Workspace:GetServerTimeNow()
 	local topHeight = radius * scale.Y * 0.9
+	local backOffset = 0
 	local tilt = CFrame.Angles(0, 0, -state.facing * math.rad(10))
 
 	for slot = 1, Abilities.MAX_SLOTS do
@@ -216,6 +217,12 @@ local function placeWearables(head: Model, headFrame: CFrame, state: HeadState)
 				-- Band auf Augenhöhe, knapp hinter den Augen: die Augen schauen wie Brillengläser heraus
 				item.CFrame = headFrame * CFrame.new(0, radius * 0.25 * scale.Y, 0)
 				item.Size = Vector3.new(info.size.X * scale.X, info.size.Y, info.size.Z * scale.Z)
+			elseif info.wearAt == "Back" then
+				-- Hinter dem Kopf, schräg über die Schulter (gegen die Blickrichtung); mehrere nebeneinander
+				item.CFrame = headFrame
+					* CFrame.new(-state.facing * radius * (0.55 + backOffset), radius * 0.15, -radius * 0.55)
+					* CFrame.Angles(0, 0, state.facing * math.rad(35))
+				backOffset += 0.35
 			elseif info.wearAt == "Bottom" then
 				-- Band unten am Kopf (Schal, Gürtel)
 				item.CFrame = headFrame * CFrame.new(0, -radius * 0.5 * scale.Y, 0)

@@ -159,6 +159,18 @@ function Grenades.step(dt: number)
 	end
 end
 
+-- Granaten in einem Bogen zurückschlagen (Schwert). cosArc = Kosinus des halben Öffnungswinkels.
+function Grenades.deflect(origin: Vector3, direction: Vector3, range: number, cosArc: number)
+	for _, grenade in active do
+		local offset = Vector3.new(grenade.position.X - origin.X, grenade.position.Y - origin.Y, 0)
+		local distance = offset.Magnitude
+		if distance <= range and (distance < 0.5 or offset.Unit:Dot(direction) >= cosArc) then
+			grenade.velocity = direction * Constants.SWORD_DEFLECT_SPEED
+			context.events:FireAllClients("GrenadeDeflected", grenade.id, grenade.position, grenade.velocity)
+		end
+	end
+end
+
 -- Fliegende Granaten (z. B. damit Bots ausweichen können)
 function Grenades.getActive(): { Grenade }
 	return active

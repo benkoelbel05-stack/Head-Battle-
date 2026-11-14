@@ -59,6 +59,25 @@ Constants.GRENADE_IMPULSE = 800 -- Stoß auf Plattformen; Geschwindigkeitsänder
 Constants.GRENADE_COOLDOWN = 5
 Constants.GRENADE_COLOR = Color3.fromRGB(86, 104, 62)
 
+-- Schwert: Schlag im Bogen vor sich
+Constants.SWORD_RANGE = 5 -- Reichweite vom Kopf-Mittelpunkt (Studs)
+Constants.SWORD_ARC = 65 -- halber Öffnungswinkel des Schlags in Grad (65 = 130° Bogen)
+Constants.SWORD_COOLDOWN = 0.9
+Constants.SWORD_SWING_TIME = 0.14 -- Dauer der Schwung-Animation
+Constants.SWORD_DEFLECT_SPEED = 55 -- so schnell fliegt eine zurückgeschlagene Granate
+Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
+
+-- Lenkrakete: fliegt los und wird mit der Maus gelenkt
+Constants.MISSILE_SPEED = 32
+Constants.MISSILE_TURN_RATE = 3.2 -- maximale Drehung in rad/s (Wendigkeit)
+Constants.MISSILE_LIFETIME = 3.5
+Constants.MISSILE_RADIUS = 0.6
+Constants.MISSILE_BLAST_RADIUS = 5
+Constants.MISSILE_IMPULSE = 600 -- Stoß auf Plattformen bei der Explosion
+Constants.MISSILE_OWNER_GRACE = 0.4 -- so lange trifft die Rakete den Schützen selbst nicht
+Constants.MISSILE_COOLDOWN = 7
+Constants.MISSILE_COLOR = Color3.fromRGB(205, 60, 50)
+
 -- Plattform-Physik (eigene Feder, siehe PlatformSim.luau)
 -- Masse einer Plattform = Fläche (Studs²) * Dichte. Schwere Plattformen bewegen und drehen sich weniger.
 -- Bezug: eine Plattform 14 x 2 hat Masse ~28; die Kräfte sind darauf abgestimmt.
@@ -156,6 +175,7 @@ Constants.CAMERA_SMOOTHNESS = 5
 Constants.HEADS_FOLDER = "Heads"
 Constants.ARENA_FOLDER = "Arena"
 Constants.REMOTES_FOLDER = "Remotes"
+Constants.MISSILES_FOLDER = "Missiles"
 Constants.ROUND_STATE = "RoundState" -- Ordner in ReplicatedStorage mit Phase, Nachricht, Punkten
 Constants.EFFECTS_FOLDER = "Effects" -- nur lokal auf dem Client (Granaten, Explosionen)
 
