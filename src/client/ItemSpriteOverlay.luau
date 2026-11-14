@@ -171,7 +171,10 @@ end
 local SWING_ANGLES = { 1, 19, 42, 65, 88, 111, 99, 66 }
 local SWING_CENTER = 56
 local SWING_GRIP = 0.21 -- Anteil der Bildgröße: Bildmitte bis Griff
-local SWING_HAND = 0.5 -- Studs: Kopfmitte bis Griff
+local SWING_HAND = 0.8 -- Studs: Kopfmitte bis Griff (Parierstange schaut am Rand der Figur heraus)
+-- Hinter der Figur (die liegt ab SPRITE_Z + 0,3), aber vor den Plattformen (Vorderseite höchstens ~4,5):
+-- vorher lag das Schwert davor und der Griff verdeckte Gesicht und Körper der Figur
+local SWING_Z = Constants.SPRITE_Z - 0.3
 function ItemSpriteOverlay.swing(getOrigin: () -> Vector3, aimDegrees: number, size: number): boolean
 	if not valid("sword_swing") then return false end
 	local turn = aimDegrees - SWING_CENTER
@@ -180,7 +183,7 @@ function ItemSpriteOverlay.swing(getOrigin: () -> Vector3, aimDegrees: number, s
 		local blade = math.rad((SWING_ANGLES[shown] or SWING_CENTER) + turn)
 		local direction = Vector3.new(math.cos(blade), math.sin(blade), 0)
 		local center = getOrigin() + direction * (SWING_HAND + size * SWING_GRIP)
-		anchor.Position = Vector3.new(center.X, center.Y, Constants.SPRITE_Z + 1.9)
+		anchor.Position = Vector3.new(center.X, center.Y, SWING_Z)
 	end
 	place(1)
 	local success = animate(anchor, "sword_swing", size, function(_gui: BillboardGui, image: ImageLabel, shown: number)

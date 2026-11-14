@@ -70,7 +70,7 @@ Constants.SWORD_RANGE = 5 -- Reichweite vom Kopf-Mittelpunkt (Studs)
 Constants.SWORD_ARC = 65 -- halber Öffnungswinkel des Schlags in Grad (65 = 130° Bogen)
 Constants.SWORD_COOLDOWN = 0.9
 Constants.SWORD_SWING_TIME = 0.14 -- Dauer der Schwung-Animation
-Constants.SWORD_SPRITE_SIZE = 7 -- Bildgröße des gezeichneten Schwerts (Studs): Spitze reicht so etwa SWORD_RANGE weit
+Constants.SWORD_SPRITE_SIZE = 6.6 -- Bildgröße des gezeichneten Schwerts (Studs): Spitze reicht so etwa SWORD_RANGE weit
 Constants.SWORD_DEFLECT_SPEED = 55 -- so schnell fliegt eine zurückgeschlagene Granate
 Constants.SWORD_COLOR = Color3.fromRGB(196, 204, 214)
 
