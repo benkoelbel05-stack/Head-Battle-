@@ -36,6 +36,7 @@ type HeadState = {
 	animation: string, -- aktuelle Animation
 	animationStart: number,
 	onSurface: boolean,
+	onTop: boolean, -- klebt auf einer Oberseite (oder in der Luft)
 	spawnedAt: number,
 }
 
@@ -71,6 +72,7 @@ local function getState(head: Model): HeadState
 			animation = "respawn",
 			animationStart = os.clock(),
 			onSurface = false,
+			onTop = true,
 			spawnedAt = os.clock(),
 		}
 		-- Sprite statt Knetkugel, wenn möglich
@@ -155,6 +157,7 @@ local function stopMotionStep(body: BasePart, state: HeadState, frameTime: numbe
 
 	if state.sprite then
 		chooseAnimation(state, normal, localVelocity)
+		state.onTop = normal == nil or normal.Y > 0.5
 	end
 
 	-- Aufprall erkennen: eben noch schnell, jetzt deutlich langsamer, und eine Fläche ist da
@@ -245,7 +248,8 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 		local size = Constants.SPRITE_SIZE
 		sprite.part.Size = Vector3.new(size * scale.X, size * scale.Y, 0.05)
 		local front = Vector3.new(0, 0, Constants.SPRITE_Z - headFrame.Z)
-		sprite.part.CFrame = (headFrame + front) * CFrame.new(0, Constants.SPRITE_OFFSET_Y * scale.Y, 0)
+		local offset = if state.onTop then Constants.SPRITE_OFFSET_Y else Constants.SPRITE_OFFSET_Y_OTHER
+		sprite.part.CFrame = (headFrame + front) * CFrame.new(0, offset * scale.Y, 0)
 
 		local elapsed = os.clock() - state.animationStart
 		local count = SpriteAssets.frameCount(state.skin, state.animation)

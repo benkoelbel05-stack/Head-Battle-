@@ -127,7 +127,9 @@ Constants.SKINS = {
 -- Sprites (2D-Charaktere)
 Constants.USE_SPRITES = true -- false = 3D-Knetköpfe statt Sprites
 Constants.SPRITE_SIZE = 4.2 -- Kantenlänge des Sprite-Bilds in Studs (Kopf-Durchmesser ist 3)
-Constants.SPRITE_OFFSET_Y = -0.6 -- Bild verschieben (in Studs, + = weg von der Fläche), damit die Füße die Fläche berühren
+Constants.SPRITE_OFFSET_Y = -0.6 -- Bild verschieben (in Studs, + = weg von der Fläche): auf der Oberseite,
+-- die Füße stehen auf der hellen Oberkante
+Constants.SPRITE_OFFSET_Y_OTHER = -0.15 -- dasselbe an Wänden und Unterseiten (dort gibt es keine helle Kante)
 Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe), zum Spiegeln nötig
 Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
