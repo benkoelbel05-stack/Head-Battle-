@@ -11,6 +11,7 @@ local ArenaLayouts = require(ReplicatedStorage.Shared.ArenaLayouts)
 local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
 
 local TEXTURE_TILE = 6 -- so viele Studs ist eine Kachel der Flächen-Textur breit
+local PIXELS_PER_STUD = 20 -- Auflösung der Plattform-Bilder (höher = schärfer, aber mehr Speicher)
 
 local PLATFORM_DEPTH = 8 -- dicker als der Kopf, damit nichts durchrutscht
 
@@ -68,93 +69,71 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		table.insert(parts, cap)
 	end
 
-	-- Look wie im Vorbild: Die Plattform selbst ist der Rand (z. B. Gras rundherum). Davor liegt eine
-	-- etwas kleinere, flache Front mit der Flächen-Textur (Erde, Stein ...). So bleibt rundherum ein
-	-- gleichmäßiger Rand sichtbar. Die Front ist reine Optik: keine Kollision, keine Raycasts.
+	-- Optik als flaches, gestochen scharfes Bild vor dem (unsichtbaren) Körper: eine SurfaceGui mit
+	-- abgerundeten Flächen. So sind Rundungen wirklich rund (Zylinder-Teile wären eckig) und die
+	-- Texturen werden in fester Auflösung gezeichnet statt verschwommen gestreckt.
+	--   außen: Rand (z. B. Gras rundherum) mit dünner, dunkler Kontur
+	--   innen: Fläche (Erde, Stein ...), etwas kleiner
 	local topColor = platform.color:Lerp(Color3.new(1, 1, 1), Constants.PLATFORM_TOP_LIGHTEN)
-	for _, part in parts do
-		part.Color = topColor
-	end
-	local rimWidth = math.clamp(radius * 0.22, Constants.PLATFORM_TOP_DEPTH, 1.4)
-	local frontRadius = radius - rimWidth
-	local frontZ = depth3D / 2 + Constants.PLATFORM_FRONT_GAP
-	local frontCenter = center * CFrame.new(0, 0, frontZ)
-	local frontParts: { BasePart } = {}
-	if middleLength > 0.01 then
-		table.insert(
-			frontParts,
-			makePart("Front", Vector3.new(middleLength, frontRadius * 2, 0.1), frontCenter, platform.color, model)
-		)
-	end
-	for _, side in sides do
-		local cap = makePart(
-			"FrontCap",
-			Vector3.new(0.1, frontRadius * 2, frontRadius * 2),
-			frontCenter * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA,
-			platform.color,
-			model
-		)
-		cap.Shape = Enum.PartType.Cylinder
-		table.insert(frontParts, cap)
-	end
-	for _, front in frontParts do
-		front.CanCollide = false
-		front.CanQuery = false
-		front.CanTouch = false
-		front.CastShadow = false
-	end
-
-	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Rand-Textur (z. B. Gras) rundherum auf
-	-- die Plattform selbst. Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den
-	-- gedrehten Zylindern "Left".
 	local material = if platform.material then PlatformTextures[platform.material] else nil
 	local rimColor = if material then material.rim else topColor
-	local function addTexture(part: BasePart, id: number, tileU: number, tileV: number)
-		local texture = Instance.new("Texture")
-		texture.Texture = `rbxassetid://{id}`
-		texture.Face = if part:IsA("Part") and part.Shape == Enum.PartType.Cylinder
-			then Enum.NormalId.Left
-			else Enum.NormalId.Back
-		texture.StudsPerTileU = tileU
-		texture.StudsPerTileV = tileV
-		texture.Parent = part
-	end
-	if material then
-		for _, part in parts do
-			part.Color = rimColor
-			if material.rimTex then
-				addTexture(part, material.rimTex, TEXTURE_TILE * 0.7, TEXTURE_TILE * 0.7)
-			end
-		end
-		for _, front in frontParts do
-			addTexture(front, material.tex, TEXTURE_TILE, TEXTURE_TILE)
-		end
+	for _, part in parts do
+		part.Transparency = 1 -- nur noch für Physik-Lage und Raycasts
+		part.CastShadow = false
 	end
 
-	-- Kontur: dieselbe Form etwas größer, hinter der Vorderseite.
-	-- Sichtbar ist nur, was über die Plattform hinausragt. (Abstände so gewählt, dass keine Fläche
-	-- genau auf der Höhe einer anderen Plattform liegt, sonst flackert es.)
-	local bodyFront = depth3D / 2
-	local function silhouette(name: string, grow: number, offset: Vector2, z: number, color: Color3, transparency: number)
-		local base = center * CFrame.new(offset.X, offset.Y, z)
-		local size = height + grow * 2
-		local shapeParts: { BasePart } = {}
-		if middleLength > 0.01 then
-			table.insert(shapeParts, makePart(name, Vector3.new(middleLength, size, 0.1), base, color, model))
+	local rimWidth = math.clamp(radius * 0.22, Constants.PLATFORM_TOP_DEPTH, 1.4)
+	local frontZ = depth3D / 2 + Constants.PLATFORM_FRONT_GAP
+	local pad = 0.3 -- Platz für die Kontur
+	local pps = PIXELS_PER_STUD
+	local face = makePart("Face", Vector3.new(width + pad * 2, height + pad * 2, 0.05), center * CFrame.new(0, 0, frontZ), rimColor, model)
+	face.Transparency = 1
+	local frontParts: { BasePart } = { face }
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Back -- die Kamera schaut von +Z
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = pps
+	gui.LightInfluence = 0
+	pcall(function()
+		(gui :: any).MaxDistance = 1e6
+	end)
+	gui.Parent = face
+
+	local function tiled(parent: Instance, name: string, position: Vector2, size: Vector2, color: Color3, imageId: number?, tile: number): ImageLabel
+		local layer = Instance.new("ImageLabel")
+		layer.Name = name
+		layer.Position = UDim2.fromOffset(position.X * pps, position.Y * pps)
+		layer.Size = UDim2.fromOffset(size.X * pps, size.Y * pps)
+		layer.BackgroundColor3 = color
+		layer.BorderSizePixel = 0
+		if imageId then
+			layer.Image = `rbxassetid://{imageId}`
+			layer.ScaleType = Enum.ScaleType.Tile
+			layer.TileSize = UDim2.fromOffset(tile * pps, tile * pps)
 		end
-		for _, side in sides do
-			local cap = makePart(name, Vector3.new(0.1, size, size), base * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA, color, model)
-			cap.Shape = Enum.PartType.Cylinder
-			table.insert(shapeParts, cap)
-		end
-		for _, part in shapeParts do
-			part.Transparency = transparency
-			part.CastShadow = false
-			table.insert(frontParts, part)
-		end
+		local round = Instance.new("UICorner")
+		round.CornerRadius = UDim.new(0, math.min(size.X, size.Y) * pps / 2)
+		round.Parent = layer
+		layer.Parent = parent
+		return layer
 	end
-	-- Dünne, fast schwarze Kontur wie im Vorbild (ein versetzter Schatten sah wie eine doppelte Plattform aus)
-	silhouette("Outline", 0.12, Vector2.zero, bodyFront - 0.6, Color3.fromRGB(34, 26, 40), 0)
+	local outer = tiled(gui, "Rim", Vector2.new(pad, pad), Vector2.new(width, height), rimColor, if material then material.rimTex else nil, TEXTURE_TILE * 0.7)
+	local outline = Instance.new("UIStroke")
+	outline.Color = Color3.fromRGB(34, 26, 40)
+	outline.Thickness = math.max(2, math.floor(0.14 * pps))
+	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outline.Parent = outer
+	tiled(
+		outer,
+		"Surface",
+		Vector2.new(rimWidth, rimWidth),
+		Vector2.new(width - rimWidth * 2, height - rimWidth * 2),
+		platform.color,
+		if material then material.tex else nil,
+		TEXTURE_TILE
+	)
+
 	for _, decor in frontParts do
 		decor.CanCollide = false
 		decor.CanQuery = false

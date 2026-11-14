@@ -1,7 +1,9 @@
 --!strict
 -- Hintergrundbild im Spiel: eine Bildfläche weit hinter der Arena, die immer genau den ganzen
 -- Bildschirm ausfüllt (wächst mit dem Kamera-Zoom und folgt der Kamera).
--- Welches Bild, steht im RoundState-Attribut "Background" (day / sunset / night).
+-- Welches Bild, steht im RoundState-Attribut "Background" (ocean / day / sunset / night).
+-- "ocean" ist gezeichnet statt eines Bildes: Himmel mit Verlauf und Meer bis zum Horizont; die
+-- Wolken und das Glitzern davor kommen aus OceanScene.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -85,6 +87,53 @@ function BackgroundController.start()
 	image.ScaleType = Enum.ScaleType.Crop -- füllt die Fläche, ohne zu verzerren
 	image.Parent = gui
 
+	-- Meer-Hintergrund: Himmel (Verlauf) und ferne See bis zum Horizont, mit hellem Horizontstreifen
+	local HORIZON = 0.66 -- Anteil der Bildhöhe von oben
+	local ocean = Instance.new("Frame")
+	ocean.Name = "Ocean"
+	ocean.Size = UDim2.fromScale(1, 1)
+	ocean.BackgroundTransparency = 1
+	ocean.Visible = false
+	ocean.Parent = gui
+	local sky = Instance.new("Frame")
+	sky.Name = "Sky"
+	sky.Size = UDim2.fromScale(1, HORIZON)
+	sky.BackgroundColor3 = Color3.new(1, 1, 1)
+	sky.BorderSizePixel = 0
+	sky.Parent = ocean
+	local skyGradient = Instance.new("UIGradient")
+	skyGradient.Rotation = 90
+	skyGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(46, 128, 226)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(96, 170, 240)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(184, 222, 250)),
+	})
+	skyGradient.Parent = sky
+	local sea = Instance.new("Frame")
+	sea.Name = "Sea"
+	sea.Position = UDim2.fromScale(0, HORIZON)
+	sea.Size = UDim2.fromScale(1, 1 - HORIZON)
+	sea.BackgroundColor3 = Color3.new(1, 1, 1)
+	sea.BorderSizePixel = 0
+	sea.Parent = ocean
+	local seaGradient = Instance.new("UIGradient")
+	seaGradient.Rotation = 90
+	seaGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 190, 240)),
+		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(56, 150, 226)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(28, 104, 196)),
+	})
+	seaGradient.Parent = sea
+	local horizon = Instance.new("Frame")
+	horizon.Name = "HorizonGlow"
+	horizon.AnchorPoint = Vector2.new(0, 0.5)
+	horizon.Position = UDim2.fromScale(0, HORIZON)
+	horizon.Size = UDim2.fromScale(1, 0.006)
+	horizon.BackgroundColor3 = Color3.fromRGB(235, 248, 255)
+	horizon.BackgroundTransparency = 0.35
+	horizon.BorderSizePixel = 0
+	horizon.Parent = ocean
+
 	-- Bild setzen. Die alte einfarbige Wand bleibt sichtbar, bis das Bild wirklich geladen ist.
 	local function setWall(hidden: boolean)
 		local arena = Workspace:FindFirstChild(Constants.ARENA_FOLDER)
@@ -98,6 +147,14 @@ function BackgroundController.start()
 		requestId += 1
 		local myRequest = requestId
 		local key = roundState:GetAttribute("Background")
+		-- Meer: gezeichnet, nichts zu laden
+		if key == "ocean" or key == nil then
+			ocean.Visible = true
+			image.Image = ""
+			setWall(true)
+			return
+		end
+		ocean.Visible = false
 		local id = (if typeof(key) == "string" then ArenaAssets[key] else nil) or ArenaAssets.day
 		if not id then
 			image.Image = ""
@@ -128,26 +185,14 @@ function BackgroundController.start()
 	Workspace.ChildAdded:Connect(function(child)
 		if child.Name == Constants.ARENA_FOLDER then
 			task.defer(function()
-				setWall(image.IsLoaded and image.Image ~= "")
+				setWall(ocean.Visible or (image.IsLoaded and image.Image ~= ""))
 			end)
 		end
 	end)
 	refreshImage()
 
-	-- Leichte Tiefenunschärfe: Arena scharf, Hintergrund weich (wirkt plastischer)
-	local depthOfField = Instance.new("DepthOfFieldEffect")
-	depthOfField.Name = "ClayBattleDepth"
-	depthOfField.NearIntensity = 0
-	depthOfField.FarIntensity = 0.35
-	depthOfField.InFocusRadius = 30
-	depthOfField.Parent = game:GetService("Lighting")
-	-- Grafikqualität aus den Optionen: "Niedrig" schaltet die Unschärfe ab
-	local player = game:GetService("Players").LocalPlayer
-	local function applyGraphics()
-		depthOfField.Enabled = player:GetAttribute("ClayBattle_graphics") ~= "Niedrig"
-	end
-	player:GetAttributeChangedSignal("ClayBattle_graphics"):Connect(applyGraphics)
-	applyGraphics()
+	-- (Keine Tiefenunschärfe: Roblox kann höchstens 200 Studs scharf stellen, die Kamera steht aber
+	-- weiter weg – dadurch wurde die ganze Arena verschwommen.)
 
 	-- Nach der Kamera (Camera+1)
 	RunService:BindToRenderStep("ClayBattleBackground", Enum.RenderPriority.Camera.Value + 2, function()
@@ -156,7 +201,6 @@ function BackgroundController.start()
 			return
 		end
 		local position = camera.CFrame.Position
-		depthOfField.FocusDistance = math.max(position.Z - Constants.PLANE_Z, 1)
 		local distance = math.max(position.Z - BACKGROUND_Z, 1)
 		local height = 2 * distance * math.tan(math.rad(camera.FieldOfView) / 2) * OVERSIZE
 		local viewport = camera.ViewportSize
@@ -165,6 +209,8 @@ function BackgroundController.start()
 		if math.abs(current.Y - height) > current.Y * RESIZE_THRESHOLD or math.abs(current.X - height * aspect) > current.X * RESIZE_THRESHOLD then
 			-- etwas Reserve, damit kleine Zoom-Änderungen kein neues Zeichnen auslösen
 			part.Size = Vector3.new(height * aspect * 1.05, height * 1.05, 0.1)
+			-- Zeichenfläche im selben Seitenverhältnis, sonst würden Bild und Verläufe verzerrt
+			gui.CanvasSize = Vector2.new(math.floor(900 * aspect), 900)
 		end
 		part.CFrame = CFrame.new(position.X, position.Y, BACKGROUND_Z)
 	end)

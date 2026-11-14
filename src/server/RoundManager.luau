@@ -264,7 +264,7 @@ function RoundManager.init(roundContext: Context)
 	scoresFolder.Name = "Scores"
 	scoresFolder.Parent = stateFolder
 	stateFolder.Parent = ReplicatedStorage
-	stateFolder:SetAttribute("Background", "day")
+	stateFolder:SetAttribute("Background", "ocean")
 	setPhase("Waiting", "")
 
 	task.spawn(function()

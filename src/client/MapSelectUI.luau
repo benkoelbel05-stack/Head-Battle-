@@ -18,8 +18,8 @@ local WHITE = Color3.fromRGB(255, 246, 224)
 local PURPLE = Color3.fromRGB(85, 49, 134)
 local CREAM = Color3.fromRGB(255, 242, 219)
 
-local BACKGROUND_NAMES: { [string]: string } = { day = "Tag", sunset = "Sonnenuntergang", night = "Nacht" }
-local BACKGROUND_ORDER = { "day", "sunset", "night" }
+local BACKGROUND_NAMES: { [string]: string } = { ocean = "Meer", day = "Tag", sunset = "Sonnenuntergang", night = "Nacht" }
+local BACKGROUND_ORDER = { "ocean", "day", "sunset", "night" }
 
 function MapSelectUI.start()
 	local player = Players.LocalPlayer
@@ -105,6 +105,8 @@ function MapSelectUI.start()
 		mapName.Text = string.upper(if layout then layout.name else mapKey)
 		local id = ArenaAssets[backgroundKey]
 		preview.Image = if id then `rbxassetid://{id}` else ""
+		-- Meer hat kein Bild (gezeichnet): Vorschau in Meerblau
+		preview.BackgroundColor3 = if backgroundKey == "ocean" then Color3.fromRGB(56, 150, 226) else Color3.fromRGB(40, 30, 60)
 		backgroundName.Text = BACKGROUND_NAMES[backgroundKey] or backgroundKey
 	end
 

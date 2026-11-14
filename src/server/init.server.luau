@@ -90,7 +90,7 @@ local function loadArena(name: string)
 end
 
 -- Karte und Hintergrund für die nächste Runde auslosen (nicht zweimal hintereinander dasselbe)
-local BACKGROUNDS = { "day", "sunset", "night" }
+local BACKGROUNDS = { "ocean", "day", "sunset", "night" }
 local function pickArena(currentBackground: string?): (string, string)
 	local maps = {}
 	for name in ArenaLayouts do

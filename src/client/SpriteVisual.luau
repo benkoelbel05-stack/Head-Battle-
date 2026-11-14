@@ -22,7 +22,10 @@ export type Sprite = {
 
 -- Spätestens nach dieser Zeit wird auf das neue Bild gewechselt, auch wenn Roblox es noch nicht als
 -- geladen meldet (bei unsichtbaren Ebenen meldet Roblox "geladen" teils gar nicht)
-local MAX_WAIT = 0.1
+local MAX_WAIT = 0.6
+-- Die hintere Ebene ist fast (nicht ganz) unsichtbar: nur dann lädt Roblox ihr Bild zuverlässig
+-- und meldet "geladen". So wird nie auf ein noch leeres Bild umgeschaltet (Figur kurz unsichtbar).
+local BACK_TRANSPARENCY = 0.985
 
 local SpriteVisual = {}
 
@@ -59,7 +62,7 @@ function SpriteVisual.create(name: string, parent: Instance): Sprite
 	end
 	local image = makeLayer()
 	local back = makeLayer()
-	back.ImageTransparency = 1
+	back.ImageTransparency = BACK_TRANSPARENCY
 
 	part.Parent = parent
 	return { part = part, image = image, back = back, wanted = "", pendingSince = 0, flip = false }
@@ -94,14 +97,16 @@ function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
 		sprite.pendingSince = os.clock()
 	end
 	sprite.wanted = wanted
-	-- ... und tauschen, sobald es geladen ist (spätestens nach MAX_WAIT)
 	local waited = os.clock() - sprite.pendingSince
-	if sprite.back.IsLoaded or waited >= MAX_WAIT or sprite.image.Image == "" then
+	-- ... und tauschen, sobald es geladen ist. Bis dahin bleibt das alte Bild stehen (lieber kurz
+	-- eingefroren als unsichtbar), höchstens MAX_WAIT lang – oder sofort, wenn es noch gar keins gibt.
+	local frontReady = sprite.image.Image ~= "" and sprite.image.IsLoaded
+	if sprite.back.IsLoaded or not frontReady or waited >= MAX_WAIT then
 		local front = sprite.image
 		sprite.image = sprite.back
 		sprite.back = front
 		sprite.image.ImageTransparency = 0
-		sprite.back.ImageTransparency = 1
+		sprite.back.ImageTransparency = BACK_TRANSPARENCY
 	end
 end
 

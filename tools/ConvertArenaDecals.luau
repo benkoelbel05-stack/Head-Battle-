@@ -9,22 +9,17 @@
 local InsertService = game:GetService("InsertService")
 
 local DECALS = {
-	ability_dash = 133589046424620,
-	ability_grenade = 115182418895603,
-	ability_missile = 133740377680607,
-	ability_sword = 70909575194183,
-	ability_thruster = 113745614423780,
-	icon_arrow_left = 72288701381741,
-	icon_arrow_right = 136796167336045,
-	icon_check_cream = 120038562063595,
-	icon_minus = 71367765696394,
-	icon_mouse = 119228889141929,
-	icon_play_triangle = 84028554424940,
-	icon_plus = 113016617157508,
-	bot_control_bar_static = 106382209174968,
-	button_ready_orange = 115094442191254,
-	button_spielen = 110760932849666,
-	player_slot_empty = 124154352933672,
+	wolken_links = 130289073994565,
+	wolken_rechts = 126053989467059,
+	wolken_fern_gesamt = 75855415667887,
+	wolke_klein_01 = 73531826914109,
+	wolke_klein_02 = 114695650889992,
+	wolke_klein_03 = 79818936500332,
+	wolke_klein_04 = 93198978993068,
+	wolke_klein_05 = 114974578305828,
+	wolke_klein_06 = 103860179237170,
+	wolke_klein_07 = 103403569038967,
+	wolke_klein_08 = 131678906702333,
 }
 
 local names = {}
