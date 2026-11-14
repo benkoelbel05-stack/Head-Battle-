@@ -6,7 +6,7 @@
 
 return {
 	menu_background = 102278082298675,
-	settings_background = 90513161932618,
+	settings_background = 90513161932618, -- nicht benutzt (Optionen liegen über dem Titelbild)
 	logo_clay_battle = 108060134585257,
 	character_red_sword = 119822554427267,
 	character_blue_jump = 90465783794271,
@@ -16,7 +16,7 @@ return {
 	button_options = 87472846432339,
 	button_shop = 137758145357653,
 	button_exit = 73354850763082,
-	button_start_prompt = 137425263851321,
+	button_start_prompt = 137425263851321, -- nicht benutzt (Knopf entfernt)
 	arena_sunset = 73285968060700,
 	arena_night = 85048047291829,
 } :: { [string]: number }

@@ -1,8 +1,8 @@
 --!strict
 -- Hauptmenü und Optionen (übernommen aus ClayBattleMenu_Code, angepasst an das Projekt).
 --   * Titelbild mit wippenden Knetfiguren, Logo und Knöpfen (Hover-Zoom, Klick-Squash, Ein-/Ausblenden)
---   * "Spielen" / "Zum Starten klicken" -> Ausrüstungs-Wahl (StartScreen) -> JoinGame
---   * "Optionen" -> Einstellungen (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
+--   * "Spielen" -> Ausrüstungs-Wahl (StartScreen) -> JoinGame
+--   * "Optionen" -> Einstellungen über dem leicht abgedunkelten Titelbild (Musik, Soundeffekte, Bildschirmwackeln, Vibration, Grafik)
 --   * "Shop" -> noch kein Shop im Spiel: kurzer Hinweis
 --   * "Verlassen" -> Nachfrage, dann Spiel verlassen
 -- Bilder kommen aus MenuAssetIds. Fehlt eine ID (0), gibt es einen Ersatz, damit das Menü benutzbar bleibt.
@@ -30,7 +30,6 @@ local COLORS: { [string]: Color3 } = {
 	options = Color3.fromRGB(30, 116, 238),
 	shop = Color3.fromRGB(251, 183, 10),
 	exit = Color3.fromRGB(222, 44, 43),
-	start_prompt = Color3.fromRGB(116, 35, 180),
 }
 
 -- Ersatz-Figuren aus den Spiel-Sprites, solange die Menü-Figuren keine ID haben
@@ -126,7 +125,7 @@ local function boxButton(parent: Instance, name: string, text: string, rect: { n
 end
 
 -- Ersatz-Hintergrund ohne Bild: Himmel mit Verlauf und eine Wiese
-local function fallbackBackground(parent: GuiObject, night: boolean)
+local function fallbackBackground(parent: GuiObject)
 	local sky = Instance.new("Frame")
 	sky.Name = "FallbackSky"
 	sky.Size = UDim2.fromScale(1, 1)
@@ -136,11 +135,9 @@ local function fallbackBackground(parent: GuiObject, night: boolean)
 	sky.Parent = parent
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
-	gradient.Color = if night
-		then ColorSequence.new(Color3.fromRGB(40, 36, 92), Color3.fromRGB(86, 58, 140))
-		else ColorSequence.new(Color3.fromRGB(70, 160, 240), Color3.fromRGB(170, 220, 255))
+	gradient.Color = ColorSequence.new(Color3.fromRGB(70, 160, 240), Color3.fromRGB(170, 220, 255))
 	gradient.Parent = sky
-	if not night then
+	do
 		local meadow = Instance.new("Frame")
 		meadow.Name = "FallbackMeadow"
 		meadow.Position = UDim2.fromScale(-0.1, 0.82)
@@ -212,7 +209,7 @@ function MainMenu.start()
 
 	local background = picture(titleGroup, "menu_background", -20, -13, W + 40, H + 26, 1)
 	if background.Image == "" then
-		fallbackBackground(titleGroup, false)
+		fallbackBackground(titleGroup)
 	end
 
 	local logo = picture(titleGroup, "logo_clay_battle", 452, 0, 746, 388, 3)
@@ -337,10 +334,16 @@ function MainMenu.start()
 	optionsGroup.Visible = false
 	optionsGroup.ZIndex = 15
 	optionsGroup.Parent = canvas
-	local optionsBackground = picture(optionsGroup, "settings_background", 0, 0, W, H, 1)
-	if optionsBackground.Image == "" then
-		fallbackBackground(optionsGroup, true)
-	end
+	-- Kein eigenes Bild: das Titelbild bleibt dahinter sichtbar, nur leicht abgedunkelt
+	local dim = Instance.new("Frame")
+	dim.Name = "Dim"
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BorderSizePixel = 0
+	dim.BackgroundColor3 = Color3.fromRGB(20, 16, 40)
+	dim.BackgroundTransparency = 0.35
+	dim.Active = true -- Klicks gehen nicht an die Knöpfe dahinter
+	dim.ZIndex = 1
+	dim.Parent = optionsGroup
 
 	textLabel(optionsGroup, "Heading", "OPTIONEN", { 574, 115, 510, 89 }, 65)
 
@@ -443,10 +446,10 @@ function MainMenu.start()
 		optionsGroup.Visible = true
 		optionsGroup.Position = at(0, 34)
 		optionsGroup.GroupTransparency = 1
-		tween(titleGroup, 0.22, { GroupTransparency = 1 })
+		titleGroup.Interactable = false
+		tween(titleGroup, 0.22, { GroupTransparency = 0.15 })
 		tween(optionsGroup, 0.32, { GroupTransparency = 0, Position = at(0, 0) }, Enum.EasingStyle.Quart)
 		task.delay(0.33, function()
-			titleGroup.Visible = false
 			transitioning = false
 		end)
 	end
@@ -457,11 +460,11 @@ function MainMenu.start()
 		end
 		transitioning = true
 		titleGroup.Visible = true
-		titleGroup.GroupTransparency = 1
 		tween(optionsGroup, 0.2, { GroupTransparency = 1, Position = at(0, 34) })
 		tween(titleGroup, 0.32, { GroupTransparency = 0 })
 		task.delay(0.33, function()
 			optionsGroup.Visible = false
+			titleGroup.Interactable = true
 			transitioning = false
 		end)
 	end
@@ -558,7 +561,6 @@ function MainMenu.start()
 	makeButton("options", { 618, 495, 411, 91 }, showOptions, "⚙ Optionen")
 	makeButton("shop", { 617, 589, 413, 97 }, showShop, "Shop")
 	makeButton("exit", { 617, 683, 412, 102 }, exitGame, "Verlassen")
-	makeButton("start_prompt", { 580, 810, 487, 88 }, playGame, "Zum Starten klicken")
 
 	-------------------------------------------------------------------------------------------------
 	-- Animation (nur solange das Titelbild offen ist)
