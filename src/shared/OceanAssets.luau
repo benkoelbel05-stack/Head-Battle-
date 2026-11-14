@@ -20,6 +20,6 @@ return {
 		97115192643654,
 		106373777785545,
 	},
-	water_base = 0, -- ocean_water_base: Wasser-Textur, zieht langsam
-	water_shimmer = 0, -- ocean_water_shimmer: Glanz darüber, zieht gegenläufig und schimmert
+	water_base = 79667126459702, -- ocean_water_base: Wasser-Textur, zieht langsam
+	water_shimmer = 138029861368661, -- ocean_water_shimmer: Glanz darüber, zieht gegenläufig und schimmert
 }
