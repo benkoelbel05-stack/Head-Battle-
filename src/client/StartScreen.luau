@@ -8,7 +8,7 @@
 --     und der Knopf SPIELEN (im Spiel: übernehmen); oben links ZURÜCK ins Hauptmenü
 --   * rechts: die anderen Teilnehmer als Tafeln (Bots in ihrer Farbe), freie Plätze "Warte auf Spieler"
 --   * unten rechts: Bot-Anzahl (– Zahl +) und Bot-Stärke (◀ NORMAL ▶)
--- Das gerade gezeigte Abzeichen wird größer und bekommt einen goldenen Schimmer.
+-- Das gerade gezeigte Abzeichen wird etwas größer (ohne Rand oder Schimmer).
 -- Alle Positionen im Entwurfsraster 1280 x 720 (skaliert mit der Bildschirmgröße).
 
 local Players = game:GetService("Players")
@@ -64,7 +64,7 @@ local SLOT_BADGE = 72 -- Abzeichen in den eigenen Slots (schmalere Spalte)
 local BADGE_FILL = 1.2
 local BADGE_GROW = 1.15 -- so viel größer wird das gerade gezeigte Abzeichen
 
-type Badge = { holder: Frame, image: ImageLabel, emoji: TextLabel, glow: UIStroke }
+type Badge = { holder: Frame, image: ImageLabel, emoji: TextLabel }
 type Slot = { badge: Badge, left: TextButton, right: TextButton }
 
 ---------------------------------------------------------------------------------------------------
@@ -205,8 +205,6 @@ local function makeBadge(parent: GuiObject): Badge
 	holder.BackgroundTransparency = 1
 	holder.Parent = parent
 	corner(holder, 999)
-	local glow = stroke(holder, GOLD, 5)
-	glow.Transparency = 1
 	local image = Instance.new("ImageLabel")
 	image.AnchorPoint = Vector2.new(0.5, 0.5)
 	image.Position = UDim2.fromScale(0.5, 0.5)
@@ -220,7 +218,7 @@ local function makeBadge(parent: GuiObject): Badge
 	emoji.TextScaled = true
 	emoji.Font = FONT
 	emoji.Parent = holder
-	return { holder = holder, image = image, emoji = emoji, glow = glow }
+	return { holder = holder, image = image, emoji = emoji }
 end
 
 local function setBadge(badge: Badge, id: string)
@@ -233,7 +231,7 @@ local function setBadge(badge: Badge, id: string)
 	badge.holder.BackgroundColor3 = info.color
 end
 
--- Weich auf normal oder groß (mit Schimmer) bringen – nur wenn sich das Ziel ändert
+-- Weich auf normal oder groß bringen – nur wenn sich das Ziel ändert
 local function highlight(badge: Badge, on: boolean)
 	if badge.holder:GetAttribute("On") == on then
 		return
@@ -242,7 +240,6 @@ local function highlight(badge: Badge, on: boolean)
 	local size = if on then BADGE_GROW else 1
 	local info = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	TweenService:Create(badge.holder, info, { Size = UDim2.fromScale(size, size) }):Play()
-	TweenService:Create(badge.glow, TweenInfo.new(0.18), { Transparency = if on then 0.15 else 1 }):Play()
 end
 
 local function skinFromColor(color: unknown): string?
