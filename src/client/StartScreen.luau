@@ -3,7 +3,7 @@
 -- Öffnet sich nach "Spielen" im Hauptmenü; im Spiel über den Knopf "AUSRÜSTUNG" unten links.
 --   * oben: lila Titelleiste "AUSRÜSTUNG"
 --   * links (blaue Tafel): alle Fähigkeiten; Name oben, Erklärung unten (unter der Maus bzw. gewählter Slot)
---   * Mitte (orange Tafel): eigene 3 Slots mit Taste davor (LM/MR/RM), Pfeile am gewählten Slot,
+--   * Mitte (orange Tafel): eigene 3 Slots (mittig, ohne Tasten-Beschriftung), Pfeile am gewählten Slot,
 --     darunter die eigene Figur und der Knopf SPIELEN (im Spiel: übernehmen)
 --   * rechts: die anderen Teilnehmer als Tafeln (Bots in ihrer Farbe), freie Plätze "Warte auf Spieler"
 --   * unten rechts: Bot-Anzahl (– Zahl +) und Bot-Stärke (◀ NORMAL ▶)
@@ -52,7 +52,6 @@ local ORANGE = Color3.fromRGB(236, 108, 51)
 local GOLD = Color3.fromRGB(255, 214, 90)
 local GRASS = Color3.fromRGB(110, 210, 60)
 local GRASS_EDGE = Color3.fromRGB(52, 140, 40)
-local SLOT_KEYS = { "LM", "MR", "RM" }
 
 local BADGE = 92 -- Durchmesser eines Fähigkeiten-Abzeichens (Liste links)
 local SLOT_BADGE = 72 -- Abzeichen in den eigenen Slots (schmalere Spalte)
@@ -403,16 +402,15 @@ function StartScreen.start()
 	local column = panel(content, "Player", UIAssets.panel_player_orange, ORANGE, 397, 96, 229, 581, 100)
 	local slotHeader = label(column, "Header", "", 14, 42, 201, 44, 36)
 
-	-- Maße der Spalte (229 breit): Taste links innen (16-52), Abzeichen mittig rechts davon (Mitte 132),
-	-- Pfeile direkt neben dem Abzeichen (berühren es nur knapp), alles innerhalb des Cremerands
+	-- Maße der Spalte (229 breit): Abzeichen mittig, Pfeile links und rechts mit etwas Abstand,
+	-- alles innerhalb des Cremerands. Keine Tasten-Beschriftung (LM/MR/RM) mehr.
 	local slots: { Slot } = {}
 	local rows = { 140, 234, 328 }
-	local SLOT_X = 132
-	local ARROW_OFFSET = 58
+	local SLOT_X = 114.5 -- Mitte der Spalte
+	local ARROW_OFFSET = 68 -- aktives Abzeichen ist ~97 breit: so bleiben gut 5 Pixel Luft zum Pfeil
 	local ARROW_SIZE = 28
 	for index = 1, Abilities.MAX_SLOTS do
 		local y = rows[index]
-		label(column, `Key{index}`, SLOT_KEYS[index], 16, y - 13, 36, 26, 21)
 		local cell = button(column, `Slot{index}`, SLOT_X, y, SLOT_BADGE, SLOT_BADGE)
 		local badge = makeBadge(cell)
 		local left = iconButton(column, `Left{index}`, SLOT_X - ARROW_OFFSET, y, ARROW_SIZE, UIAssets.icon_arrow_left, "◀")
