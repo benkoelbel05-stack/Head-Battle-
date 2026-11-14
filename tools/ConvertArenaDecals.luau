@@ -20,6 +20,8 @@ local DECALS = {
 	wolke_klein_06 = 103860179237170,
 	wolke_klein_07 = 103403569038967,
 	wolke_klein_08 = 131678906702333,
+	ocean_water_base = 128025805325965,
+	ocean_water_shimmer = 116982427595679,
 }
 
 local names = {}

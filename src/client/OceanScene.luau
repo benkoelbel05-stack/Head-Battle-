@@ -4,8 +4,10 @@
 --     Wolkenbänke links (driften nach rechts) und rechts (driften nach links). Jede Wolke schwebt
 --     zusätzlich minimal auf und ab. Verlässt eine Wolke das Bild, taucht sie außerhalb auf der
 --     anderen Seite wieder auf – nie mitten im Bild.
---   * Wasser: helle Wellenbänder ziehen langsam waagerecht, Glitzerpunkte blenden weich ein und aus,
---     die Wasserlinie hebt und senkt sich kaum merklich.
+--   * Wasser: Wasser-Textur und Glanz-Textur ziehen langsam gegeneinander (Texturen auf der
+--     Wasserfläche, nur ihr Versatz wird bewegt – kein Neuzeichnen), der Glanz schimmert sanft;
+--     helle Wellenbänder ziehen waagerecht, Glitzerpunkte blenden weich ein und aus, die Wasserlinie
+--     hebt und senkt sich kaum merklich.
 --
 -- Technik: Jede Wolke ist eine flache Fläche mit einem festen Bild (SurfaceGui). Bewegt wird nur die
 -- Fläche, das Bild wird nicht neu gezeichnet – das ist deutlich schneller als bewegte ImageLabels in
@@ -191,6 +193,32 @@ function OceanScene.start()
 	-- Animation
 	---------------------------------------------------------------------------------------------
 
+	-- Texturen auf der Wasserfläche der aktuellen Arena (bei jeder neuen Karte neu angelegt)
+	local waterBase: Texture? = nil
+	local waterShimmer: Texture? = nil
+	local texturedWater: BasePart? = nil
+	local function textureWater(water: BasePart)
+		if texturedWater == water then
+			return
+		end
+		texturedWater = water
+		local function make(id: number, tileU: number, tileV: number, transparency: number): Texture?
+			if id == 0 then
+				return nil
+			end
+			local texture = Instance.new("Texture")
+			texture.Texture = `rbxassetid://{id}`
+			texture.Face = Enum.NormalId.Back -- zur Kamera
+			texture.StudsPerTileU = tileU
+			texture.StudsPerTileV = tileV
+			texture.Transparency = transparency
+			texture.Parent = water
+			return texture
+		end
+		waterBase = make(OceanAssets.water_base, 48, 24, 0.15)
+		waterShimmer = make(OceanAssets.water_shimmer, 36, 18, 0.45)
+	end
+
 	local function backgroundIsOcean(): boolean
 		local key = roundState:GetAttribute("Background")
 		return key == "ocean" or key == nil
@@ -255,6 +283,17 @@ function OceanScene.start()
 				fx.part.Transparency = 1
 			end
 			return
+		end
+		textureWater(water)
+		local base = waterBase
+		if base then
+			base.OffsetStudsU = (clock * 0.6) % base.StudsPerTileU
+			base.OffsetStudsV = math.sin(clock * 0.25) * 0.4
+		end
+		local shimmer = waterShimmer
+		if shimmer then
+			shimmer.OffsetStudsU = (-clock * 1.0) % shimmer.StudsPerTileU
+			shimmer.Transparency = 0.45 + 0.15 * math.sin(clock * 0.5)
 		end
 		local fxZ = water.Position.Z + 0.12
 		local center, viewWidth = view(camera, fxZ)
