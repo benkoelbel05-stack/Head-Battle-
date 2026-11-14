@@ -31,6 +31,9 @@ type Missile = {
 	firedAt: number,
 	direction: Vector3, -- nur für Bots (Server lenkt)
 	speed: number, -- nur für Bots
+	-- nur für Bots: eigene Position. Die Physik schiebt das Teil zwischen zwei Schritten selbst um
+	-- Geschwindigkeit * dt weiter; ab part.Position weiterzurechnen hieß doppeltes Tempo.
+	position: Vector3,
 }
 
 export type Context = {
@@ -170,13 +173,21 @@ function Missiles.fire(participant: Participant, direction: Vector3, id: string)
 		part:SetNetworkOwner(participant :: Player) -- Spieler lenken selbst, ohne Verzögerung
 	end
 
-	table.insert(active, { id = missileId, owner = participant, part = part, firedAt = now, direction = flat, speed = Constants.MISSILE_START_SPEED })
+	table.insert(active, {
+		id = missileId,
+		owner = participant,
+		part = part,
+		firedAt = now,
+		direction = flat,
+		speed = Constants.MISSILE_START_SPEED,
+		position = Vector3.new(start.X, start.Y, Constants.PLANE_Z),
+	})
 	return true
 end
 
 -- Bots: Rakete zum nächsten Gegner lenken
 local function steerBotMissile(missile: Missile, dt: number)
-	local position = missile.part.Position
+	local position = missile.position
 	local target: Vector3? = nil
 	local best = math.huge
 	for participant, head in context.getHeads() do
@@ -208,6 +219,7 @@ local function steerBotMissile(missile: Missile, dt: number)
 	missile.direction = direction
 	missile.speed = math.min(missile.speed + Constants.MISSILE_ACCELERATION * dt, Constants.MISSILE_MAX_SPEED)
 	local nextPosition = Vector3.new(position.X, position.Y, Constants.PLANE_Z) + direction * missile.speed * dt
+	missile.position = nextPosition
 	missile.part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
 	missile.part.AssemblyLinearVelocity = direction * missile.speed
 end

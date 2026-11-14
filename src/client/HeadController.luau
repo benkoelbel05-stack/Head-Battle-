@@ -75,6 +75,9 @@ local actionCounter = 0 -- für eindeutige IDs von Thrustern und Granaten
 -- Eigene Lenkraketen: aktuelle Flugrichtung und Tempo pro Rakete
 local missileDirections: { [BasePart]: Vector3 } = {}
 local missileSpeeds: { [BasePart]: number } = {}
+-- Eigene Position der Rakete: Die Physik schiebt das (nicht verankerte) Teil zwischen zwei Bildern
+-- selbst um Geschwindigkeit * dt weiter. Ab part.Position weiterzurechnen hieß: doppeltes Tempo.
+local missilePositions: { [BasePart]: Vector3 } = {}
 local missileSeenAt: { [BasePart]: number } = {} -- wann die eigene Rakete aufgetaucht ist (Schutz für einen selbst)
 local missileDone: { [BasePart]: boolean } = {} -- eingeschlagen, wartet nur noch aufs Verschwinden
 local missileHeldSlot: number? = nil -- solange diese Taste gehalten wird, lenkt man die Rakete
@@ -418,6 +421,7 @@ local function step(rawDt: number)
 		if not part.Parent then
 			missileDirections[part] = nil
 			missileSpeeds[part] = nil
+			missilePositions[part] = nil
 			missileSeenAt[part] = nil
 			missileDone[part] = nil
 		end
@@ -427,7 +431,7 @@ local function step(rawDt: number)
 			if part:IsA("BasePart") and part:GetAttribute("OwnerKey") == myKey and not missileDone[part] then
 				missileSeenAt[part] = missileSeenAt[part] or os.clock()
 				local direction = missileDirections[part] or part.CFrame.RightVector
-				local position = Vector3.new(part.Position.X, part.Position.Y, Constants.PLANE_Z)
+				local position = missilePositions[part] or Vector3.new(part.Position.X, part.Position.Y, Constants.PLANE_Z)
 				local wanted: Vector3? = nil
 				local mouseAim = freeAim()
 				if not steering then
@@ -458,6 +462,7 @@ local function step(rawDt: number)
 				speed = math.min(speed + Constants.MISSILE_ACCELERATION * dt, Constants.MISSILE_MAX_SPEED)
 				missileSpeeds[part] = speed
 				local nextPosition = position + direction * speed * dt
+				missilePositions[part] = nextPosition
 				part.CFrame = CFrame.fromMatrix(nextPosition, direction, Vector3.zAxis)
 				part.AssemblyLinearVelocity = direction * speed
 
