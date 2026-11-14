@@ -15,6 +15,7 @@ local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
+local Settings = require(script.Parent.Settings)
 local TweenService = game:GetService("TweenService")
 
 local AbilityBubbles = {}
@@ -279,6 +280,9 @@ function AbilityBubbles.start()
 			end
 		end
 		local leader = if UIAssets.icon_crown ~= 0 then leaderKey() else nil
+		-- Optionen: Symbole über allen / nur über mir / aus; Pfeil über mir ein/aus
+		local bubbleMode = Settings.get("bubbles")
+		local showArrow = Settings.get("ownArrow") == true
 		for _, child in headsFolder:GetChildren() do
 			local body = if child:IsA("Model") then child.PrimaryPart else nil
 			if child:IsA("Model") and body then
@@ -289,6 +293,15 @@ function AbilityBubbles.start()
 						view.arrow = makeArrow(child, body)
 					end
 					views[child] = view
+				end
+				local own = view.arrow ~= nil
+				local bubblesOn = bubbleMode == "Alle" or (bubbleMode == "Nur eigene" and own)
+				if view.gui.Enabled ~= bubblesOn then
+					view.gui.Enabled = bubblesOn
+				end
+				local arrow = view.arrow
+				if arrow and arrow.Enabled ~= showArrow then
+					arrow.Enabled = showArrow
 				end
 				-- Krone: nur beim alleinigen Führenden, mit kleinem Aufploppen beim Erscheinen
 				local wearsCrown = leader ~= nil and keyOf(child) == leader

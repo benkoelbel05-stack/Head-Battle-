@@ -27,6 +27,8 @@ local StartScreen = require(script.Parent.StartScreen)
 local SoundFX = require(script.Parent.SoundFX)
 local LoadingScreen = require(script.Parent.LoadingScreen)
 local Fade = require(script.Parent.Fade)
+local Settings = require(script.Parent.Settings)
+local SettingsSchema = require(ReplicatedStorage.Shared.SettingsSchema)
 
 local MainMenu = {}
 
@@ -230,6 +232,7 @@ end
 function MainMenu.start()
 	-- Erst nach dem Ladebildschirm: dann ist alles schon geladen und erscheint sofort scharf
 	LoadingScreen.waitUntilDone()
+	Settings.waitUntilReady() -- gespeicherte Optionen sind da (oder Standardwerte nach kurzer Wartezeit)
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
 
@@ -448,44 +451,14 @@ function MainMenu.start()
 	textLabel(optionsGroup, "Heading", "OPTIONEN", { 574, 115, 510, 89 }, 65)
 	iconImage(optionsGroup, "HeadingIcon", UIAssets.icon_settings_gear, { 490, 122, 74, 74 }, 22)
 
-	-- Einstellungen: als Spieler-Attribute "ClayBattle_<Name>" abgelegt, damit andere Skripte sie
-	-- lesen können, und zusätzlich als Event "ClayBattleSettingsChanged" gemeldet.
-	-- Lautstärken steuern die SoundGroups "Music" und "SFX" (Sounds im Spiel sollten diese nutzen).
-	local settings: { [string]: any } = { music = 0.75, sfx = 0.85, shake = true, vibration = false, graphics = "Mittel" }
-	local settingsSignal = Instance.new("BindableEvent")
-	settingsSignal.Name = "ClayBattleSettingsChanged"
-	settingsSignal.Parent = gui
+	-- Einstellungen liegen im Settings-Modul (gespeichert beim Server); hier ist nur die Oberfläche.
 
-	local function soundGroup(name: string): SoundGroup
-		local group = SoundService:FindFirstChild(name)
-		if group and group:IsA("SoundGroup") then
-			return group
-		end
-		local newGroup = Instance.new("SoundGroup")
-		newGroup.Name = name
-		newGroup.Parent = SoundService
-		return newGroup
-	end
-
-	local function updateSetting(field: string, value: any)
-		settings[field] = value
-		player:SetAttribute(`ClayBattle_{field}`, value)
-		settingsSignal:Fire(field, value)
-		if field == "music" then
-			soundGroup("Music").Volume = value
-		elseif field == "sfx" then
-			soundGroup("SFX").Volume = value
-		end
-	end
-	for field, value in settings do
-		updateSetting(field, value)
-	end
-
-	-- Musik: läuft in Endlosschleife, solange ein Menü offen ist (Hauptmenü, Optionen, Ausrüstung),
-	-- und blendet beim Spielen weich aus. Lautstärke über "Musik" in den Optionen (SoundGroup Music).
+	-- Musik: läuft in Endlosschleife, solange ein Menü offen ist (Hauptmenü, Optionen, Ausrüstung).
+	-- Im Spiel blendet sie weich aus, außer "Musik im Spiel" ist an: dann läuft sie leiser weiter.
 	-- Das Stück hat am Ende ~1 s Stille: die Schleife springt schon vorher zurück an den Anfang.
 	local THEME_LOOP_END = 63.55
 	local THEME_VOLUME = 0.6
+	local THEME_VOLUME_IN_GAME = 0.3
 	local theme: Sound? = nil
 	if images.menu_theme and images.menu_theme ~= 0 then
 		local sound = Instance.new("Sound")
@@ -493,7 +466,7 @@ function MainMenu.start()
 		sound.SoundId = `rbxassetid://{images.menu_theme}`
 		sound.Looped = true
 		sound.Volume = 0
-		sound.SoundGroup = soundGroup("Music")
+		sound.SoundGroup = Settings.soundGroup("Music")
 		pcall(function()
 			(sound :: any).PlaybackRegionsEnabled = true
 			(sound :: any).LoopRegion = NumberRange.new(0, THEME_LOOP_END)
@@ -501,87 +474,211 @@ function MainMenu.start()
 		sound.Parent = SoundService
 		theme = sound
 	end
-	local function setThemePlaying(playing: boolean)
+	local function wantsMusic(): boolean
+		return player:GetAttribute("MenuOpen") == true or Settings.get("musicInGame") == true
+	end
+	local function updateTheme()
 		local sound = theme
 		if not sound then
 			return
 		end
-		if playing then
+		local target = if player:GetAttribute("MenuOpen") == true
+			then THEME_VOLUME
+			elseif Settings.get("musicInGame") == true then THEME_VOLUME_IN_GAME
+			else 0
+		if target > 0 then
 			if not sound.IsPlaying then
 				sound:Play()
 			end
-			TweenService:Create(sound, TweenInfo.new(1.2), { Volume = THEME_VOLUME }):Play()
+			TweenService:Create(sound, TweenInfo.new(1.2), { Volume = target }):Play()
 		elseif sound.IsPlaying then
 			local fade = TweenService:Create(sound, TweenInfo.new(1.2), { Volume = 0 })
 			fade.Completed:Once(function()
-				if player:GetAttribute("MenuOpen") ~= true then
+				if not wantsMusic() then
 					sound:Pause()
 				end
 			end)
 			fade:Play()
 		end
 	end
-	player:GetAttributeChangedSignal("MenuOpen"):Connect(function()
-		setThemePlaying(player:GetAttribute("MenuOpen") == true)
+	player:GetAttributeChangedSignal("MenuOpen"):Connect(updateTheme)
+	Settings.changed:Connect(function(name: string)
+		if name == "musicInGame" then
+			updateTheme()
+		end
 	end)
-	setThemePlaying(true)
+	updateTheme()
 	gui.Destroying:Connect(function()
 		if theme then
 			theme:Destroy()
 		end
 	end)
 
+	-- Reiter: Ton / Grafik / Spiel / Steuerung. Jeder Reiter ist eine eigene, volle Fläche.
 	local SMALL_BUTTON = Color3.fromRGB(77, 76, 120)
-	local function settingRow(label: string, field: string, y: number, iconId: number)
-		iconImage(optionsGroup, `{field}Icon`, iconId, { 378, y + 3, 50, 48 }, 22)
-		textLabel(optionsGroup, `{field}Label`, label, { 440, y, 402, 54 }, 34)
-		local valueText = textLabel(optionsGroup, `{field}Value`, "", { 910, y, 120, 54 }, 29)
+	local TAB_ACTIVE = Color3.fromRGB(236, 128, 34)
+	local ON_COLOR = Color3.fromRGB(33, 172, 72)
+	local OFF_COLOR = Color3.fromRGB(105, 104, 111)
+	local CREAM = Color3.fromRGB(255, 242, 219)
+	local ROW_TOP = 282
+	local ROW_STEP = 66
+	local TABS = { "Ton", "Grafik", "Spiel", "Steuerung" }
+	local pages: { [string]: Frame } = {}
+	local tabButtons: { [string]: TextButton } = {}
+	local function showTab(name: string)
+		for tabName, page in pages do
+			page.Visible = tabName == name
+		end
+		for tabName, button in tabButtons do
+			button.BackgroundColor3 = if tabName == name then TAB_ACTIVE else SMALL_BUTTON
+		end
+	end
+	for index, name in TABS do
+		local page = Instance.new("Frame")
+		page.Name = `Page{name}`
+		page.Size = UDim2.fromScale(1, 1)
+		page.BackgroundTransparency = 1
+		page.ZIndex = 20
+		page.Parent = optionsGroup
+		pages[name] = page
+		tabButtons[name] = boxButton(optionsGroup, `Tab{name}`, string.upper(name), { 382 + (index - 1) * 180, 212, 170, 50 }, SMALL_BUTTON, function()
+			showTab(name)
+		end)
+	end
+
+	local function rowY(row: number): number
+		return ROW_TOP + (row - 1) * ROW_STEP
+	end
+	local function rowLabel(page: Frame, name: string, text: string, row: number, iconId: number?)
+		local y = rowY(row)
+		if iconId then
+			iconImage(page, `{name}Icon`, iconId, { 378, y + 3, 50, 48 }, 22)
+		end
+		textLabel(page, `{name}Label`, text, { 440, y, 400, 54 }, 32)
+	end
+	local function onChanged(name: string, refresh: () -> ())
+		Settings.changed:Connect(function(changed: string)
+			if changed == name then
+				refresh()
+			end
+		end)
+	end
+	-- Regler in 10-%-Schritten: − Wert +
+	local function sliderRow(page: Frame, text: string, name: string, row: number, iconId: number?)
+		rowLabel(page, name, text, row, iconId)
+		local y = rowY(row)
+		local valueText = textLabel(page, `{name}Value`, "", { 910, y, 120, 54 }, 29)
 		valueText.TextXAlignment = Enum.TextXAlignment.Center
 		local function refresh()
-			valueText.Text = `{math.floor(settings[field] * 100 + 0.5)}%`
+			valueText.Text = `{math.floor(Settings.get(name) * 100 + 0.5)}%`
 		end
-		boxButton(optionsGroup, `{field}Minus`, "−", { 850, y + 2, 54, 48 }, SMALL_BUTTON, function()
-			updateSetting(field, math.clamp(settings[field] - 0.1, 0, 1))
+		local function step(delta: number)
+			Settings.set(name, math.floor((Settings.get(name) + delta) * 10 + 0.5) / 10)
 			refresh()
+		end
+		boxButton(page, `{name}Minus`, "−", { 850, y + 2, 54, 48 }, SMALL_BUTTON, function()
+			step(-0.1)
 		end)
-		boxButton(optionsGroup, `{field}Plus`, "+", { 1042, y + 2, 54, 48 }, SMALL_BUTTON, function()
-			updateSetting(field, math.clamp(settings[field] + 0.1, 0, 1))
-			refresh()
+		boxButton(page, `{name}Plus`, "+", { 1042, y + 2, 54, 48 }, SMALL_BUTTON, function()
+			step(0.1)
 		end)
 		refresh()
+		onChanged(name, refresh)
 	end
-	settingRow("Musik", "music", 250, UIAssets.icon_music)
-	settingRow("Soundeffekte", "sfx", 323, UIAssets.icon_sound)
-
-	local function boolRow(label: string, field: string, y: number)
-		textLabel(optionsGroup, `{field}Label`, label, { 440, y, 410, 54 }, 33)
+	-- Ein/Aus
+	local function toggleRow(page: Frame, text: string, name: string, row: number)
+		rowLabel(page, name, text, row)
 		local toggle: TextButton
 		local function refresh()
-			toggle.Text = if settings[field] then "Ein" else "Aus"
-			toggle.BackgroundColor3 = if settings[field] then Color3.fromRGB(33, 172, 72) else Color3.fromRGB(105, 104, 111)
+			local on = Settings.get(name) == true
+			toggle.Text = if on then "Ein" else "Aus"
+			toggle.BackgroundColor3 = if on then ON_COLOR else OFF_COLOR
 		end
-		toggle = boxButton(optionsGroup, `{field}Toggle`, "", { 884, y + 2, 211, 49 }, Color3.fromRGB(33, 172, 72), function()
-			updateSetting(field, not settings[field])
+		toggle = boxButton(page, `{name}Toggle`, "", { 884, rowY(row) + 2, 211, 49 }, ON_COLOR, function()
+			Settings.set(name, not Settings.get(name))
 			refresh()
 		end)
 		refresh()
+		onChanged(name, refresh)
 	end
-	boolRow("Bildschirmwackeln", "shake", 396)
-	boolRow("Vibration", "vibration", 469)
+	-- Auswahl: Klick schaltet zum nächsten Wert
+	local function choiceRow(page: Frame, text: string, name: string, row: number)
+		rowLabel(page, name, text, row)
+		local field = SettingsSchema.FIELDS[name]
+		local choices = (field and field.choices) or {}
+		local button: TextButton
+		local function refresh()
+			button.Text = tostring(Settings.get(name))
+		end
+		button = boxButton(page, `{name}Choice`, "", { 884, rowY(row) + 2, 211, 49 }, SMALL_BUTTON, function()
+			local index = table.find(choices, Settings.get(name)) or 1
+			Settings.set(name, choices[index % #choices + 1])
+			refresh()
+		end)
+		refresh()
+		onChanged(name, refresh)
+	end
+	-- Erklärung unten auf einem Reiter
+	local function hint(page: Frame, text: string)
+		local label = textLabel(page, "Hint", text, { 382, 674, 714, 40 }, 21)
+		label.TextXAlignment = Enum.TextXAlignment.Center
+		label.TextColor3 = CREAM
+	end
+	-- Steuerung: Taste (cremefarbenes Schild) und was sie tut
+	local function infoRow(page: Frame, key: string, action: string, row: number)
+		local y = rowY(row)
+		local chip = Instance.new("TextLabel")
+		chip.Name = `Key{row}`
+		chip.Position = at(382, y + 5)
+		chip.Size = dims(360, 44)
+		chip.BackgroundColor3 = CREAM
+		chip.Font = Enum.Font.GothamBold
+		chip.Text = key
+		chip.TextScaled = true
+		chip.TextColor3 = Color3.fromRGB(70, 37, 112)
+		chip.ZIndex = 22
+		chip.Parent = page
+		local chipCorner = Instance.new("UICorner")
+		chipCorner.CornerRadius = UDim.new(0.3, 0)
+		chipCorner.Parent = chip
+		local chipPadding = Instance.new("UIPadding")
+		chipPadding.PaddingTop = UDim.new(0.14, 0)
+		chipPadding.PaddingBottom = UDim.new(0.14, 0)
+		chipPadding.Parent = chip
+		local chipLimit = Instance.new("UITextSizeConstraint")
+		chipLimit.MaxTextSize = 24
+		chipLimit.Parent = chip
+		textLabel(page, `Action{row}`, action, { 768, y, 330, 54 }, 27)
+	end
 
-	textLabel(optionsGroup, "LanguageLabel", "Sprache", { 440, 542, 350, 54 }, 33)
-	boxButton(optionsGroup, "Language", "Deutsch", { 884, 544, 211, 48 }, SMALL_BUTTON, function()
-		-- Bisher gibt es nur Deutsch
-	end)
+	local ton = pages.Ton
+	sliderRow(ton, "Musik", "music", 1, UIAssets.icon_music)
+	sliderRow(ton, "Soundeffekte", "sfx", 2, UIAssets.icon_sound)
+	toggleRow(ton, "Musik im Spiel", "musicInGame", 3)
+	hint(ton, "Musik im Spiel: Die Menümusik läuft beim Spielen leise weiter.")
 
-	textLabel(optionsGroup, "GraphicsLabel", "Grafikqualität", { 440, 615, 350, 54 }, 32)
-	local graphicsValues = { "Niedrig", "Mittel", "Hoch" }
-	local graphicsButton: TextButton
-	graphicsButton = boxButton(optionsGroup, "Graphics", settings.graphics, { 884, 617, 211, 48 }, SMALL_BUTTON, function()
-		local index = table.find(graphicsValues, settings.graphics) or 2
-		updateSetting("graphics", graphicsValues[index % #graphicsValues + 1])
-		graphicsButton.Text = settings.graphics
-	end)
+	local grafik = pages.Grafik
+	choiceRow(grafik, "Grafikqualität", "graphics", 1)
+	toggleRow(grafik, "Bildschirmwackeln", "shake", 2)
+	toggleRow(grafik, "FPS und Ping anzeigen", "showStats", 3)
+	hint(grafik, "Mittel: ohne Glitzern auf dem Wasser · Niedrig: auch ohne Wolken und Wellen")
+
+	local spiel = pages.Spiel
+	choiceRow(spiel, "Symbole über Köpfen", "bubbles", 1)
+	toggleRow(spiel, "Pfeil über mir", "ownArrow", 2)
+	toggleRow(spiel, "Controller-Vibration", "vibration", 3)
+	hint(spiel, "Deine Einstellungen werden für dein Konto gespeichert.")
+
+	local steuerung = pages.Steuerung
+	infoRow(steuerung, "W A S D / Pfeiltasten", "Bewegen", 1)
+	infoRow(steuerung, "Leertaste", "Springen, in der Luft Doppelsprung", 2)
+	infoRow(steuerung, "Linke Maustaste / 1", "Fähigkeit 1", 3)
+	infoRow(steuerung, "Mausrad-Klick / 2", "Fähigkeit 2", 4)
+	infoRow(steuerung, "Rechte Maustaste / 3", "Fähigkeit 3", 5)
+	infoRow(steuerung, "M", "Menü öffnen", 6)
+	hint(steuerung, "Halten: Granate weiter werfen, Rakete lenken · Controller: A springen, X/Y/B Fähigkeiten")
+
+	showTab("Ton")
 
 	-------------------------------------------------------------------------------------------------
 	-- Wechsel zwischen den Seiten
@@ -676,6 +773,9 @@ function MainMenu.start()
 		Fade.to(titleGroup, 1, 0)
 		Fade.to(titleGroup, 0, 0.35)
 	end
+
+	-- "Zurück" in der Ausrüstungs-Wahl führt hierher zurück
+	StartScreen.onBack = openMenu
 
 	-- Knopf oben rechts (nur im Spiel sichtbar, wenn kein Menü offen ist)
 	local menuButtonGui = Instance.new("ScreenGui")

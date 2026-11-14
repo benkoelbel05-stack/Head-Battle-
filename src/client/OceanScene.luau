@@ -22,6 +22,7 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local OceanAssets = require(ReplicatedStorage.Shared.OceanAssets)
+local Settings = require(script.Parent.Settings)
 
 local OceanScene = {}
 
@@ -227,6 +228,7 @@ function OceanScene.start()
 		sunset = Color3.fromRGB(255, 205, 175),
 		night = Color3.fromRGB(120, 130, 185),
 	}
+	local cloudsShown = true
 	local connection: RBXScriptConnection
 	connection = RunService.RenderStepped:Connect(function(dt: number)
 		if not folder.Parent then
@@ -240,6 +242,19 @@ function OceanScene.start()
 		end
 		dt = math.min(dt, 0.1)
 		clock += dt
+		-- Grafikqualität (Optionen): Hoch = alles, Mittel = ohne Glitzern, Niedrig = ohne Wolken und Wellen
+		local quality = Settings.get("graphics")
+		local low = quality == "Niedrig"
+		local sparkles = quality == "Hoch"
+		if cloudsShown ~= not low then
+			cloudsShown = not low
+			for _, cloud in clouds do
+				local gui = cloud.part:FindFirstChildOfClass("SurfaceGui")
+				if gui then
+					gui.Enabled = cloudsShown
+				end
+			end
+		end
 
 		-- Wolken bei jedem Hintergrund, passend eingefärbt (Sonnenuntergang warm, Nacht dunkel)
 		local tintKey = roundState:GetAttribute("Background")
@@ -254,7 +269,7 @@ function OceanScene.start()
 				end
 			end
 		end
-		do
+		if cloudsShown then
 			for _, cloud in clouds do
 				local center, viewWidth, viewHeight = view(camera, cloud.z)
 				cloud.u += cloud.speed * dt
@@ -289,6 +304,13 @@ function OceanScene.start()
 			return
 		end
 		textureWater(water)
+		if low then
+			-- Niedrig: ruhiges Wasser ohne Wellenbänder und Glitzern
+			for _, fx in waterFx do
+				fx.part.Transparency = 1
+			end
+			return
+		end
 		local base = waterBase
 		if base then
 			base.OffsetStudsU = (clock * 0.6) % base.StudsPerTileU
@@ -317,6 +339,8 @@ function OceanScene.start()
 				local shimmer = 0.5 + 0.5 * math.sin(clock * 0.6 + fx.phase)
 				fx.part.Transparency = 0.86 - 0.08 * shimmer
 				fx.part.CFrame = CFrame.new(fx.x, level - fx.y + math.sin(clock * 0.8 + fx.phase) * 0.08, fxZ)
+			elseif not sparkles then
+				fx.part.Transparency = 1
 			else
 				-- Glitzerpunkt: blendet weich ein und aus, springt nur unsichtbar an eine neue Stelle
 				fx.age += dt

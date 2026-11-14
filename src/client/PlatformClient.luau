@@ -23,6 +23,7 @@ local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local SpriteVisual = require(script.Parent.SpriteVisual)
 local SwordVisual = require(script.Parent.SwordVisual)
 local SoundFX = require(script.Parent.SoundFX)
+local CameraController = require(script.Parent.CameraController)
 
 type LocalGrenade = {
 	id: string,
@@ -67,7 +68,9 @@ end
 
 -- Knet-Explosion: eine Kugel, die schnell wächst und verblasst
 local function explosionEffect(position: Vector3, radius: number?)
-	SoundFX.play("explosion", if radius and radius < Constants.GRENADE_BLAST_RADIUS then 0.7 else 1)
+	local small = radius ~= nil and radius < Constants.GRENADE_BLAST_RADIUS
+	SoundFX.play("explosion", if small then 0.7 else 1)
+	CameraController.impact(if small then 0.4 else 0.6)
 	local blob = makeEffectPart("Blast", Vector3.one, Color3.fromRGB(255, 196, 92), position)
 	ItemAnimations.explosion(position, radius)
 	local tween = TweenService:Create(
@@ -117,6 +120,7 @@ end
 -- Ein Kopf ist ausgeschieden: Knetfladen (zerquetscht) oder Knetbrocken (Explosion)
 local function eliminationEffect(position: Vector3, color: Color3, cause: string, direction: Vector3, skin: string?)
 	SoundFX.play("eliminate")
+	CameraController.impact(0.5)
 	local R = Constants.HEAD_RADIUS
 	if skin and Constants.USE_SPRITES and SpriteAssets.hasImages() and cause ~= "Fall" then
 		hitSprite(position, skin, cause, direction)

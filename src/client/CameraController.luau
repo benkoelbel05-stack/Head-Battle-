@@ -1,11 +1,21 @@
 --!strict
 -- Seitliche Kamera, die sanft so zoomt und schwenkt, dass alle Köpfe im Bild sind.
+-- CameraController.impact(stärke) lässt bei Explosionen und Ausscheiden kurz das Bild wackeln
+-- (Option "Bildschirmwackeln") und den Controller vibrieren (Option "Controller-Vibration").
 
+local HapticService = game:GetService("HapticService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Settings = require(script.Parent.Settings)
+
+-- Wackeln: Ausschlag als Anteil der sichtbaren Bildhöhe (die Kamera ist sehr weit weg), klingt schnell ab
+local SHAKE_SCALE = 0.012
+local SHAKE_DECAY = 9
+local SHAKE_SPEED = 38
 
 local DEFAULT_FOCUS = Vector3.new(0, 10, Constants.PLANE_Z)
 
@@ -13,6 +23,35 @@ local CameraController = {}
 
 local currentFocus = DEFAULT_FOCUS
 local currentDistance = Constants.CAMERA_MIN_DISTANCE
+local shakeStrength = 0
+local shakeClock = 0
+local vibrationToken = 0
+
+-- Kurzer Stoß: 0..1 (Explosion ~0,6, eigenes Ausscheiden 1)
+function CameraController.impact(strength: number)
+	if Settings.get("shake") == true then
+		shakeStrength = math.max(shakeStrength, math.clamp(strength, 0, 1))
+	end
+	if Settings.get("vibration") == true and UserInputService:GetGamepadConnected(Enum.UserInputType.Gamepad1) then
+		local gamepad = Enum.UserInputType.Gamepad1
+		local ok = pcall(function()
+			if HapticService:IsMotorSupported(gamepad, Enum.VibrationMotor.Large) then
+				HapticService:SetMotor(gamepad, Enum.VibrationMotor.Large, math.clamp(strength, 0, 1))
+			end
+		end)
+		if ok then
+			vibrationToken += 1
+			local token = vibrationToken
+			task.delay(0.12 + 0.18 * strength, function()
+				if token == vibrationToken then
+					pcall(function()
+						HapticService:SetMotor(gamepad, Enum.VibrationMotor.Large, 0)
+					end)
+				end
+			end)
+		end
+	end
+end
 
 -- Grenzen der Arena an den Startplätzen der Plattformen. Werden einmal pro Arena gemerkt,
 -- damit weggeschobene Plattformen die Kamera nicht mitziehen.
@@ -109,9 +148,22 @@ function CameraController.start()
 		currentFocus = currentFocus:Lerp(targetFocus, alpha)
 		currentDistance += (targetDistance - currentDistance) * alpha
 
+		-- Wackeln: Kamera und Blickpunkt gemeinsam verschieben (kein Kippen), weich abklingend
+		local shake = Vector3.zero
+		if shakeStrength > 0.001 then
+			shakeClock += dt * SHAKE_SPEED
+			local viewHeight = 2 * currentDistance * math.tan(math.rad(Constants.CAMERA_FOV) / 2)
+			local amount = shakeStrength * shakeStrength * SHAKE_SCALE * viewHeight
+			shake = Vector3.new(math.noise(shakeClock, 0.3) * 2, math.noise(0.7, shakeClock) * 2, 0) * amount
+			shakeStrength *= math.exp(-SHAKE_DECAY * dt)
+		else
+			shakeStrength = 0
+		end
+
 		-- Kamera steht vor der Arena (+Z) und schaut nach hinten: +X ist rechts im Bild
-		local cameraPosition = currentFocus + Vector3.new(0, 0, currentDistance)
-		camera.CFrame = CFrame.lookAt(cameraPosition, currentFocus)
+		local focus = currentFocus + shake
+		local cameraPosition = focus + Vector3.new(0, 0, currentDistance)
+		camera.CFrame = CFrame.lookAt(cameraPosition, focus)
 	end)
 end
 

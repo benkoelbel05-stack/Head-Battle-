@@ -22,6 +22,7 @@ local HeadHistory = require(script.HeadHistory)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local RoundManager = require(script.RoundManager)
 local BotController = require(script.BotController)
+local SettingsStore = require(script.SettingsStore)
 
 -- Keine normalen Roblox-Figuren: Jeder Spieler ist ein Knetkopf.
 Players.CharacterAutoLoads = false
@@ -59,9 +60,13 @@ local missileHit = makeRemote("RemoteEvent", "MissileHit") :: RemoteEvent -- Cli
 local setLoadout = makeRemote("RemoteEvent", "SetLoadout") :: RemoteEvent -- Client -> Server
 local joinGame = makeRemote("RemoteEvent", "JoinGame") :: RemoteEvent -- Client -> Server (Startmenü "Spielen")
 local setDifficulty = makeRemote("RemoteEvent", "SetDifficulty") :: RemoteEvent -- Client -> Server (1-4)
+local saveSettings = makeRemote("RemoteEvent", "SaveSettings") :: RemoteEvent -- Client -> Server (Optionen)
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
+
+-- Optionen der Spieler laden und speichern (DataStore)
+SettingsStore.init(saveSettings)
 
 ---------------------------------------------------------------------------------------------------
 -- Arena und Plattform-Simulation

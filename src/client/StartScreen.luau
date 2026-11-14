@@ -24,6 +24,9 @@ local SoundFX = require(script.Parent.SoundFX)
 
 local StartScreen = {}
 
+-- Wird vom Hauptmenü gesetzt: was der Knopf "Zurück" tun soll (Hauptmenü wieder öffnen)
+StartScreen.onBack = nil :: (() -> ())?
+
 -- open() kann schon aufgerufen werden, bevor start() fertig ist
 local openImpl: (() -> ())? = nil
 local openRequested = false
@@ -655,6 +658,29 @@ function StartScreen.start()
 		refresh()
 		refreshOthers()
 	end
+
+	-- Zurück ins Hauptmenü (oben links, über dem Reiter "Fähigkeiten")
+	local back = button(content, "Back", 165, 34, 170, 46)
+	back.BackgroundTransparency = 0
+	back.BackgroundColor3 = PURPLE
+	back.ZIndex = 5
+	corner(back, 23)
+	stroke(back, CREAM, 3)
+	local hasBackIcon = UIAssets.icon_back ~= 0
+	if hasBackIcon then
+		picture(back, "Icon", UIAssets.icon_back, 8, 5, 36, 36).ZIndex = 6
+	end
+	label(back, "Label", if hasBackIcon then "ZURÜCK" else "◀ ZURÜCK", if hasBackIcon then 46 else 10, 6, if hasBackIcon then 116 else 150, 34, 24).ZIndex = 6
+	back.Activated:Connect(function()
+		backdrop.Visible = false
+		reopen.Visible = joined
+		local onBack = StartScreen.onBack
+		if onBack then
+			onBack()
+		else
+			player:SetAttribute("MenuOpen", false)
+		end
+	end)
 
 	ready.Activated:Connect(function()
 		if joined then
