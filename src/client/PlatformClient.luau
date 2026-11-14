@@ -18,6 +18,7 @@ local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local HeadWeight = require(ReplicatedStorage.Shared.HeadWeight)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
+local ItemAnimations = require(script.Parent.ItemAnimations)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local SpriteVisual = require(script.Parent.SpriteVisual)
 local SwordVisual = require(script.Parent.SwordVisual)
@@ -68,6 +69,7 @@ end
 local function explosionEffect(position: Vector3, radius: number?)
 	SoundFX.play("explosion", if radius and radius < Constants.GRENADE_BLAST_RADIUS then 0.7 else 1)
 	local blob = makeEffectPart("Blast", Vector3.one, Color3.fromRGB(255, 196, 92), position)
+	ItemAnimations.explosion(position, radius)
 	local tween = TweenService:Create(
 		blob,
 		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -156,6 +158,7 @@ local function showThruster(model: Model, thruster: PlatformSim.Thruster)
 	local normal = frame:VectorToWorldSpace(-thruster.localDirection)
 	state.root.CFrame = frame -- damit die Schweißnaht an der richtigen Stelle sitzt
 	local visual = ThrusterVisual.create(state.root, point, normal)
+	ItemAnimations.thruster(visual)
 	SoundFX.play("thruster")
 	thrusterVisuals[visual] = true
 	task.delay(math.max(thruster.endTime - Workspace:GetServerTimeNow(), 0), function()
@@ -196,6 +199,7 @@ local function spawnGrenade(id: string, start: Vector3, velocity: Vector3, start
 		return
 	end
 	local part = makeEffectPart("Grenade", Vector3.one * Constants.GRENADE_RADIUS * 2, Constants.GRENADE_COLOR, start)
+	ItemAnimations.grenade(part)
 	SoundFX.play("grenade_throw")
 	grenades[id] = {
 		id = id,
@@ -364,7 +368,7 @@ function PlatformClient.step(dt: number)
 			grenades[id] = nil
 		elseif now < grenade.explodeAt then
 			GrenadePhysics.advance(grenade, dt, shapes)
-			grenade.part.CFrame = CFrame.new(grenade.position)
+			grenade.part.CFrame = CFrame.new(grenade.position) * CFrame.Angles(0, 0, (now % 100) * 6)
 		end
 	end
 end
