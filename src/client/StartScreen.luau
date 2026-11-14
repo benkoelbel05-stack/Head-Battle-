@@ -4,13 +4,15 @@
 --   * oben: lila Titelleiste "AUSRÜSTUNG"
 --   * links (blaue Tafel): alle Fähigkeiten; Name oben, Erklärung unten (unter der Maus bzw. gewählter Slot)
 --   * Mitte (orange Tafel): eigene 3 Slots (mittig, ohne Tasten-Beschriftung), Pfeile am gewählten Slot,
---     darunter die eigene Figur und der Knopf SPIELEN (im Spiel: übernehmen)
+--     darunter die eigene Figur mit ◀ ▶ zum Wählen der Farbe (vergebene Farben werden übersprungen)
+--     und der Knopf SPIELEN (im Spiel: übernehmen); oben links ZURÜCK ins Hauptmenü
 --   * rechts: die anderen Teilnehmer als Tafeln (Bots in ihrer Farbe), freie Plätze "Warte auf Spieler"
 --   * unten rechts: Bot-Anzahl (– Zahl +) und Bot-Stärke (◀ NORMAL ▶)
 -- Das gerade gezeigte Abzeichen wird größer und bekommt einen goldenen Schimmer.
 -- Alle Positionen im Entwurfsraster 1280 x 720 (skaliert mit der Bildschirmgröße).
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -289,6 +291,7 @@ function StartScreen.start()
 	local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
 	local joinGame = remotes:WaitForChild("JoinGame") :: RemoteEvent
 	local setLoadout = remotes:WaitForChild("SetLoadout") :: RemoteEvent
+	local setSkin = remotes:WaitForChild("SetSkin") :: RemoteEvent
 	local setDifficulty = remotes:WaitForChild("SetDifficulty") :: RemoteEvent
 	local changeBots = remotes:WaitForChild("ChangeBots") :: RemoteEvent
 	local roundState = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
@@ -449,6 +452,78 @@ function StartScreen.start()
 	mound(column, 55, 458, 120, 20)
 	local character = picture(column, "Character", nil, 69, 380, 92, 92)
 
+	-- Farbe wählen: ◀ ▶ neben der Figur. Farben, die schon jemand hat, werden übersprungen
+	-- (der Server prüft das auch und behält sonst die alte Farbe).
+	local pendingSkin: string? = nil
+	local lastSkinClick = 0
+	local function takenSkins(): { [string]: boolean }
+		local taken: { [string]: boolean } = {}
+		for _, other in Players:GetPlayers() do
+			local otherSkin = other:GetAttribute("Skin")
+			if other ~= player and typeof(otherSkin) == "string" then
+				taken[otherSkin] = true
+			end
+		end
+		local headsFolder = Workspace:FindFirstChild(Constants.HEADS_FOLDER)
+		if headsFolder then
+			for _, head in headsFolder:GetChildren() do
+				local botSkin = head:GetAttribute("Skin")
+				if head:GetAttribute("BotId") ~= nil and typeof(botSkin) == "string" then
+					taken[botSkin] = true
+				end
+			end
+		end
+		return taken
+	end
+	local function cycleSkin(step: number)
+		local now = os.clock()
+		if now - lastSkinClick < 0.2 then
+			return
+		end
+		lastSkinClick = now
+		local current = pendingSkin or player:GetAttribute("Skin")
+		local index = 1
+		for i, skin in Constants.SKINS do
+			if skin.key == current then
+				index = i
+			end
+		end
+		local taken = takenSkins()
+		for _ = 1, #Constants.SKINS do
+			index = (index - 1 + step) % #Constants.SKINS + 1
+			local key = Constants.SKINS[index].key
+			local preview = SpriteAssets.frame(key, "idle", 1)
+			if not taken[key] and preview then
+				pendingSkin = key
+				character.Image = preview -- sofort zeigen, der Server bestätigt gleich
+				setSkin:FireServer(key)
+				task.delay(0.8, function()
+					-- Nicht bestätigt (z. B. gerade vergeben): wieder die echte Farbe zeigen
+					if pendingSkin == key and player:GetAttribute("Skin") ~= key then
+						pendingSkin = nil
+						StartScreen._refresh()
+					end
+				end)
+				return
+			end
+		end
+	end
+	local skinLeft = iconButton(column, "SkinLeft", 34, 426, 28, UIAssets.icon_arrow_left, "◀")
+	local skinRight = iconButton(column, "SkinRight", 195, 426, 28, UIAssets.icon_arrow_right, "▶")
+	skinLeft.ZIndex = 3
+	skinRight.ZIndex = 3
+	skinLeft.Activated:Connect(function()
+		cycleSkin(-1)
+	end)
+	skinRight.Activated:Connect(function()
+		cycleSkin(1)
+	end)
+	player:GetAttributeChangedSignal("Skin"):Connect(function()
+		if pendingSkin == player:GetAttribute("Skin") then
+			pendingSkin = nil
+		end
+	end)
+
 	-- SPIELEN (vor dem Einstieg) bzw. übernehmen (im Spiel); sitzt auf dem unteren Rand der Spalte
 	local ready = button(content, "Ready", 511, 650, 210, 78)
 	local readyImage = picture(ready, "Image", UIAssets.button_spielen, 0, 0, 210, 78)
@@ -553,7 +628,7 @@ function StartScreen.start()
 			slot.right.Visible = active
 		end
 
-		local skin = player:GetAttribute("Skin")
+		local skin = pendingSkin or player:GetAttribute("Skin")
 		character.Image = if typeof(skin) == "string" then SpriteAssets.frame(skin, "idle", 1) or "" else ""
 		styleReady()
 	end

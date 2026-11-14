@@ -93,6 +93,31 @@ function HeadSpawner.getSkin(participant: Participant): string
 	return Constants.SKINS[getColorSlot(participant)].key
 end
 
+-- Farbe selbst wählen (Ausrüstungs-Wahl). Klappt nicht, wenn jemand anders sie schon hat.
+-- Ein vorhandener Kopf bekommt die neue Farbe sofort (Attribut "Skin", die Clients tauschen das Bild).
+function HeadSpawner.setSkin(participant: Participant, key: string): boolean
+	local slot: number? = nil
+	for index, skin in Constants.SKINS do
+		if skin.key == key then
+			slot = index
+		end
+	end
+	if not slot then
+		return false
+	end
+	for other, otherSlot in colorSlots do
+		if other ~= participant and otherSlot == slot then
+			return false
+		end
+	end
+	colorSlots[participant] = slot
+	local head = heads[participant]
+	if head then
+		head:SetAttribute("Skin", key)
+	end
+	return true
+end
+
 ---------------------------------------------------------------------------------------------------
 -- Köpfe bauen
 ---------------------------------------------------------------------------------------------------

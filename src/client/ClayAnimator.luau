@@ -97,6 +97,13 @@ local function getState(head: Model): HeadState
 				hide(child)
 			end
 			head.ChildAdded:Connect(hide)
+			-- Farbe kann sich ändern (Ausrüstungs-Wahl im Spiel): ab dem nächsten Bild die neuen Sprites
+			head:GetAttributeChangedSignal("Skin"):Connect(function()
+				local newSkin = head:GetAttribute("Skin")
+				if typeof(newSkin) == "string" then
+					state.skin = newSkin
+				end
+			end)
 		end
 		local facing = head:GetAttribute("Facing")
 		if typeof(facing) == "number" then

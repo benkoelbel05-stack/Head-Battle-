@@ -61,6 +61,7 @@ local setLoadout = makeRemote("RemoteEvent", "SetLoadout") :: RemoteEvent -- Cli
 local joinGame = makeRemote("RemoteEvent", "JoinGame") :: RemoteEvent -- Client -> Server (Startmenü "Spielen")
 local setDifficulty = makeRemote("RemoteEvent", "SetDifficulty") :: RemoteEvent -- Client -> Server (1-4)
 local saveSettings = makeRemote("RemoteEvent", "SaveSettings") :: RemoteEvent -- Client -> Server (Optionen)
+local setSkin = makeRemote("RemoteEvent", "SetSkin") :: RemoteEvent -- Client -> Server (Farbe in der Ausrüstungs-Wahl)
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
@@ -280,6 +281,22 @@ end)
 local function onPlayerAdded(player: Player)
 	player:SetAttribute("Skin", HeadSpawner.getSkin(player))
 end
+
+-- Farbe selbst wählen; ist sie schon vergeben, bleibt die alte (der Client sieht das am Attribut "Skin")
+local lastSkinChange: { [Player]: number } = {}
+setSkin.OnServerEvent:Connect(function(player: Player, key: unknown)
+	local now = os.clock()
+	if typeof(key) ~= "string" or now - (lastSkinChange[player] or 0) < 0.15 then
+		return
+	end
+	lastSkinChange[player] = now
+	if HeadSpawner.setSkin(player, key) then
+		player:SetAttribute("Skin", key)
+	end
+end)
+Players.PlayerRemoving:Connect(function(player: Player)
+	lastSkinChange[player] = nil
+end)
 Players.PlayerAdded:Connect(onPlayerAdded)
 for _, player in Players:GetPlayers() do
 	onPlayerAdded(player)
