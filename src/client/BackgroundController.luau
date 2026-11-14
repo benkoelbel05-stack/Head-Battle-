@@ -17,7 +17,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local BackgroundController = {}
 
 local BACKGROUND_Z = Constants.PLANE_Z - 60 -- weit hinter allem anderen
-local OVERSIZE = 1.12 -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
+local OVERSIZE = Constants.BACKGROUND_OVERSIZE -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
 -- Die Zeichenfläche hat eine feste Pixelgröße: die Teil-Größe darf sich jedes Bild ändern, ohne dass
 -- neu gezeichnet wird (nur bei anderem Seitenverhältnis des Bildschirms)
 local CANVAS_HEIGHT = 720
@@ -90,7 +90,7 @@ function BackgroundController.start()
 	image.Parent = gui
 
 	-- Meer-Hintergrund: Himmel (Verlauf) und ferne See bis zum Horizont, mit hellem Horizontstreifen
-	local HORIZON = 0.66 -- Anteil der Bildhöhe von oben
+	local HORIZON = Constants.BACKGROUND_HORIZON -- Anteil der Bildhöhe von oben
 	local ocean = Instance.new("Frame")
 	ocean.Name = "Ocean"
 	ocean.Size = UDim2.fromScale(1, 1)

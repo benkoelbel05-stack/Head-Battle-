@@ -37,7 +37,15 @@ type Cloud = {
 	bobSpeed: number,
 	phase: number,
 	z: number,
+	onHorizon: boolean, -- Unterkante sitzt genau auf dem Horizont (ferne Wolkenbank)
 }
+
+-- Horizont auf dem Bildschirm (0 = oben). Die Höhe einer Wolke hängt an ihrer Breite, also am
+-- Seitenverhältnis des Fensters: in breiten Fenstern (z. B. Studio) wurden die Wolken so hoch, dass
+-- ihre Unterkante unter den Horizont ins Meer rutschte. Deshalb wird jede Wolke höchstens so tief
+-- gesetzt, dass ihre Unterkante auf dem Horizont liegt.
+local HORIZON_ON_SCREEN = 0.5 + (Constants.BACKGROUND_HORIZON - 0.5) * Constants.BACKGROUND_OVERSIZE
+local HORIZON_OVERLAP = 0.004 -- ferne Wolkenbank minimal über den Horizont ziehen, damit kein Spalt bleibt
 
 type WaterFx = { part: Part, x: number, y: number, speed: number, width: number, phase: number, kind: string, life: number, age: number }
 
@@ -96,7 +104,7 @@ function OceanScene.start()
 	---------------------------------------------------------------------------------------------
 
 	local clouds: { Cloud } = {}
-	local function addCloud(name: string, id: number, u: number, v: number, width: number, ratio: number, speed: number, z: number)
+	local function addCloud(name: string, id: number, u: number, v: number, width: number, ratio: number, speed: number, z: number, onHorizon: boolean?)
 		if id == 0 then
 			return
 		end
@@ -111,6 +119,7 @@ function OceanScene.start()
 			bobSpeed = random:NextNumber(0.5, 0.9),
 			phase = random:NextNumber(0, math.pi * 2),
 			z = z,
+			onHorizon = onHorizon == true,
 		})
 	end
 
@@ -120,8 +129,8 @@ function OceanScene.start()
 	local Z_BANKS = Constants.PLANE_Z - 48
 
 	-- Ferne Wolkenbank am Horizont: zwei Kopien nebeneinander, die gemeinsam ganz langsam ziehen
-	addCloud("DistantA", OceanAssets.clouds_distant, 0.5, 0.6, 1.05, 0.22, 0.0025, Z_DISTANT)
-	addCloud("DistantB", OceanAssets.clouds_distant, -0.55, 0.6, 1.05, 0.22, 0.0025, Z_DISTANT)
+	addCloud("DistantA", OceanAssets.clouds_distant, 0.5, 0.6, 1.05, 0.22, 0.0025, Z_DISTANT, true)
+	addCloud("DistantB", OceanAssets.clouds_distant, -0.55, 0.6, 1.05, 0.22, 0.0025, Z_DISTANT, true)
 	-- Kleine Wolken verteilt, je eigenes Tempo und eigene Richtung
 	for index, id in OceanAssets.small do
 		local direction = if index % 2 == 0 then 1 else -1
@@ -280,9 +289,16 @@ function OceanScene.start()
 				elseif cloud.speed < 0 and cloud.u + half < -0.02 then
 					cloud.u = 1 + half + 0.02 + (cloud.u + half + 0.02)
 				end
-				local v = cloud.v + math.sin(clock * cloud.bobSpeed + cloud.phase) * cloud.bob
 				local widthStuds = cloud.width * viewWidth
 				local size = Vector3.new(widthStuds, widthStuds * cloud.ratio, 0.05)
+				-- Nie unter den Horizont: Unterkante (Mitte + halbe Höhe) höchstens auf dem Horizont
+				local halfHeight = size.Y / math.max(viewHeight, 0.001) / 2
+				local lowest = HORIZON_ON_SCREEN - halfHeight
+				local wave = math.sin(clock * cloud.bobSpeed + cloud.phase)
+				-- Ferne Wolkenbank: sitzt auf dem Horizont und hebt sich nur minimal (nie darunter)
+				local v = if cloud.onHorizon
+					then lowest + HORIZON_OVERLAP - (wave + 1) * 0.5 * cloud.bob
+					else math.min(cloud.v + wave * cloud.bob, lowest)
 				-- Feste Pixelgröße der Zeichenfläche: Größe darf sich jedes Bild weich ändern (kein Neuzeichnen)
 				cloud.part.Size = size
 				cloud.part.CFrame = CFrame.new(

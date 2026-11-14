@@ -223,6 +223,10 @@ Constants.COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102) -- Kleidung, deren Fäh
 
 -- Kamera: sehr kleines Sichtfeld + großer Abstand = wirkt wie echtes 2D (fast keine Perspektive)
 Constants.CAMERA_FOV = 8
+-- Hintergrund folgt der Kamera und ist etwas größer als das Bild; Horizont im gezeichneten Meer-Hintergrund
+-- (Anteil der Bildhöhe von oben). OceanScene hält damit die Wolken über dem Horizont.
+Constants.BACKGROUND_OVERSIZE = 1.12
+Constants.BACKGROUND_HORIZON = 0.66
 Constants.CAMERA_MIN_DISTANCE = 300
 Constants.CAMERA_MAX_DISTANCE = 3000
 Constants.CAMERA_PADDING = 6 -- Rand um Arena und Köpfe (Studs)
