@@ -132,6 +132,10 @@ Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe)
 Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
 Constants.SPRITE_Z = 4.2 -- Abstand zur Kamera-Ebene: vor den Plattformen (diese sind 8 Studs tief)
+
+-- Plattform-Look mit Tiefe: oben eine hellere Kante (die "Oberseite"), auf der die Figuren stehen
+Constants.PLATFORM_TOP_DEPTH = 0.55 -- Dicke der hellen Oberkante in Studs
+Constants.PLATFORM_TOP_LIGHTEN = 0.28 -- wie viel heller die Oberseite ist (0..1)
 Constants.COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102) -- Kleidung, deren Fähigkeit gerade abklingt
 
 -- Kamera: sehr kleines Sichtfeld + großer Abstand = wirkt wie echtes 2D (fast keine Perspektive)

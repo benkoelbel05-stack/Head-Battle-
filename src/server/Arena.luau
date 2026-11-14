@@ -59,8 +59,48 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		table.insert(parts, cap)
 	end
 
+	-- Look mit Tiefe: Die Plattform selbst bekommt die hellere Farbe der Oberseite. Davor liegt eine
+	-- flache Front in der eigentlichen Farbe, etwas nach unten versetzt und kleiner. So bleibt oben
+	-- (und an den Rundungen auslaufend) ein heller Rand sichtbar, auf dem die Figuren stehen.
+	-- Die Front ist reine Optik: keine Kollision, keine Raycasts.
+	local topColor = platform.color:Lerp(Color3.new(1, 1, 1), Constants.PLATFORM_TOP_LIGHTEN)
+	for _, part in parts do
+		part.Color = topColor
+	end
+	local depth = math.min(Constants.PLATFORM_TOP_DEPTH, radius * 0.8)
+	local frontRadius = radius - depth / 2
+	local frontZ = PLATFORM_DEPTH / 2 + 0.03
+	local frontCenter = center * CFrame.new(0, -depth / 2, frontZ)
+	local frontParts: { BasePart } = {}
+	if middleLength > 0.01 then
+		table.insert(
+			frontParts,
+			makePart("Front", Vector3.new(middleLength, frontRadius * 2, 0.04), frontCenter, platform.color, model)
+		)
+	end
+	for side = -1, 1, 2 do
+		local cap = makePart(
+			"FrontCap",
+			Vector3.new(0.04, frontRadius * 2, frontRadius * 2),
+			frontCenter * CFrame.new(side * middleLength / 2, 0, 0) * CYLINDER_TO_CAMERA,
+			platform.color,
+			model
+		)
+		cap.Shape = Enum.PartType.Cylinder
+		table.insert(frontParts, cap)
+	end
+	for _, front in frontParts do
+		front.CanCollide = false
+		front.CanQuery = false
+		front.CanTouch = false
+		front.CastShadow = false
+	end
+
 	-- Alle Teile fest zu einem Körper verbinden, das erste Teil ist die Wurzel
 	local root = parts[1]
+	for _, front in frontParts do
+		table.insert(parts, front)
+	end
 	for i = 2, #parts do
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = root
