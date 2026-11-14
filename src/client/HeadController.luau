@@ -397,6 +397,10 @@ local function trackHead(child: Instance)
 		myHead = child
 		local body = child.PrimaryPart
 		motor = HeadMotor.new(if body then body.Position else Vector3.zero)
+		local facing = child:GetAttribute("Facing")
+		if typeof(facing) == "number" then
+			motor.facing = facing
+		end
 		dashReadyAt = 0
 		table.clear(pendingAbilities)
 		chargingId = nil

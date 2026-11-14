@@ -85,6 +85,10 @@ local function getState(head: Model): HeadState
 				end
 			end
 		end
+		local facing = head:GetAttribute("Facing")
+		if typeof(facing) == "number" then
+			state.facing = facing
+		end
 		states[head] = state
 	end
 	return state
@@ -249,7 +253,7 @@ local function placeParts(head: Model, body: BasePart, state: HeadState)
 		if ONE_SHOT[state.animation] then
 			index = math.min(index, count)
 		end
-		SpriteVisual.setImage(sprite, SpriteAssets.frame(state.skin, state.animation, index), state.facing < 0)
+		SpriteVisual.setImage(sprite, SpriteAssets.frame(state.skin, state.animation, index), Constants.SPRITE_FLIP and state.facing < 0)
 		return
 	end
 

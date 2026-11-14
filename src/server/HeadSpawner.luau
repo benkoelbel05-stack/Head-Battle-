@@ -217,6 +217,8 @@ function HeadSpawner.spawn(participant: Participant)
 	local spawnPoint = spawnPoints[((slot - 1) % #spawnPoints) + 1]
 
 	head:PivotTo(CFrame.new(spawnPoint))
+	-- Zur Mitte der Arena schauen
+	head:SetAttribute("Facing", if spawnPoint.X > 0 then -1 else 1)
 	head.Parent = headsFolder
 	heads[participant] = head
 

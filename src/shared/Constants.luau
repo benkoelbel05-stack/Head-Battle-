@@ -76,9 +76,10 @@ Constants.SNAPSHOT_BLEND = 0.25 -- so viel der Abweichung wird pro Abgleich korr
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
 Constants.HEAD_WEIGHT_FORCE = 140 -- Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
-Constants.HEAD_LANDING_IMPULSE = 7 -- Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
+Constants.HEAD_LANDING_IMPULSE = 4 -- Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
 Constants.HEAD_WALK_FORCE = 4.2 -- Gegenschub pro Studs/s Laufgeschwindigkeit
-Constants.PLATFORM_CONTACT_DISTANCE = 0.5 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
+Constants.PLATFORM_CONTACT_DISTANCE = 0.25 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
+-- (klein halten: sonst wird eine Plattform schon weggestoßen, bevor der Kopf sie berührt)
 
 -- Ausscheiden
 Constants.FALL_LIMIT_Y = -40
@@ -127,7 +128,8 @@ Constants.SKINS = {
 Constants.USE_SPRITES = true -- false = 3D-Knetköpfe statt Sprites
 Constants.SPRITE_SIZE = 4.2 -- Kantenlänge des Sprite-Bilds in Studs (Kopf-Durchmesser ist 3)
 Constants.SPRITE_OFFSET_Y = 0.3 -- Bild etwas nach oben schieben, falls die Figur im Bild tiefer sitzt
-Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (zum Spiegeln nötig)
+Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe), zum Spiegeln nötig
+Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen
 Constants.SPRITE_Z = 4.2 -- Abstand zur Kamera-Ebene: vor den Plattformen (diese sind 8 Studs tief)
 Constants.COOLDOWN_COLOR = Color3.fromRGB(110, 106, 102) -- Kleidung, deren Fähigkeit gerade abklingt

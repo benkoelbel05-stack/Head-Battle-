@@ -333,6 +333,10 @@ function BotController.step(dt: number)
 			-- Neu erschienen
 			bot.head = head
 			bot.motor = HeadMotor.new(body.Position)
+			local facing = head:GetAttribute("Facing")
+			if typeof(facing) == "number" then
+				(bot.motor :: HeadMotor.Motor).facing = facing
+			end
 			bot.dashReadyAt = 0
 			bot.nextThink = now + random:NextNumber(0.2, 0.5) -- nicht alle Bots gleichzeitig
 		end

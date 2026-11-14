@@ -9,9 +9,14 @@ local RunService = game:GetService("RunService")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 
+-- Zwei Bildebenen ("Doppelpuffer"): Ein neues Bild wird erst gezeigt, wenn es fertig geladen ist.
+-- So blinkt die Figur beim Wechsel auf ein noch nicht geladenes Bild nicht kurz unsichtbar.
 export type Sprite = {
 	part: Part,
-	image: ImageLabel,
+	image: ImageLabel, -- gerade sichtbare Ebene
+	back: ImageLabel, -- Ebene, in die das nächste Bild geladen wird
+	wanted: string, -- Bild, das gezeigt werden soll
+	flip: boolean,
 }
 
 local SpriteVisual = {}
@@ -33,32 +38,63 @@ function SpriteVisual.create(name: string, parent: Instance): Sprite
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
 	gui.CanvasSize = Vector2.new(100, 100)
 	gui.LightInfluence = 0 -- Farben wie im Bild, unabhängig vom Licht
+	-- Die Kamera steht sehr weit weg (fast-2D-Ansicht): Bilder nie wegen Entfernung ausblenden
+	pcall(function()
+		(gui :: any).MaxDistance = 1e6
+	end)
 	gui.Parent = part
 
-	local image = Instance.new("ImageLabel")
-	image.Size = UDim2.fromScale(1, 1)
-	image.BackgroundTransparency = 1
-	image.ScaleType = Enum.ScaleType.Stretch
-	image.Parent = gui
+	local function makeLayer(): ImageLabel
+		local layer = Instance.new("ImageLabel")
+		layer.Size = UDim2.fromScale(1, 1)
+		layer.BackgroundTransparency = 1
+		layer.ScaleType = Enum.ScaleType.Stretch
+		layer.Parent = gui
+		return layer
+	end
+	local image = makeLayer()
+	local back = makeLayer()
+	back.ImageTransparency = 1
 
 	part.Parent = parent
-	return { part = part, image = image }
+	return { part = part, image = image, back = back, wanted = "", flip = false }
 end
 
--- Bild setzen; flip = nach links schauen (gespiegelt)
-function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
-	local image = sprite.image
-	if image.Image ~= (assetId or "") then
-		image.Image = assetId or ""
-	end
+local function applyFlip(layer: ImageLabel, flip: boolean)
 	local pixels = Constants.SPRITE_PIXELS
 	if flip then
 		-- Spiegeln: Bildausschnitt mit negativer Breite
-		image.ImageRectOffset = Vector2.new(pixels, 0)
-		image.ImageRectSize = Vector2.new(-pixels, pixels)
+		layer.ImageRectOffset = Vector2.new(pixels, 0)
+		layer.ImageRectSize = Vector2.new(-pixels, pixels)
 	else
-		image.ImageRectOffset = Vector2.zero
-		image.ImageRectSize = Vector2.zero
+		layer.ImageRectOffset = Vector2.zero
+		layer.ImageRectSize = Vector2.zero
+	end
+end
+
+-- Bild setzen; flip = nach links schauen (gespiegelt). Wird jeden Frame aufgerufen.
+function SpriteVisual.setImage(sprite: Sprite, assetId: string?, flip: boolean)
+	local wanted = assetId or ""
+	if sprite.flip ~= flip then
+		sprite.flip = flip
+		applyFlip(sprite.image, flip)
+		applyFlip(sprite.back, flip)
+	end
+	if sprite.image.Image == wanted then
+		return
+	end
+	-- Neues Bild in die hintere Ebene laden ...
+	if sprite.back.Image ~= wanted then
+		sprite.back.Image = wanted
+	end
+	sprite.wanted = wanted
+	-- ... und erst tauschen, wenn es geladen ist (bis dahin bleibt das alte Bild sichtbar)
+	if sprite.back.IsLoaded or sprite.image.Image == "" then
+		local front = sprite.image
+		sprite.image = sprite.back
+		sprite.back = front
+		sprite.image.ImageTransparency = 0
+		sprite.back.ImageTransparency = 1
 	end
 end
 
