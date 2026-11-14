@@ -85,12 +85,17 @@ local function getState(head: Model): HeadState
 		if Constants.USE_SPRITES and SpriteAssets.hasImages() and typeof(skin) == "string" then
 			state.skin = skin
 			state.sprite = SpriteVisual.create("Sprite", head)
-			-- Knetkugel, Augen und 3D-Kleidung lokal ausblenden
-			for _, child in head:GetChildren() do
+			-- Knetkugel, Augen und 3D-Kleidung lokal ausblenden. Auch Teile, die erst später ankommen:
+			-- Beim Neu-Erscheinen trifft der Kopf teils vor seinen Teilen ein, sonst sähe man kurz die Knetkugel.
+			local function hide(child: Instance)
 				if child:IsA("BasePart") and child.Name ~= "Body" and child.Name ~= "Sprite" then
 					child.LocalTransparencyModifier = 1
 				end
 			end
+			for _, child in head:GetChildren() do
+				hide(child)
+			end
+			head.ChildAdded:Connect(hide)
 		end
 		local facing = head:GetAttribute("Facing")
 		if typeof(facing) == "number" then
