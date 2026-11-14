@@ -13,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local HeadHistory = require(script.Parent.HeadHistory)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 
@@ -122,11 +123,14 @@ end
 -- Trifft die Granate einen Kopf? (Den Werfer erst nach GRENADE_OWNER_GRACE Sekunden)
 local function hitsHead(grenade: Grenade, now: number): boolean
 	local reach = Constants.HEAD_RADIUS + Constants.GRENADE_RADIUS
+	-- Gegner dort prüfen, wo der Werfer sie gesehen hat (seine Granate fliegt bei ihm vorausberechnet)
+	local seen = HeadHistory.positionsFor(grenade.owner, context.getHeads())
 	for participant, head in context.getHeads() do
-		local body = head.PrimaryPart
 		local ownerProtected = participant == grenade.owner and now - grenade.thrownAt < Constants.GRENADE_OWNER_GRACE
-		if body and not ownerProtected then
-			local offset = Vector3.new(body.Position.X - grenade.position.X, body.Position.Y - grenade.position.Y, 0)
+		-- Den Werfer selbst mit seiner aktuellen Position prüfen
+		local position = if participant == grenade.owner then (head.PrimaryPart and head.PrimaryPart.Position) else seen[head]
+		if position and not ownerProtected then
+			local offset = Vector3.new(position.X - grenade.position.X, position.Y - grenade.position.Y, 0)
 			if offset.Magnitude <= reach then
 				return true
 			end

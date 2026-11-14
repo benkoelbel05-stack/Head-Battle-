@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
+local HeadHistory = require(script.Parent.HeadHistory)
 
 type Participant = Player | string
 
@@ -39,7 +40,9 @@ local function inArc(origin: Vector3, direction: Vector3, point: Vector3, range:
 	if distance < Constants.HEAD_RADIUS then
 		return true -- direkt am Kopf: immer getroffen
 	end
-	return offset.Unit:Dot(direction) >= math.cos(math.rad(Constants.SWORD_ARC))
+	-- Der Kopf zählt als getroffen, sobald sein Rand in den Bogen ragt (nicht erst seine Mitte)
+	local edgeAngle = math.asin(math.min(1, Constants.HEAD_RADIUS / distance))
+	return offset.Unit:Dot(direction) >= math.cos(math.min(math.pi, math.rad(Constants.SWORD_ARC) + edgeAngle))
 end
 
 -- Kommt die Klinge von origin bis point, ohne durch eine Plattform zu gehen?
@@ -54,8 +57,9 @@ local function reachable(shapes: { PlatformShapes.Shape }, origin: Vector3, poin
 	return hit == nil or hit >= distance - slack
 end
 
--- Schlagen. direction = Schlagrichtung (360°). Gibt true zurück, wenn geschlagen wurde.
-function Swords.swing(participant: Participant, direction: Vector3): boolean
+-- Schlagen. direction = Schlagrichtung (360°). originHint = eigene Position, wie der Spieler sie sieht
+-- (wird übernommen, wenn sie nah an der Server-Position liegt). Gibt true zurück, wenn geschlagen wurde.
+function Swords.swing(participant: Participant, direction: Vector3, originHint: Vector3?): boolean
 	local flat = Vector3.new(direction.X, direction.Y, 0)
 	if flat.Magnitude < 0.1 then
 		return false
@@ -75,16 +79,20 @@ function Swords.swing(participant: Participant, direction: Vector3): boolean
 	head:SetAttribute(Abilities.readyAttribute("Sword"), readyAt[participant])
 
 	local origin = body.Position
+	if originHint and (Vector3.new(originHint.X, originHint.Y, 0) - Vector3.new(origin.X, origin.Y, 0)).Magnitude < 4 then
+		origin = Vector3.new(originHint.X, originHint.Y, origin.Z)
+	end
 	local shapes = PlatformShapes.collect(Workspace:FindFirstChild(Constants.ARENA_FOLDER))
-	-- Etwas Spielraum für Netzwerk-Verzögerung bei der Reichweite
-	local reach = Constants.SWORD_RANGE + Constants.HEAD_RADIUS + 0.5
+	-- Reichweite = Klinge (SWORD_RANGE ab Kopfmitte) bis zum Rand des getroffenen Kopfes.
+	-- Gegner werden dort geprüft, wo der Angreifer sie gesehen hat (HeadHistory).
 	local R = Constants.HEAD_RADIUS
+	local reach = Constants.SWORD_RANGE + R
+	local seen = HeadHistory.positionsFor(participant, context.getHeads())
 	local hit: { Participant } = {}
 	for other, otherHead in context.getHeads() do
-		local otherBody = otherHead.PrimaryPart
-		if other ~= participant and otherBody and inArc(origin, flat, otherBody.Position, reach) then
+		local target = seen[otherHead]
+		if other ~= participant and target and inArc(origin, flat, target, reach) then
 			-- Nicht durch Plattformen: Mitte oder Rand des Kopfes muss frei erreichbar sein
-			local target = otherBody.Position
 			local toTarget = Vector3.new(target.X - origin.X, target.Y - origin.Y, 0)
 			local side = if toTarget.Magnitude > 0.01 then Vector3.new(-toTarget.Y, toTarget.X, 0).Unit * R * 0.7 else Vector3.zero
 			if
@@ -115,9 +123,9 @@ end
 
 function Swords.init(remote: RemoteEvent, swordContext: Context)
 	context = swordContext
-	remote.OnServerEvent:Connect(function(player: Player, direction: unknown)
+	remote.OnServerEvent:Connect(function(player: Player, direction: unknown, origin: unknown)
 		if typeof(direction) == "Vector3" then
-			Swords.swing(player, direction :: Vector3)
+			Swords.swing(player, direction :: Vector3, if typeof(origin) == "Vector3" then origin :: Vector3 else nil)
 		end
 	end)
 end

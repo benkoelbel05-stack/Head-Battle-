@@ -280,7 +280,7 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			local direction = freeAim() or aimDirection(input, false)
 			head:SetAttribute(Abilities.readyAttribute("Sword"), Workspace:GetServerTimeNow() + Constants.SWORD_COOLDOWN)
 			SwordVisual.play(motor.position, direction)
-			swingSwordRemote:FireServer(direction)
+			swingSwordRemote:FireServer(direction, motor.position)
 		end
 	elseif id == "Missile" then
 		-- Abfeuern, wenn noch keine eigene fliegt. Lenken geschieht durch Halten der Taste (siehe step).

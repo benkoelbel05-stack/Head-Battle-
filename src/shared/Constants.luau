@@ -75,7 +75,8 @@ Constants.MISSILE_STEER_SPEED = 8 -- extra langsam, solange man sie lenkt (Taste
 Constants.MISSILE_SPEED_CHANGE = 45 -- wie schnell sie zwischen den beiden Tempi wechselt (Studs/s²)
 Constants.MISSILE_TURN_RATE = 3.6 -- maximale Drehung beim Lenken in rad/s (Wendigkeit)
 Constants.MISSILE_LIFETIME = 6
-Constants.MISSILE_RADIUS = 0.6
+Constants.MISSILE_RADIUS = 0.3 -- halbe Dicke der Rakete
+Constants.MISSILE_HALF_LENGTH = 0.5 -- Rakete als Kapsel: Mittelstück ± so weit, plus MISSILE_RADIUS (= 1,6 lang)
 Constants.MISSILE_BLAST_RADIUS = 5
 Constants.MISSILE_IMPULSE = 600 -- Stoß auf Plattformen bei der Explosion
 Constants.MISSILE_OWNER_GRACE = 0.4 -- so lange trifft die Rakete den Schützen selbst nicht

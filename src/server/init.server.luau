@@ -18,6 +18,7 @@ local Thrusters = require(script.Thrusters)
 local Grenades = require(script.Grenades)
 local Swords = require(script.Swords)
 local Missiles = require(script.Missiles)
+local HeadHistory = require(script.HeadHistory)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local RoundManager = require(script.RoundManager)
 local BotController = require(script.BotController)
@@ -247,6 +248,7 @@ local snapshotTimer = 0
 RunService.Heartbeat:Connect(function(dt)
 	BotController.step(dt)
 	HeadSpawner.checkFalls()
+	HeadHistory.record(HeadSpawner.getHeads())
 
 	local headList = {}
 	for _, head in HeadSpawner.getHeads() do

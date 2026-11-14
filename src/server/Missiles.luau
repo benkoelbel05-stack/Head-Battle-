@@ -16,6 +16,7 @@ local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local PlatformSim = require(ReplicatedStorage.Shared.PlatformSim)
 local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
+local HeadHistory = require(script.Parent.HeadHistory)
 
 type Participant = Player | string
 
@@ -47,7 +48,12 @@ local folder: Model
 local function makeMissilePart(position: Vector3, direction: Vector3, ownerKey: string, id: string): Part
 	local part = Instance.new("Part")
 	part.Name = "Missile"
-	part.Size = Vector3.new(1.6, 0.6, 0.6)
+	-- Form passt genau zur Treffer-Kapsel (MISSILE_HALF_LENGTH, MISSILE_RADIUS)
+	part.Size = Vector3.new(
+		(Constants.MISSILE_HALF_LENGTH + Constants.MISSILE_RADIUS) * 2,
+		Constants.MISSILE_RADIUS * 2,
+		Constants.MISSILE_RADIUS * 2
+	)
 	part.Color = Constants.MISSILE_COLOR
 	part.Material = Enum.Material.SmoothPlastic
 	part.CanCollide = false
@@ -220,29 +226,45 @@ function Missiles.step(dt: number)
 			steerBotMissile(missile, dt)
 		end
 
-		local position = missile.part.Position
+		local position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z)
 		local shouldExplode = now - missile.firedAt >= Constants.MISSILE_LIFETIME or position.Y < Constants.FALL_LIMIT_Y
+		-- Die Rakete ist eine Kapsel: Strecke von hinten nach vorne, mit MISSILE_RADIUS Dicke
+		local forward = missile.part.CFrame.RightVector
+		forward = Vector3.new(forward.X, forward.Y, 0)
+		forward = if forward.Magnitude > 0.01 then forward.Unit else Vector3.xAxis
+		local tail = position - forward * Constants.MISSILE_HALF_LENGTH
+		local nose = position + forward * Constants.MISSILE_HALF_LENGTH
 
-		-- Plattform getroffen?
+		-- Plattform getroffen? (Spitze, Mitte oder Ende berührt sie)
 		if not shouldExplode then
 			for _, shape in shapes do
 				local frame = PlatformShapes.frame(shape)
-				local distance = PlatformShapes.closest(shape.halfLength, frame:PointToObjectSpace(position))
-				if distance < shape.radius + Constants.MISSILE_RADIUS then
-					shouldExplode = true
+				for _, point in { nose, position, tail } do
+					local localPoint = frame:PointToObjectSpace(Vector3.new(point.X, point.Y, frame.Position.Z))
+					if PlatformShapes.closest(shape.halfLength, localPoint) < shape.radius + Constants.MISSILE_RADIUS then
+						shouldExplode = true
+						break
+					end
+				end
+				if shouldExplode then
 					break
 				end
 			end
 		end
 
-		-- Kopf getroffen? (den Schützen erst nach MISSILE_OWNER_GRACE)
+		-- Kopf getroffen? Abstand Kopfmitte zur Raketen-Strecke. Gegner dort, wo der Schütze sie sieht;
+		-- den Schützen selbst erst nach MISSILE_OWNER_GRACE.
 		if not shouldExplode then
 			local ownerProtected = now - missile.firedAt < Constants.MISSILE_OWNER_GRACE
+			local seen = HeadHistory.positionsFor(missile.owner, context.getHeads())
 			for participant, head in context.getHeads() do
-				local body = head.PrimaryPart
-				if body and not (participant == missile.owner and ownerProtected) then
-					local offset = Vector3.new(body.Position.X - position.X, body.Position.Y - position.Y, 0)
-					if offset.Magnitude <= Constants.HEAD_RADIUS + Constants.MISSILE_RADIUS then
+				local isOwner = participant == missile.owner
+				local target = if isOwner then (head.PrimaryPart and head.PrimaryPart.Position) else seen[head]
+				if target and not (isOwner and ownerProtected) then
+					local flatTarget = Vector3.new(target.X, target.Y, Constants.PLANE_Z)
+					local along = math.clamp((flatTarget - tail):Dot(forward), 0, Constants.MISSILE_HALF_LENGTH * 2)
+					local closest = tail + forward * along
+					if (flatTarget - closest).Magnitude <= Constants.HEAD_RADIUS + Constants.MISSILE_RADIUS then
 						shouldExplode = true
 						break
 					end
