@@ -22,6 +22,8 @@ Constants.JUMP_VELOCITY = 52
 Constants.JUMP_CUT_MULTIPLIER = 0.45 -- Taste früh loslassen = niedriger Sprung
 Constants.JUMP_KEEP_ALONG = 0.6 -- so viel Laufgeschwindigkeit nimmt man in den Sprung mit
 Constants.MAX_FALL_SPEED = 90
+Constants.AIR_JUMPS = 1 -- Doppelsprung: so oft kann man in der Luft nochmal springen
+Constants.DOUBLE_JUMP_VELOCITY = 42 -- etwas schwächer als der normale Sprung
 Constants.JUMP_BUFFER = 0.12 -- Sprung kurz vor der Landung gedrückt zählt trotzdem
 Constants.WALL_JUMP_VELOCITY = 34 -- Absprung von einer Wand (schräg nach oben)
 Constants.WALL_JUMP_LIFT = 0.8 -- wie steil man von einer Wand nach oben abspringt

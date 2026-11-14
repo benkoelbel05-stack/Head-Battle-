@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
@@ -99,6 +100,37 @@ end
 -- Animationen, die einmal ablaufen (statt in Schleife)
 local ONE_SHOT = { jump = true, land = true, respawn = true, hit = true }
 local RESPAWN_TIME = 0.5 -- so lange läuft die Erscheinen-Animation
+
+-- Doppelsprung-Wölkchen: ein paar Knetkügelchen unter dem Kopf, die auseinanderploppen
+local function jumpPuff(position: Vector3, color: Color3)
+	local below = position - Vector3.new(0, Constants.HEAD_RADIUS * 0.9, 0)
+	for i = 1, 5 do
+		local angle = math.rad(200 + (i - 1) * 35) -- fächerförmig nach unten
+		local direction = Vector3.new(math.cos(angle), math.sin(angle), 0)
+		local puff = Instance.new("Part")
+		puff.Name = "JumpPuff"
+		puff.Shape = Enum.PartType.Ball
+		puff.Size = Vector3.one * 0.7
+		puff.Color = color:Lerp(Color3.new(1, 1, 1), 0.45)
+		puff.Material = Enum.Material.SmoothPlastic
+		puff.Anchored = true
+		puff.CanCollide = false
+		puff.CanQuery = false
+		puff.CanTouch = false
+		puff.CastShadow = false
+		puff.Position = Vector3.new(below.X, below.Y, Constants.SPRITE_Z - 0.3)
+		puff.Parent = Workspace
+		local tween = TweenService:Create(puff, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = puff.Position + direction * 1.8,
+			Size = Vector3.one * 0.15,
+			Transparency = 1,
+		})
+		tween:Play()
+		tween.Completed:Once(function()
+			puff:Destroy()
+		end)
+	end
+end
 
 local function setAnimation(state: HeadState, animation: string)
 	if state.animation ~= animation then
@@ -316,6 +348,22 @@ function ClayAnimator.start()
 					local state = getState(child)
 					local velocity = body.AssemblyLinearVelocity
 					local suddenChange = (velocity - state.lastFrameVelocity).Magnitude > INSTANT_POSE_CHANGE
+					-- Doppelsprung (in der Luft plötzlich nach oben): Sprung-Animation von vorn + Wölkchen
+					if
+						not state.onSurface
+						and velocity.Y - state.lastFrameVelocity.Y > 15
+						and math.abs(velocity.Y - Constants.DOUBLE_JUMP_VELOCITY) < 4
+					then
+						state.animation = "jump"
+						state.animationStart = os.clock()
+						local color = Color3.fromRGB(230, 200, 170)
+						for _, skin in Constants.SKINS do
+							if skin.key == child:GetAttribute("Skin") then
+								color = skin.color
+							end
+						end
+						jumpPuff(body.Position, color)
+					end
 					state.lastFrameVelocity = velocity
 					if newPose or suddenChange then
 						stopMotionStep(body, state, frameTime)

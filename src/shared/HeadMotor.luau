@@ -49,6 +49,7 @@ export type Motor = {
 	-- Springen (vom Steuernden gesetzt)
 	jumpPressedAt: number,
 	jumpReleased: boolean,
+	airJumpsLeft: number, -- Doppelsprung: wird beim Ankleben wieder aufgefüllt
 
 	-- Dash
 	dashUntil: number,
@@ -78,6 +79,7 @@ function HeadMotor.new(position: Vector3): Motor
 		lastSwitch = 0,
 		jumpPressedAt = -math.huge,
 		jumpReleased = false,
+		airJumpsLeft = Constants.AIR_JUMPS,
 		dashUntil = 0,
 		dashDirection = Vector3.xAxis,
 	}
@@ -123,6 +125,7 @@ local function attachTo(motor: Motor, shape: PlatformShapes.Shape, now: number)
 	motor.lastShapeFrame = frame
 	motor.lastSwitch = now
 	motor.attachedAt = now
+	motor.airJumpsLeft = Constants.AIR_JUMPS
 	motor.position = frame:PointToWorldSpace(ringPoint)
 end
 
@@ -313,6 +316,16 @@ end
 
 local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape }, others: { Vector3 })
 	local velocity = motor.velocity
+
+	-- Doppelsprung: in der Luft gedrückt und noch ein Luftsprung übrig
+	-- (ohne übrige Luftsprünge bleibt der Druck gepuffert und zählt bei der Landung)
+	if motor.airJumpsLeft > 0 and now - motor.jumpPressedAt <= Constants.JUMP_BUFFER then
+		motor.jumpPressedAt = -math.huge
+		motor.airJumpsLeft -= 1
+		local wantedX = if math.abs(input.X) > 0.1 then input.X * Constants.MOVE_SPEED * motor.speedScale else velocity.X
+		velocity = Vector3.new(wantedX, Constants.DOUBLE_JUMP_VELOCITY, 0)
+	end
+
 	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED * motor.speedScale, Constants.AIR_ACCEL * dt)
 	local vy = velocity.Y - Constants.GRAVITY * dt
 	if motor.jumpReleased and vy > 0 then

@@ -345,8 +345,12 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 			bot.rescueDecision = random:NextNumber() < level.rescueChance
 		end
 		local point = nearestPlatformPoint(shapes, position)
-		if point and bot.rescueDecision and dashReady(bot, now) then
-			dash(bot, motor, now, flat(point - position))
+		if point and bot.rescueDecision then
+			if dashReady(bot, now) then
+				dash(bot, motor, now, flat(point - position))
+			elseif motor.airJumpsLeft > 0 then
+				jump(bot, motor, now) -- Doppelsprung als Rettung
+			end
 		end
 		bot.input = if point then Vector3.new(math.sign(point.X - position.X), 0, 0) else Vector3.zero
 		return
@@ -508,6 +512,10 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 	else
 		-- In der Luft: Richtung Ziel lenken (bzw. weg, wenn zu nah)
 		bot.input = Vector3.new(horizontal ~= 0 and horizontal or math.sign(toTarget.X), 0, 0)
+		-- Doppelsprung am höchsten Punkt, wenn das Ziel noch höher ist
+		if motor.airJumpsLeft > 0 and toTarget.Y > 4 and motor.velocity.Y < 6 and random:NextNumber() < 0.5 then
+			jump(bot, motor, now)
+		end
 	end
 end
 

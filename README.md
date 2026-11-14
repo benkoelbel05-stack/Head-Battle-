@@ -38,6 +38,7 @@ Ein chaotisches 2D-Arena-Duell für 2–4 Spieler auf Roblox: Knetköpfe hüpfen
 | --- | --- | --- |
 | Laufen / Klettern | A / D / W / S oder Pfeiltasten | Linker Stick |
 | Springen (weg von der Fläche) | Leertaste | A |
+| Doppelsprung | Leertaste in der Luft | A in der Luft |
 | Fähigkeit in Slot 1 | Linke Maustaste (oder 1) | X |
 | Fähigkeit in Slot 2 | Mausrad-Klick (oder 2) | Y |
 | Fähigkeit in Slot 3 | Rechte Maustaste (oder 3) | B |
