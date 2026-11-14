@@ -17,6 +17,7 @@ local GrenadePhysics = require(ReplicatedStorage.Shared.GrenadePhysics)
 local AimPreview = require(script.Parent.AimPreview)
 local PlatformClient = require(script.Parent.PlatformClient)
 local SwordVisual = require(script.Parent.SwordVisual)
+local SoundFX = require(script.Parent.SoundFX)
 local MissileShape = require(ReplicatedStorage.Shared.MissileShape)
 
 local remotes = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER)
@@ -285,6 +286,7 @@ local function useAbility(id: string, charge: number, input: Vector3, now: numbe
 			dashReadyAt = now + Constants.DASH_COOLDOWN
 			-- In Mausrichtung (bzw. rechter Stick), sonst gedrückte Richtung oder Blickrichtung
 			HeadMotor.startDash(motor, now, freeAim() or aimDirection(input, false))
+			SoundFX.play("dash")
 			head:SetAttribute(Abilities.readyAttribute("Dash"), Workspace:GetServerTimeNow() + Constants.DASH_COOLDOWN)
 		end
 	elseif id == "Thruster" then

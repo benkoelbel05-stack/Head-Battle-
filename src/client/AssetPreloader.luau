@@ -15,6 +15,7 @@ local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 local ArenaAssets = require(ReplicatedStorage.Shared.ArenaAssets)
 local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
 local OceanAssets = require(ReplicatedStorage.Shared.OceanAssets)
+local SoundIds = require(ReplicatedStorage.Shared.SoundIds)
 
 local AssetPreloader = {}
 
@@ -54,6 +55,9 @@ function AssetPreloader.start()
 		add(ui, id)
 	end
 	for _, id in AbilityIcons do
+		add(ui, id)
+	end
+	for _, id in SoundIds do
 		add(ui, id)
 	end
 	preload("Bedienelemente", ui)

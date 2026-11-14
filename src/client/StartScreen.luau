@@ -20,6 +20,7 @@ local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local AbilityIcons = require(ReplicatedStorage.Shared.AbilityIcons)
 local UIAssets = require(ReplicatedStorage.Shared.UIAssets)
 local MenuAssetIds = require(script.Parent.MenuAssetIds)
+local SoundFX = require(script.Parent.SoundFX)
 
 local StartScreen = {}
 
@@ -156,12 +157,14 @@ local function button(parent: Instance, name: string, cx: number, cy: number, w:
 	end
 	b.MouseEnter:Connect(function()
 		to(1.08, 0.12)
+		SoundFX.play("ui_hover")
 	end)
 	b.MouseLeave:Connect(function()
 		to(1, 0.12)
 	end)
 	b.MouseButton1Down:Connect(function()
 		to(0.9, 0.06)
+		SoundFX.play("ui_click")
 	end)
 	b.MouseButton1Up:Connect(function()
 		to(1.08, 0.12)

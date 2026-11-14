@@ -21,6 +21,7 @@ local ThrusterVisual = require(ReplicatedStorage.Shared.ThrusterVisual)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local SpriteVisual = require(script.Parent.SpriteVisual)
 local SwordVisual = require(script.Parent.SwordVisual)
+local SoundFX = require(script.Parent.SoundFX)
 
 type LocalGrenade = {
 	id: string,
@@ -65,6 +66,7 @@ end
 
 -- Knet-Explosion: eine Kugel, die schnell wächst und verblasst
 local function explosionEffect(position: Vector3, radius: number?)
+	SoundFX.play("explosion", if radius and radius < Constants.GRENADE_BLAST_RADIUS then 0.7 else 1)
 	local blob = makeEffectPart("Blast", Vector3.one, Color3.fromRGB(255, 196, 92), position)
 	local tween = TweenService:Create(
 		blob,
@@ -112,6 +114,7 @@ end
 
 -- Ein Kopf ist ausgeschieden: Knetfladen (zerquetscht) oder Knetbrocken (Explosion)
 local function eliminationEffect(position: Vector3, color: Color3, cause: string, direction: Vector3, skin: string?)
+	SoundFX.play("eliminate")
 	local R = Constants.HEAD_RADIUS
 	if skin and Constants.USE_SPRITES and SpriteAssets.hasImages() and cause ~= "Fall" then
 		hitSprite(position, skin, cause, direction)
@@ -153,6 +156,7 @@ local function showThruster(model: Model, thruster: PlatformSim.Thruster)
 	local normal = frame:VectorToWorldSpace(-thruster.localDirection)
 	state.root.CFrame = frame -- damit die Schweißnaht an der richtigen Stelle sitzt
 	local visual = ThrusterVisual.create(state.root, point, normal)
+	SoundFX.play("thruster")
 	thrusterVisuals[visual] = true
 	task.delay(math.max(thruster.endTime - Workspace:GetServerTimeNow(), 0), function()
 		thrusterVisuals[visual] = nil
@@ -192,6 +196,7 @@ local function spawnGrenade(id: string, start: Vector3, velocity: Vector3, start
 		return
 	end
 	local part = makeEffectPart("Grenade", Vector3.one * Constants.GRENADE_RADIUS * 2, Constants.GRENADE_COLOR, start)
+	SoundFX.play("grenade_throw")
 	grenades[id] = {
 		id = id,
 		part = part,

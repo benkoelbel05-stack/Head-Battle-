@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local UIStyle = require(script.Parent.UIStyle)
+local SoundFX = require(script.Parent.SoundFX)
 
 local RoundUI = {}
 
@@ -201,6 +202,11 @@ function RoundUI.start()
 		end
 		if shown ~= countdown.Text then
 			countdown.Text = shown
+			if shown == "LOS!" then
+				SoundFX.play("countdown_go")
+			elseif shown ~= "" then
+				SoundFX.play("countdown_tick")
+			end
 			if shown ~= "" then
 				countdown.TextColor3 = COUNTDOWN_COLORS[shown] or TEXT_COLOR
 				countdownScale.Scale = 1.9
@@ -210,12 +216,20 @@ function RoundUI.start()
 	end
 
 	local lastRefresh = 0
+	local lastPhaseSound: unknown = roundState:GetAttribute("Phase")
 	while true do
 		local phase = roundState:GetAttribute("Phase")
 		local text = roundState:GetAttribute("Message")
 		message.Text = if typeof(text) == "string" then text else ""
 
 		updateCountdown(phase)
+		-- Runde / Match gewonnen: kurze Fanfare
+		if phase ~= lastPhaseSound then
+			if phase == "RoundEnd" or phase == "MatchEnd" then
+				SoundFX.play("round_win")
+			end
+			lastPhaseSound = phase
+		end
 
 		if os.clock() - lastRefresh > 0.25 then
 			lastRefresh = os.clock()

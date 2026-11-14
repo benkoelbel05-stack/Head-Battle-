@@ -21,6 +21,7 @@ local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local SpriteVisual = require(script.Parent.SpriteVisual)
+local SoundFX = require(script.Parent.SoundFX)
 
 type HeadState = {
 	angle: number, -- Drehung um die Kamera-Achse (0 = aufrecht), nur im Stop-Motion-Takt geändert
@@ -109,6 +110,7 @@ local function getState(head: Model): HeadState
 			nextLayer += 1
 		end
 		states[head] = state
+		SoundFX.play("respawn_pop", if state.layer == 6 then 1 else 0.5)
 	end
 	return state
 end
@@ -169,9 +171,13 @@ local function chooseAnimation(state: HeadState, normal: Vector3?, localVelocity
 	elseif not state.onSurface then
 		-- In der Luft: Sprung-Animation (bleibt auf dem letzten Bild stehen)
 		if wasOnSurface or (state.animation ~= "jump") then
+			if wasOnSurface then
+				SoundFX.play("jump", if state.layer == 6 then 1 else 0.45)
+			end
 			setAnimation(state, "jump")
 		end
 	elseif not wasOnSurface and state.animation == "jump" then
+		SoundFX.play("land", if state.layer == 6 then 1 else 0.45)
 		setAnimation(state, "land")
 	elseif state.animation == "land" and not finished then
 		-- Landung zu Ende spielen
@@ -390,6 +396,7 @@ function ClayAnimator.start()
 							end
 						end
 						jumpPuff(body.Position, color)
+						SoundFX.play("double_jump", if state.layer == 6 then 1 else 0.45)
 					end
 					state.lastFrameVelocity = velocity
 					if newPose or suddenChange then

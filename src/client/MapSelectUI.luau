@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local ArenaLayouts = require(ReplicatedStorage.Shared.ArenaLayouts)
 local ArenaAssets = require(ReplicatedStorage.Shared.ArenaAssets)
+local SoundFX = require(script.Parent.SoundFX)
 
 local MapSelectUI = {}
 
@@ -134,6 +135,7 @@ function MapSelectUI.start()
 			mapIndex = mapIndex % #mapKeys + 1
 			backgroundIndex = backgroundIndex % #BACKGROUND_ORDER + 1
 			show(mapKeys[mapIndex], BACKGROUND_ORDER[backgroundIndex])
+			SoundFX.play("map_tick")
 			task.wait(interval)
 			interval = math.min(interval * 1.15, 0.3)
 		end
@@ -141,6 +143,7 @@ function MapSelectUI.start()
 			return
 		end
 		show(finalMap, finalBackground)
+		SoundFX.play("map_select")
 		nameScale.Scale = 1.4
 		TweenService:Create(nameScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		cardStroke.Color = Color3.fromRGB(255, 214, 90)

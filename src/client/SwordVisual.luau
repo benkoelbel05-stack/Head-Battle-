@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local SoundFX = require(script.Parent.SoundFX)
 local PlatformShapes = require(ReplicatedStorage.Shared.PlatformShapes)
 
 local SwordVisual = {}
@@ -52,6 +53,7 @@ end
 
 -- origin = Kopf-Mittelpunkt, direction = Schlagrichtung
 function SwordVisual.play(origin: Vector3, direction: Vector3)
+	SoundFX.play("sword")
 	local range = Constants.SWORD_RANGE
 	local arc = math.rad(Constants.SWORD_ARC)
 	local center = math.atan2(direction.Y, direction.X)

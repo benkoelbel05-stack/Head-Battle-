@@ -20,6 +20,7 @@ local UserInputService = game:GetService("UserInputService")
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
 local images = require(script.Parent.MenuAssetIds)
 local StartScreen = require(script.Parent.StartScreen)
+local SoundFX = require(script.Parent.SoundFX)
 
 local MainMenu = {}
 
@@ -123,7 +124,10 @@ local function boxButton(parent: Instance, name: string, text: string, rect: { n
 	local limit = Instance.new("UITextSizeConstraint")
 	limit.MaxTextSize = 26
 	limit.Parent = button
-	button.Activated:Connect(action)
+	button.Activated:Connect(function()
+		SoundFX.play("ui_click")
+		action()
+	end)
 	return button
 end
 
@@ -308,12 +312,14 @@ function MainMenu.start()
 		local scale = Instance.new("UIScale")
 		scale.Parent = button
 		button.MouseEnter:Connect(function()
+			SoundFX.play("ui_hover")
 			tween(scale, 0.14, { Scale = 1.055 }, Enum.EasingStyle.Back)
 		end)
 		button.MouseLeave:Connect(function()
 			tween(scale, 0.13, { Scale = 1 })
 		end)
 		button.Activated:Connect(function()
+			SoundFX.play("ui_click")
 			tween(scale, 0.08, { Scale = 0.94 })
 			task.delay(0.1, function()
 				if scale.Parent then
@@ -681,7 +687,10 @@ function MainMenu.start()
 			local c = Instance.new("UICorner")
 			c.CornerRadius = UDim.new(0.3, 0)
 			c.Parent = b
-			b.Activated:Connect(action)
+			b.Activated:Connect(function()
+				SoundFX.play("ui_click")
+				action()
+			end)
 		end
 		confirmButton("Abbrechen", 0.08, Color3.fromRGB(33, 115, 217), function()
 			exitConfirmation = false
