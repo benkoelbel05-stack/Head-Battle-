@@ -93,7 +93,7 @@ Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform
 -- Rückkehr-Dauer ungefähr 5 / Wurzel(SPRING) Sekunden (2 -> ca. 3,5 s)
 Constants.PLATFORM_SPRING = 2 -- wie stark die Plattform zum Startplatz zurückgezogen wird (kleiner = langsamer)
 Constants.PLATFORM_DAMPING = 2.8 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfedern ohne Nachwackeln
-Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich eine Plattform nie
+Constants.PLATFORM_MAX_OFFSET = 60 -- nur Notbremse: wie weit eine Plattform geht, bestimmen Kräfte und Feder (früher 12, das wirkte wie eine unsichtbare Wand)
 Constants.PLATFORM_ANGULAR_SPRING = 8 -- wie stark eine gekippte Plattform zurückgedreht wird (kleiner = langsamer)
 Constants.PLATFORM_ANGULAR_DAMPING = 5.7 -- ca. 2 * Wurzel(ANGULAR_SPRING) = ohne Nachwackeln
 Constants.PLATFORM_ANGULAR_SPRING_LIMIT = math.rad(60) -- ab hier wird die Rückdreh-Kraft nicht mehr stärker (Plattformen können sich ganz drehen)
@@ -174,10 +174,10 @@ Constants.SKINS = {
 
 -- Sprites (2D-Charaktere)
 Constants.USE_SPRITES = true -- false = 3D-Knetköpfe statt Sprites
-Constants.SPRITE_SIZE = 4.2 -- Kantenlänge des Sprite-Bilds in Studs (Kopf-Durchmesser ist 3)
-Constants.SPRITE_OFFSET_Y = -0.6 -- Bild verschieben (in Studs, + = weg von der Fläche): auf der Oberseite,
+Constants.SPRITE_SIZE = 4.9 -- Kantenlänge des Sprite-Bilds in Studs (Kopf-Durchmesser/Trefferfläche bleibt 3; früher 4,2)
+Constants.SPRITE_OFFSET_Y = -0.38 -- Bild verschieben (in Studs, + = weg von der Fläche): auf der Oberseite,
 -- die Füße stehen auf der hellen Oberkante
-Constants.SPRITE_OFFSET_Y_OTHER = -0.15 -- dasselbe an Wänden und Unterseiten (dort gibt es keine helle Kante)
+Constants.SPRITE_OFFSET_Y_OTHER = 0.07 -- dasselbe an Wänden und Unterseiten (dort gibt es keine helle Kante)
 Constants.SPRITE_PIXELS = 256 -- Pixelgröße der Sprite-Bilder (Breite = Höhe), zum Spiegeln nötig
 Constants.SPRITE_FLIP = true -- Figur beim Linkslaufen spiegeln (false, falls SPRITE_PIXELS nicht stimmt)
 Constants.SPRITE_FPS = 12 -- Bilder pro Sekunde der Animationen

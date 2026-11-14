@@ -23,17 +23,17 @@ local AbilityBubbles = {}
 local BUBBLE_SIZE = 2.1 -- Durchmesser eines Symbols in Studs
 -- Bogen über dem Kopf (Studs, von der Kopfmitte aus, immer "oben" in der Welt)
 local OFFSETS = {
-	Vector2.new(-2.3, 3.05),
-	Vector2.new(0, 4.05),
-	Vector2.new(2.3, 3.05),
+	Vector2.new(-2.3, 3.45),
+	Vector2.new(0, 4.45),
+	Vector2.new(2.3, 3.45),
 }
 -- Pfeil über der eigenen Figur (über dem Bogen)
 local ARROW_SIZE = 1.1
-local ARROW_HEIGHT = 4.05 + BUBBLE_SIZE / 2 + 0.85
+local ARROW_HEIGHT = 4.45 + BUBBLE_SIZE / 2 + 0.85
 local OUTLINE = Color3.fromRGB(34, 26, 40)
 -- Krone des Führenden: sitzt leicht schräg auf dem Kopf, unter dem mittleren Symbol
 local CROWN_SIZE = 1.45
-local CROWN_HEIGHT = 2.2 -- Mitte der Krone über der Kopfmitte (Kopf-Radius 1,5)
+local CROWN_HEIGHT = 2.6 -- Mitte der Krone über der Kopfmitte (Figur ist etwas größer als der Kopf-Radius 1,5)
 local CROWN_TILT = -12
 
 type Bubble = { group: Frame, cooldown: Frame, emoji: TextLabel, image: ImageLabel, ring: UIStroke, id: string?, fraction: number }

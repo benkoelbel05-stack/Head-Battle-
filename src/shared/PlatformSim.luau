@@ -6,7 +6,7 @@
 --   * Jede Plattform hängt an einer weichen Feder an ihrem Startplatz (Position und Drehung)
 --   * Thruster schieben die Plattform; sitzt der Thruster am Rand, dreht sie sich
 --   * Stöße (Explosionen, Landungen) und Kräfte (Gewicht der Köpfe)
---   * Höchstens PLATFORM_MAX_OFFSET Studs Versatz; drehen können sie sich ganz (360°)
+--   * Versatz nur durch die Feder begrenzt (PLATFORM_MAX_OFFSET ist bloß eine weite Notbremse); drehen können sie sich ganz (360°)
 --   * Plattformen stoßen exakt (als Knetwürste) aneinander, mit Masse, Drehung und leichtem Abprallen
 --   * Feste Zeitschritte (SIM_RATE pro Sekunde), damit alle Rechner möglichst gleich rechnen
 
