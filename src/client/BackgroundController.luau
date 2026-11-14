@@ -9,13 +9,50 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local ArenaAssets = require(ReplicatedStorage.Shared.ArenaAssets)
+local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
+local ContentProvider = game:GetService("ContentProvider")
 
 local BackgroundController = {}
 
 local BACKGROUND_Z = Constants.PLANE_Z - 60 -- weit hinter allem anderen
 local OVERSIZE = 1.06 -- etwas größer als der Bildschirm, damit nie ein Rand zu sehen ist
 
+-- Nur in Studio: melden, welche Arena-Bilder (Hintergründe, Plattform-Texturen) nicht laden
+local function checkAssets()
+	local names: { [string]: string } = {}
+	local list = {}
+	for key, id in ArenaAssets do
+		local content = `rbxassetid://{id}`
+		names[content] = `Hintergrund {key}`
+		table.insert(list, content)
+	end
+	for key, material in PlatformTextures do
+		for kind, id in { tex = material.tex, trim = material.trim } do
+			if id then
+				local content = `rbxassetid://{id}`
+				names[content] = `Textur {key} ({kind})`
+				table.insert(list, content)
+			end
+		end
+	end
+	local failed = {}
+	ContentProvider:PreloadAsync(list, function(content: string, status: Enum.AssetFetchStatus)
+		if status ~= Enum.AssetFetchStatus.Success then
+			table.insert(failed, `{names[content] or content} = {content} ({status.Name})`)
+		end
+	end)
+	if #failed > 0 then
+		warn(`[ClayBattle] Arena-Bilder laden nicht:\n  {table.concat(failed, "\n  ")}`)
+	else
+		print("[ClayBattle] Alle Arena-Bilder geladen")
+	end
+end
+
 function BackgroundController.start()
+	if RunService:IsStudio() then
+		task.spawn(checkAssets)
+	end
+
 	local roundState = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
 	Workspace:WaitForChild(Constants.ARENA_FOLDER)
 

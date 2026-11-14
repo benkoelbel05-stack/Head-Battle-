@@ -8,6 +8,9 @@ local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 local ArenaLayouts = require(ReplicatedStorage.Shared.ArenaLayouts)
+local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
+
+local TEXTURE_TILE = 6 -- so viele Studs ist eine Kachel der Flächen-Textur breit
 
 local PLATFORM_DEPTH = 8 -- dicker als der Kopf, damit nichts durchrutscht
 
@@ -97,6 +100,32 @@ local function buildPlatform(index: number, platform: ArenaLayouts.Platform, par
 		front.CanQuery = false
 		front.CanTouch = false
 		front.CastShadow = false
+	end
+
+	-- Knet-Texturen: Fläche auf die Vorderseite (Front-Platte), Kante auf den hellen Rand (Körper).
+	-- Die Kamera schaut von +Z: bei Blöcken ist das die "Back"-Seite, bei den gedrehten Zylindern "Left".
+	local material = if platform.material then PlatformTextures[platform.material] else nil
+	if material then
+		local function addTexture(part: BasePart, id: number, tileU: number, tileV: number, offsetV: number)
+			local texture = Instance.new("Texture")
+			texture.Texture = `rbxassetid://{id}`
+			texture.Face = if part:IsA("Part") and part.Shape == Enum.PartType.Cylinder
+				then Enum.NormalId.Left
+				else Enum.NormalId.Back
+			texture.StudsPerTileU = tileU
+			texture.StudsPerTileV = tileV
+			texture.OffsetStudsV = offsetV
+			texture.Parent = part
+		end
+		for _, front in frontParts do
+			addTexture(front, material.tex, TEXTURE_TILE, TEXTURE_TILE, 0)
+		end
+		if material.trim then
+			-- Die Kante (Seitenverhältnis 4:1) genau über die Körperhöhe legen: sichtbar bleibt oben der Rand
+			for _, part in parts do
+				addTexture(part, material.trim, height * 4, height, 0)
+			end
+		end
 	end
 
 	-- Alle Teile fest zu einem Körper verbinden, das erste Teil ist die Wurzel

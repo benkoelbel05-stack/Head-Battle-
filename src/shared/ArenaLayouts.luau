@@ -7,6 +7,7 @@ export type Platform = {
 	size: Vector2,
 	color: Color3,
 	density: number?, -- optional: schwerer (> 1) oder leichter (< 1) als normal
+	material: string?, -- optional: Knet-Textur aus PlatformTextures (z. B. "grass", "stone", "ice")
 }
 
 export type Layout = {
@@ -27,12 +28,12 @@ local ArenaLayouts: { [string]: Layout } = {}
 ArenaLayouts.Basteltisch = {
 	name = "Basteltisch",
 	platforms = {
-		{ position = Vector2.new(0, 0), size = Vector2.new(60, 4), color = MOOS }, -- Hauptboden
-		{ position = Vector2.new(-22, 14), size = Vector2.new(14, 2), color = SENF, density = 3 },
-		{ position = Vector2.new(22, 14), size = Vector2.new(14, 2), color = SENF, density = 3 },
-		{ position = Vector2.new(0, 26), size = Vector2.new(16, 2), color = PFLAUME, density = 2.5 },
-		{ position = Vector2.new(-40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5 },
-		{ position = Vector2.new(40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5 },
+		{ position = Vector2.new(0, 0), size = Vector2.new(60, 4), color = MOOS, material = "dirt" }, -- Hauptboden
+		{ position = Vector2.new(-22, 14), size = Vector2.new(14, 2), color = SENF, density = 3, material = "cheese" },
+		{ position = Vector2.new(22, 14), size = Vector2.new(14, 2), color = SENF, density = 3, material = "cheese" },
+		{ position = Vector2.new(0, 26), size = Vector2.new(16, 2), color = PFLAUME, density = 2.5, material = "purple_clay" },
+		{ position = Vector2.new(-40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5, material = "purple_clay" },
+		{ position = Vector2.new(40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5, material = "purple_clay" },
 	},
 	spawns = {
 		Vector2.new(-20, 6),
@@ -47,14 +48,14 @@ ArenaLayouts.Basteltisch = {
 ArenaLayouts.Schwebeinseln = {
 	name = "Schwebeinseln",
 	platforms = {
-		{ position = Vector2.new(0, 0), size = Vector2.new(22, 3), color = MOOS },
-		{ position = Vector2.new(-26, 8), size = Vector2.new(14, 2), color = SENF, density = 2 },
-		{ position = Vector2.new(26, 8), size = Vector2.new(14, 2), color = SENF, density = 2 },
-		{ position = Vector2.new(-14, 20), size = Vector2.new(12, 2), color = HIMMEL, density = 2 },
-		{ position = Vector2.new(14, 20), size = Vector2.new(12, 2), color = HIMMEL, density = 2 },
-		{ position = Vector2.new(0, 31), size = Vector2.new(10, 2), color = PFLAUME, density = 2.5 },
-		{ position = Vector2.new(-42, -6), size = Vector2.new(10, 2), color = TON, density = 1.5 },
-		{ position = Vector2.new(42, -6), size = Vector2.new(10, 2), color = TON, density = 1.5 },
+		{ position = Vector2.new(0, 0), size = Vector2.new(22, 3), color = MOOS, material = "grass" },
+		{ position = Vector2.new(-26, 8), size = Vector2.new(14, 2), color = SENF, density = 2, material = "stone" },
+		{ position = Vector2.new(26, 8), size = Vector2.new(14, 2), color = SENF, density = 2, material = "stone" },
+		{ position = Vector2.new(-14, 20), size = Vector2.new(12, 2), color = HIMMEL, density = 2, material = "ice" },
+		{ position = Vector2.new(14, 20), size = Vector2.new(12, 2), color = HIMMEL, density = 2, material = "ice" },
+		{ position = Vector2.new(0, 31), size = Vector2.new(10, 2), color = PFLAUME, density = 2.5, material = "purple_clay" },
+		{ position = Vector2.new(-42, -6), size = Vector2.new(10, 2), color = TON, density = 1.5, material = "lava" },
+		{ position = Vector2.new(42, -6), size = Vector2.new(10, 2), color = TON, density = 1.5, material = "lava" },
 	},
 	spawns = {
 		Vector2.new(-6, 4),
@@ -69,12 +70,12 @@ ArenaLayouts.Schwebeinseln = {
 ArenaLayouts.Knettreppe = {
 	name = "Knettreppe",
 	platforms = {
-		{ position = Vector2.new(-30, -4), size = Vector2.new(24, 3), color = TON },
-		{ position = Vector2.new(30, -4), size = Vector2.new(24, 3), color = TON },
-		{ position = Vector2.new(0, 6), size = Vector2.new(16, 2), color = PFLAUME, density = 2 },
-		{ position = Vector2.new(-22, 16), size = Vector2.new(14, 2), color = SENF, density = 2.5 },
-		{ position = Vector2.new(22, 16), size = Vector2.new(14, 2), color = SENF, density = 2.5 },
-		{ position = Vector2.new(0, 26), size = Vector2.new(20, 2), color = MOOS, density = 2 },
+		{ position = Vector2.new(-30, -4), size = Vector2.new(24, 3), color = TON, material = "dirt" },
+		{ position = Vector2.new(30, -4), size = Vector2.new(24, 3), color = TON, material = "dirt" },
+		{ position = Vector2.new(0, 6), size = Vector2.new(16, 2), color = PFLAUME, density = 2, material = "purple_clay" },
+		{ position = Vector2.new(-22, 16), size = Vector2.new(14, 2), color = SENF, density = 2.5, material = "cheese" },
+		{ position = Vector2.new(22, 16), size = Vector2.new(14, 2), color = SENF, density = 2.5, material = "cheese" },
+		{ position = Vector2.new(0, 26), size = Vector2.new(20, 2), color = MOOS, density = 2, material = "grass" },
 	},
 	spawns = {
 		Vector2.new(-30, 0),
@@ -89,12 +90,12 @@ ArenaLayouts.Knettreppe = {
 ArenaLayouts.Wackelbruecke = {
 	name = "Wackelbrücke",
 	platforms = {
-		{ position = Vector2.new(0, 0), size = Vector2.new(70, 2), color = MOOS, density = 0.6 },
-		{ position = Vector2.new(-18, 14), size = Vector2.new(10, 2), color = SENF, density = 3 },
-		{ position = Vector2.new(18, 14), size = Vector2.new(10, 2), color = SENF, density = 3 },
-		{ position = Vector2.new(0, 24), size = Vector2.new(8, 2), color = PFLAUME, density = 2 },
-		{ position = Vector2.new(-46, 12), size = Vector2.new(6, 2), color = HIMMEL, density = 2 },
-		{ position = Vector2.new(46, 12), size = Vector2.new(6, 2), color = HIMMEL, density = 2 },
+		{ position = Vector2.new(0, 0), size = Vector2.new(70, 2), color = MOOS, density = 0.6, material = "wood" },
+		{ position = Vector2.new(-18, 14), size = Vector2.new(10, 2), color = SENF, density = 3, material = "stone" },
+		{ position = Vector2.new(18, 14), size = Vector2.new(10, 2), color = SENF, density = 3, material = "stone" },
+		{ position = Vector2.new(0, 24), size = Vector2.new(8, 2), color = PFLAUME, density = 2, material = "purple_clay" },
+		{ position = Vector2.new(-46, 12), size = Vector2.new(6, 2), color = HIMMEL, density = 2, material = "snow" },
+		{ position = Vector2.new(46, 12), size = Vector2.new(6, 2), color = HIMMEL, density = 2, material = "snow" },
 	},
 	spawns = {
 		Vector2.new(-24, 3),
