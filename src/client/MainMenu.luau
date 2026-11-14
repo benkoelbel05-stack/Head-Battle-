@@ -115,7 +115,7 @@ local function textLabel(parent: Instance, name: string, text: string, rect: { n
 	label.Position = at(rect[1], rect[2])
 	label.Size = dims(rect[3], rect[4])
 	label.Text = text
-	label.Font = Enum.Font.GothamBold
+	label.Font = Enum.Font.FredokaOne
 	label.TextColor3 = WHITE
 	label.TextStrokeTransparency = 0.55
 	label.TextScaled = true
@@ -172,7 +172,7 @@ local function boxButton(parent: Instance, name: string, text: string, rect: { n
 	button.Position = at(rect[1], rect[2])
 	button.AutoButtonColor = true
 	button.BackgroundColor3 = color
-	button.Font = Enum.Font.GothamBold
+	button.Font = Enum.Font.FredokaOne
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.Text = text
 	button.TextScaled = true
@@ -795,7 +795,7 @@ function MainMenu.start()
 		question.BackgroundTransparency = 1
 		question.Text = "Spiel wirklich verlassen?"
 		question.TextColor3 = WHITE
-		question.Font = Enum.Font.GothamBold
+		question.Font = Enum.Font.FredokaOne
 		question.TextScaled = true
 		question.ZIndex = 32
 		question.Parent = panel
@@ -804,7 +804,7 @@ function MainMenu.start()
 			b.Size = UDim2.fromScale(0.38, 0.26)
 			b.Position = UDim2.fromScale(x, 0.6)
 			b.Text = text
-			b.Font = Enum.Font.GothamBold
+			b.Font = Enum.Font.FredokaOne
 			b.TextScaled = true
 			b.TextColor3 = WHITE
 			b.BackgroundColor3 = color
