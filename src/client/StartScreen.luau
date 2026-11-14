@@ -318,8 +318,8 @@ function StartScreen.start()
 	iconHolder.BackgroundTransparency = 1
 	iconHolder.Parent = abilityPanel
 	local iconGrid = Instance.new("UIGridLayout")
-	iconGrid.CellSize = UDim2.fromOffset(92, 75)
-	iconGrid.CellPadding = UDim2.fromOffset(17, 10)
+	iconGrid.CellSize = UDim2.fromOffset(76, 76)
+	iconGrid.CellPadding = UDim2.fromOffset(24, 14)
 	iconGrid.SortOrder = Enum.SortOrder.LayoutOrder
 	iconGrid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	iconGrid.Parent = iconHolder
@@ -341,13 +341,13 @@ function StartScreen.start()
 	local slotHeader = text(column, "Header", "", Vector2.new(10, 44), Vector2.new(220, 36), TITLE_FONT, 28, WHITE)
 	local slots: { Slot } = {}
 
-	local mound = frame(column, "Mound", Vector2.new(30, 500), Vector2.new(180, 48), GRASS)
+	local mound = frame(column, "Mound", Vector2.new(45, 488), Vector2.new(150, 34), GRASS)
 	corner(mound, UDim.new(0.5, 0))
 	stroke(mound, GRASS_EDGE, 3)
 	local character = Instance.new("ImageLabel")
 	character.Name = "Character"
-	character.Position = UDim2.fromOffset(55, 395)
-	character.Size = UDim2.fromOffset(130, 130)
+	character.Position = UDim2.fromOffset(65, 405)
+	character.Size = UDim2.fromOffset(110, 110)
 	character.BackgroundTransparency = 1
 	character.ScaleType = Enum.ScaleType.Fit
 	character.ZIndex = 2
@@ -389,12 +389,8 @@ function StartScreen.start()
 	local botBar = frame(content, "BotBar", Vector2.new(670, 600), Vector2.new(570, 72), PANEL)
 	corner(botBar, UDim.new(0, 30))
 	stroke(botBar, CREAM_RIM, 4)
-	local barImage = imageOn(botBar, UIAssets.bot_control_bar_static)
-	if barImage then
-		barImage.ScaleType = Enum.ScaleType.Stretch
-		barImage.ZIndex = botBar.ZIndex
-		botBar.BackgroundTransparency = 1
-	end
+	-- (bot_control_bar_static enthält fest gezeichnete Knöpfe und "NORMAL" – passt nicht zu den echten
+	-- Knöpfen und der wechselnden Stärke, deshalb nicht als Hintergrund benutzt)
 	text(botBar, "BotsLabel", "BOTS", Vector2.new(18, 0), Vector2.new(80, 72), TITLE_FONT, 26, WHITE)
 	local function roundButton(name: string, x: number, label: string, font: Enum.Font, size: number, imageId: number?): TextButton
 		local button = bouncyButton(botBar, name, Vector2.new(x, 14), Vector2.new(44, 44), Color3.fromRGB(66, 56, 162))
@@ -548,12 +544,12 @@ function StartScreen.start()
 	end
 
 	for index = 1, Abilities.MAX_SLOTS do
-		local y = 105 + (index - 1) * 125
-		text(column, `Key{index}`, SLOT_KEYS[index], Vector2.new(6, y + 30), Vector2.new(40, 40), TITLE_FONT, 18, BROWN)
-		local button = bouncyButton(column, `Slot{index}`, Vector2.new(70, y), Vector2.new(100, 100), WHITE)
+		local y = 88 + (index - 1) * 110
+		text(column, `Key{index}`, SLOT_KEYS[index], Vector2.new(75, y + 90), Vector2.new(90, 18), TITLE_FONT, 15, WHITE)
+		local button = bouncyButton(column, `Slot{index}`, Vector2.new(75, y), Vector2.new(90, 90), WHITE)
 		corner(button, UDim.new(0.5, 0))
 		local ring = stroke(button, CREAM_RIM, 4)
-		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(100, 100), BODY_FONT, 52, WHITE)
+		local icon = text(button, "Icon", "", Vector2.zero, Vector2.new(90, 90), BODY_FONT, 48, WHITE)
 		local slotImage = Instance.new("ImageLabel")
 		slotImage.Name = "Image"
 		slotImage.Size = UDim2.fromScale(1, 1)
@@ -561,12 +557,12 @@ function StartScreen.start()
 		slotImage.ScaleType = Enum.ScaleType.Fit
 		slotImage.ZIndex = button.ZIndex + 1
 		slotImage.Parent = button
-		local left = bouncyButton(column, `Left{index}`, Vector2.new(26, y + 30), Vector2.new(40, 40), ORANGE)
+		local left = bouncyButton(column, `Left{index}`, Vector2.new(28, y + 25), Vector2.new(40, 40), ORANGE)
 		left.BackgroundTransparency = 1
 		if not imageOn(left, UIAssets.icon_arrow_left) then
 			text(left, "T", "◀", Vector2.zero, Vector2.new(40, 40), BODY_FONT, 28, BROWN)
 		end
-		local right = bouncyButton(column, `Right{index}`, Vector2.new(174, y + 30), Vector2.new(40, 40), ORANGE)
+		local right = bouncyButton(column, `Right{index}`, Vector2.new(172, y + 25), Vector2.new(40, 40), ORANGE)
 		right.BackgroundTransparency = 1
 		if not imageOn(right, UIAssets.icon_arrow_right) then
 			text(right, "T", "▶", Vector2.zero, Vector2.new(40, 40), BODY_FONT, 28, BROWN)
@@ -612,12 +608,12 @@ function StartScreen.start()
 				text(card, "Name", if typeof(name) == "string" then string.upper(name) else "?", Vector2.new(10, 34), Vector2.new(160, 60), TITLE_FONT, 24, WHITE)
 				local role = if isBot then `BOT · {string.upper(Constants.BOT_DIFFICULTIES[difficulty()].name)}` else "SPIELER"
 				text(card, "Role", role, Vector2.new(10, 92), Vector2.new(160, 30), BODY_FONT, 18, Color3.fromRGB(230, 240, 255))
-				local grass = frame(card, "Mound", Vector2.new(20, 330), Vector2.new(140, 40), GRASS)
+				local grass = frame(card, "Mound", Vector2.new(25, 318), Vector2.new(130, 34), GRASS)
 				corner(grass, UDim.new(0.5, 0))
 				stroke(grass, GRASS_EDGE, 3)
 				local picture = Instance.new("ImageLabel")
-				picture.Position = UDim2.fromOffset(25, 210)
-				picture.Size = UDim2.fromOffset(130, 130)
+				picture.Position = UDim2.fromOffset(30, 222)
+				picture.Size = UDim2.fromOffset(120, 120)
 				picture.BackgroundTransparency = 1
 				picture.ScaleType = Enum.ScaleType.Fit
 				picture.Image = if skin then SpriteAssets.frame(skin, "idle", 1) or "" else ""
