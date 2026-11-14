@@ -131,7 +131,12 @@ end
 
 -- Während des Countdowns stehen alle still
 local function isFrozen(): boolean
-	return roundState:GetAttribute("Phase") == "Countdown"
+	if roundState:GetAttribute("Phase") == "Countdown" then
+		return true
+	end
+	-- Eigener Countdown beim Einstieg ins freie Spiel
+	local frozenUntil = player:GetAttribute("FrozenUntil")
+	return typeof(frozenUntil) == "number" and Workspace:GetServerTimeNow() < frozenUntil
 end
 
 ---------------------------------------------------------------------------------------------------

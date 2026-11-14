@@ -24,6 +24,7 @@ export type AbilityInfo = {
 	itemName: string, -- Name des Kleidungsstücks (für Anzeige)
 	label: string, -- Name der Fähigkeit (Startmenü)
 	description: string, -- kurze Erklärung (Startmenü)
+	icon: string, -- Symbol (Emoji) für Menü und Anzeige
 	cooldown: number,
 	wearAt: WearAt,
 	shape: Enum.PartType,
@@ -44,6 +45,7 @@ Abilities.list = {
 		id = "Dash",
 		itemName = "Fliegerkappe",
 		label = "Dash",
+		icon = "💨",
 		description = "Schneller Sprung in Mausrichtung. Rettet dich auch beim Fallen.",
 		cooldown = Constants.DASH_COOLDOWN,
 		wearAt = "Top",
@@ -55,6 +57,7 @@ Abilities.list = {
 		id = "Thruster",
 		itemName = "Schweißerbrille",
 		label = "Thruster",
+		icon = "🔥",
 		description = "Klebt eine Düse an die Plattform unter dir, die sie wegschiebt.",
 		cooldown = Constants.THRUSTER_COOLDOWN,
 		wearAt = "Eyes",
@@ -66,6 +69,7 @@ Abilities.list = {
 		id = "Grenade",
 		itemName = "Granatengürtel",
 		label = "Granate",
+		icon = "💣",
 		description = "Halten zum Aufladen, loslassen zum Werfen. Explodiert am Kopf.",
 		cooldown = Constants.GRENADE_COOLDOWN,
 		chargeable = true,
@@ -78,6 +82,7 @@ Abilities.list = {
 		id = "Sword",
 		itemName = "Schwert",
 		label = "Schwert",
+		icon = "🗡️",
 		description = "Hieb im Bogen vor dir. Schlägt Granaten zurück.",
 		cooldown = Constants.SWORD_COOLDOWN,
 		wearAt = "Back",
@@ -89,6 +94,7 @@ Abilities.list = {
 		id = "Missile",
 		itemName = "Raketenrucksack",
 		label = "Lenkrakete",
+		icon = "🚀",
 		description = "Taste halten: Rakete fliegt langsam zur Maus. Loslassen: geradeaus.",
 		cooldown = Constants.MISSILE_COOLDOWN,
 		wearAt = "Back",

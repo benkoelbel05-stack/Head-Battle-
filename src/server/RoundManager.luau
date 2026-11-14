@@ -147,8 +147,23 @@ end
 -- Ablauf
 ---------------------------------------------------------------------------------------------------
 
+-- Um Punkte wird erst gespielt, wenn mindestens ein echter Spieler eingestiegen ist
+-- (Bots spielen nicht allein, solange alle noch im Menü sind)
 local function enoughParticipants(): boolean
-	return #participants() >= Constants.MIN_PARTICIPANTS
+	local list = participants()
+	if #list < Constants.MIN_PARTICIPANTS then
+		return false
+	end
+	for _, participant in list do
+		if typeof(participant) ~= "string" then
+			return true
+		end
+	end
+	return false
+end
+
+function RoundManager.enoughParticipants(): boolean
+	return enoughParticipants()
 end
 
 -- Freies Spiel, bis genug Teilnehmer da sind
@@ -163,7 +178,7 @@ local function waitForParticipants()
 	end
 	updateScoreboard()
 	repeat
-		task.wait(0.5)
+		task.wait(0.1)
 	until enoughParticipants()
 end
 

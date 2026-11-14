@@ -200,6 +200,11 @@ joinGame.OnServerEvent:Connect(function(player: Player, list: unknown)
 	if player:GetAttribute("InGame") ~= true then
 		player:SetAttribute("InGame", true)
 		RoundManager.addParticipant(player)
+		-- Countdown beim Einstieg. Startet dadurch ein Match, zählt dessen Runden-Countdown;
+		-- sonst (freies Spiel) einen eigenen: so lange steht man still.
+		if RoundManager.getPhase() == "Waiting" and not RoundManager.enoughParticipants() then
+			player:SetAttribute("FrozenUntil", Workspace:GetServerTimeNow() + Constants.COUNTDOWN_TIME)
+		end
 	elseif RoundManager.getPhase() == "Waiting" and HeadSpawner.getHead(player) then
 		HeadSpawner.spawn(player)
 	end
@@ -228,7 +233,15 @@ end)
 -- Spieler
 ---------------------------------------------------------------------------------------------------
 
--- Neue Spieler landen im Startmenü und steigen erst mit "Spielen" ein (JoinGame)
+-- Neue Spieler landen im Startmenü und steigen erst mit "Spielen" ein (JoinGame).
+-- Ihre Charakter-Farbe steht schon vorher fest, damit das Menü sie zeigen kann.
+local function onPlayerAdded(player: Player)
+	player:SetAttribute("Skin", HeadSpawner.getSkin(player))
+end
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
 Players.PlayerRemoving:Connect(function(player)
 	RoundManager.removeParticipant(player)
 	HeadSpawner.removeParticipant(player)

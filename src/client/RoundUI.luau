@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
 
@@ -147,26 +148,64 @@ function RoundUI.start()
 		end
 	end
 
+	-- Countdown groß und knetig: jede Zahl ploppt auf, am Ende "LOS!"
+	countdown.Size = UDim2.new(1, 0, 0, 170)
+	countdown.Font = Enum.Font.LuckiestGuy
+	countdown.TextSize = 150
+	countdown.TextStrokeTransparency = 1
+	local countdownStroke = Instance.new("UIStroke")
+	countdownStroke.Color = STROKE_COLOR
+	countdownStroke.Thickness = 6
+	countdownStroke.Parent = countdown
+	local countdownScale = Instance.new("UIScale")
+	countdownScale.Parent = countdown
+	local COUNTDOWN_COLORS: { [string]: Color3 } = {
+		["3"] = Color3.fromRGB(235, 80, 70),
+		["2"] = Color3.fromRGB(250, 190, 40),
+		["1"] = Color3.fromRGB(90, 200, 90),
+		["LOS!"] = Color3.fromRGB(255, 255, 255),
+	}
+	local goUntil = 0
+	local function updateCountdown(phase: unknown)
+		local now = Workspace:GetServerTimeNow()
+		local endsAt: number? = nil
+		local roundEnds = roundState:GetAttribute("EndsAt")
+		if phase == "Countdown" and typeof(roundEnds) == "number" then
+			endsAt = roundEnds
+		else
+			local frozenUntil = player:GetAttribute("FrozenUntil")
+			if typeof(frozenUntil) == "number" and frozenUntil > now - 1 then
+				endsAt = frozenUntil
+			end
+		end
+		local shown = ""
+		if endsAt then
+			local remaining = math.ceil(endsAt - now)
+			if remaining > 0 then
+				shown = tostring(remaining)
+				goUntil = endsAt + 0.8
+			end
+		end
+		if shown == "" and now < goUntil then
+			shown = "LOS!"
+		end
+		if shown ~= countdown.Text then
+			countdown.Text = shown
+			if shown ~= "" then
+				countdown.TextColor3 = COUNTDOWN_COLORS[shown] or TEXT_COLOR
+				countdownScale.Scale = 1.9
+				TweenService:Create(countdownScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			end
+		end
+	end
+
 	local lastRefresh = 0
-	local lastPhase: unknown = nil
-	local goShownAt = 0
 	while true do
 		local phase = roundState:GetAttribute("Phase")
 		local text = roundState:GetAttribute("Message")
 		message.Text = if typeof(text) == "string" then text else ""
 
-		-- Countdown-Zahl, beim Start kurz "Los!"
-		local endsAt = roundState:GetAttribute("EndsAt")
-		if phase == "Countdown" and typeof(endsAt) == "number" then
-			local remaining = math.ceil(endsAt - Workspace:GetServerTimeNow())
-			countdown.Text = if remaining > 0 then tostring(remaining) else "Los!"
-		elseif phase == "Playing" and lastPhase == "Countdown" then
-			countdown.Text = "Los!"
-			goShownAt = os.clock()
-		elseif phase ~= "Playing" or os.clock() - goShownAt > 0.7 then
-			countdown.Text = ""
-		end
-		lastPhase = phase
+		updateCountdown(phase)
 
 		if os.clock() - lastRefresh > 0.25 then
 			lastRefresh = os.clock()
