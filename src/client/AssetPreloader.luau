@@ -42,10 +42,23 @@ local CELLS: { [SizeClass]: { w: number, h: number, square: boolean } } = {
 	small = { w = 0.15, h = 0.15, square = true }, -- Figuren-Bilder (Sprites)
 }
 local MAX_PER_BATCH = 80
-local BATCH_TIMEOUT = 8 -- Sekunden pro Paket, danach weiter (Rest wird am Ende nochmal versucht)
-local RETRY_TIMEOUT = 12
+local BATCH_TIMEOUT = 5 -- Sekunden pro Paket, danach weiter (Rest wird am Ende nochmal versucht)
+local RETRY_TIMEOUT = 6
 local MIN_SHOW = 0.25 -- so lange bleibt ein fertiges Paket noch stehen (scharfe Stufe nachladen)
-local SOUND_TIMEOUT = 12
+local SOUND_TIMEOUT = 10
+
+-- Überspringen (Knopf im Ladebildschirm): alle Schleifen hören auf, die Bühne verschwindet sofort
+local cancelled = false
+local currentStage: ScreenGui? = nil
+
+function AssetPreloader.cancel()
+	cancelled = true
+	local stage = currentStage
+	if stage then
+		stage:Destroy()
+		currentStage = nil
+	end
+end
 
 -- Nicht benutzte große Bilder (sparen Ladezeit). Wird eins davon eingebaut: hier entfernen.
 local SKIP: { [string]: boolean } = {
@@ -194,7 +207,7 @@ local function showBatch(stage: ScreenGui, items: { Item }, class: SizeClass, sc
 			onStep(finished - reported)
 			reported = finished
 		end
-		if finished >= #labels or os.clock() - started > timeout then
+		if finished >= #labels or os.clock() - started > timeout or cancelled then
 			break
 		end
 		RunService.RenderStepped:Wait()
@@ -206,7 +219,7 @@ local function showBatch(stage: ScreenGui, items: { Item }, class: SizeClass, sc
 	-- Noch kurz stehen lassen: Roblox lädt jetzt die scharfe Stufe der angezeigten Bilder
 	local shownSince = os.clock()
 	local frames = 0
-	while frames < 3 or os.clock() - shownSince < MIN_SHOW do
+	while (frames < 3 or os.clock() - shownSince < MIN_SHOW) and not cancelled do
 		RunService.RenderStepped:Wait()
 		frames += 1
 	end
@@ -242,6 +255,9 @@ local function showImages(stage: ScreenGui, images: { Item }, screen: Vector2, t
 			local cellH = math.max(32, math.floor(screen.Y * cell.h))
 			local perBatch = math.clamp(math.floor(screen.X / cellW) * math.floor(screen.Y / cellH), 1, MAX_PER_BATCH)
 			for first = 1, #list, perBatch do
+				if cancelled then
+					break
+				end
 				local batch = table.move(list, first, math.min(first + perBatch - 1, #list), 1, {})
 				for _, item in showBatch(stage, batch, class, screen, timeout, onStep) do
 					table.insert(missing, item)
@@ -277,7 +293,7 @@ local function startSounds(stage: ScreenGui, items: { Item }): () -> { Item }
 	end
 	local started = os.clock()
 	return function(): { Item }
-		while os.clock() - started < SOUND_TIMEOUT do
+		while os.clock() - started < SOUND_TIMEOUT and not cancelled do
 			local open = false
 			for index, sound in sounds do
 				if not sound.IsLoaded and not failed[items[index].content] then
@@ -319,10 +335,15 @@ function AssetPreloader.run(onProgress: ((number, number, string) -> ())?): { st
 	end
 
 	local started = os.clock()
+	cancelled = false
 	local stage = makeStage()
+	currentStage = stage
 	local screen = screenSize(stage)
 	local missing: { Item } = {}
 	for _, section in sections do
+		if cancelled then
+			break
+		end
 		currentSection = section.name
 		step(0)
 		local waitSounds = startSounds(stage, section.sounds)
@@ -338,7 +359,7 @@ function AssetPreloader.run(onProgress: ((number, number, string) -> ())?): { st
 
 	-- Zweiter Versuch für alles, was nicht geladen hat
 	local failedNames: { string } = {}
-	if #missing > 0 then
+	if #missing > 0 and not cancelled then
 		currentSection = "Nachzügler"
 		local images: { Item } = {}
 		local sounds: { Item } = {}
@@ -353,7 +374,13 @@ function AssetPreloader.run(onProgress: ((number, number, string) -> ())?): { st
 			table.insert(failedNames, `{item.name} ({item.content})`)
 		end
 	end
-	stage:Destroy()
+	if stage.Parent then
+		stage:Destroy()
+	end
+	currentStage = nil
+	if cancelled then
+		return failedNames -- übersprungen: der Rest lädt im Spiel nach
+	end
 
 	if RunService:IsStudio() then
 		print(`[ClayBattle] Vorgeladen: {total - #failedNames}/{total} in {string.format("%.1f", os.clock() - started)} s`)

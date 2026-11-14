@@ -73,6 +73,26 @@ local function tween(obj: Instance, seconds: number, goal: { [string]: any }, st
 	return t
 end
 
+-- Ersatz zeigen, wenn ein Bild keine ID hat oder nicht lädt (z. B. Decal- statt Image-ID, noch in Prüfung):
+-- so bleibt das Menü immer sichtbar und bedienbar. Nach LOAD_GRACE Sekunden wird nachgesehen.
+local LOAD_GRACE = 2.5
+local function whenMissing(element: GuiObject, fallback: () -> ())
+	local image = element :: any
+	if image.Image == "" then
+		fallback()
+		return
+	end
+	task.delay(LOAD_GRACE, function()
+		if element.Parent and not image.IsLoaded then
+			if RunService:IsStudio() then
+				warn(`[ClayBattle] Menübild lädt nicht, zeige Ersatz: {element.Name} ({image.Image})`)
+			end
+			image.Image = ""
+			fallback()
+		end
+	end)
+end
+
 local function picture(parent: Instance, name: string, x: number, y: number, w: number, h: number, z: number): ImageLabel
 	local element = Instance.new("ImageLabel")
 	element.Name = name
@@ -279,13 +299,16 @@ function MainMenu.start()
 			flag.AnchorPoint = Vector2.new(0.5, 0.5)
 			flag.Position = at(data.x + 75, data.y + 105)
 			table.insert(flags, { label = flag, x = data.x + 75, y = data.y + 105, phase = data.phase })
+			whenMissing(flag, function()
+				flag.Visible = false
+			end)
 		end
 	end
 
 	local logo = picture(titleGroup, "logo_clay_battle", 452, 0, 746, 388, 3)
 	local logoScale = Instance.new("UIScale")
 	logoScale.Parent = logo
-	if logo.Image == "" then
+	whenMissing(logo, function()
 		local fallback = Instance.new("TextLabel")
 		fallback.Name = "FallbackTitle"
 		fallback.BackgroundTransparency = 1
@@ -299,7 +322,7 @@ function MainMenu.start()
 		fallback.TextStrokeTransparency = 0
 		fallback.ZIndex = 3
 		fallback.Parent = logo
-	end
+	end)
 
 	-- Knetfiguren: eigenständige, transparente Bilder, die sanft wippen und schweben
 	--   Rot: Wippen ~6 px mit 1-2° Neigung, Blau: Hüpfen ~9 px, Gelb/Grün: versetztes Schweben
@@ -313,12 +336,12 @@ function MainMenu.start()
 	for _, data in avatarLayout do
 		local label = picture(titleGroup, data.name, data.x, data.y, data.w, data.h, 4)
 		label.AnchorPoint = Vector2.new(0.5, 0.5)
-		if label.Image == "" then
+		whenMissing(label, function()
 			-- Ersatz: dieselbe Farbe als Spielfigur (quadratisch, damit sie nicht verzerrt)
 			local skin = CHARACTER_SKINS[data.name]
 			label.Image = (skin and SpriteAssets.frame(skin, "idle", 1)) or ""
 			label.ScaleType = Enum.ScaleType.Fit
-		end
+		end)
 		local baseX, baseY = data.x + data.w / 2, data.y + data.h / 2
 		label.Position = at(baseX, baseY)
 		table.insert(avatars, {
@@ -347,8 +370,9 @@ function MainMenu.start()
 		button.ZIndex = 8
 		button.Parent = titleGroup
 
-		if button.Image == "" then
+		whenMissing(button, function()
 			button.BackgroundTransparency = 0
+			Fade.setBase(button, "BackgroundTransparency", 0)
 			button.BackgroundColor3 = COLORS[name]
 			local corners = Instance.new("UICorner")
 			corners.CornerRadius = UDim.new(0.4, 0)
@@ -370,7 +394,7 @@ function MainMenu.start()
 			local limit = Instance.new("UITextSizeConstraint")
 			limit.MaxTextSize = 34
 			limit.Parent = text
-		end
+		end)
 
 		-- Hover-Zoom und Klick-Squash
 		local scale = Instance.new("UIScale")
@@ -594,7 +618,7 @@ function MainMenu.start()
 			transitioning = false
 		end)
 	end
-	boxButton(optionsGroup, "Back", "Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle, UIAssets.icon_back)
+	boxButton(optionsGroup, "Back", if UIAssets.icon_back ~= 0 then "Zurück" else "← Zurück", { 689, 729, 280, 67 }, Color3.fromRGB(33, 112, 231), showTitle, UIAssets.icon_back)
 	-- Grundwerte der Optionen merken (alles ist jetzt gebaut) und unsichtbar starten
 	Fade.to(optionsGroup, 1, 0)
 

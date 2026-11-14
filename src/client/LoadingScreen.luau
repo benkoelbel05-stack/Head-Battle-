@@ -26,6 +26,7 @@ function LoadingScreen.waitUntilDone()
 end
 
 local MAX_WAIT = 120 -- Sekunden: Notbremse, falls Roblox gar nicht antwortet
+local SKIP_AFTER = 3 -- Sekunden, bis der Knopf "Überspringen" erscheint
 local FONT = Enum.Font.FredokaOne
 local CREAM = Color3.fromRGB(255, 242, 219)
 local PURPLE = Color3.fromRGB(123, 42, 178)
@@ -168,14 +169,49 @@ function LoadingScreen.start()
 		end
 	end)
 
+	-- Überspringen: erscheint nach ein paar Sekunden; was noch fehlt, lädt dann im Spiel nach
+	local finished = false
+	local skip = Instance.new("TextButton")
+	skip.Name = "Skip"
+	skip.AnchorPoint = Vector2.new(1, 1)
+	skip.Position = UDim2.new(1, -24, 1, -24)
+	skip.Size = UDim2.fromOffset(190, 52)
+	skip.BackgroundColor3 = PURPLE
+	skip.AutoButtonColor = true
+	skip.Font = FONT
+	skip.TextSize = 24
+	skip.TextColor3 = CREAM
+	skip.Text = "ÜBERSPRINGEN ▶"
+	skip.Visible = false
+	skip.Parent = root
+	local skipCorner = Instance.new("UICorner")
+	skipCorner.CornerRadius = UDim.new(0.5, 0)
+	skipCorner.Parent = skip
+	local skipStroke = Instance.new("UIStroke")
+	skipStroke.Color = CREAM
+	skipStroke.Thickness = 3
+	skipStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	skipStroke.Parent = skip
+	skip.Activated:Connect(function()
+		if finished then
+			return
+		end
+		AssetPreloader.cancel()
+		finished = true
+	end)
+	task.delay(SKIP_AFTER, function()
+		if not finished and skip.Parent then
+			skip.Visible = true
+		end
+	end)
+
 	-- Laden
 	if not game:IsLoaded() then
 		status.Text = "Verbinde …"
 		game.Loaded:Wait()
 	end
-	local finished = false
 	local lastFraction = 0
-	task.spawn(function()
+	local function preload()
 		local ok, problem = pcall(AssetPreloader.run, function(count: number, total: number, section: string)
 			local fraction = if total > 0 then count / total else 1
 			if fraction > lastFraction then
@@ -188,14 +224,21 @@ function LoadingScreen.start()
 			warn(`[ClayBattle] Vorladen abgebrochen: {problem}`)
 		end
 		finished = true -- auch bei einem Fehler weiter zum Menü
-	end)
+	end
+	if not finished then -- schon übersprungen, während Roblox noch verbunden hat: gar nicht erst vorladen
+		task.spawn(preload)
+	end
 	local started = os.clock()
 	while not finished and os.clock() - started < MAX_WAIT do
 		task.wait(0.1)
 	end
+	if os.clock() - started >= MAX_WAIT then
+		AssetPreloader.cancel()
+	end
+	skip.Visible = false
 	TweenService:Create(fill, TweenInfo.new(0.15), { Size = UDim2.fromScale(1, 1) }):Play()
 	status.Text = "Fertig!"
-	task.wait(0.35)
+	task.wait(0.25)
 	done = true
 	doneEvent:Fire()
 
