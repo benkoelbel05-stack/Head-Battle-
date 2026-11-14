@@ -25,9 +25,11 @@ local SoundFX = require(script.SoundFX)
 local ItemAnimations = require(script.ItemAnimations)
 local Settings = require(script.Settings)
 local StatsDisplay = require(script.StatsDisplay)
+local ImageCache = require(script.ImageCache)
 
 task.spawn(Settings.start) -- Optionen: Standardwerte sofort, gespeicherte Werte vom Server kurz danach
 task.spawn(LoadingScreen.start) -- Ladebildschirm zuerst: lädt einmal alle Bilder und Klänge vor
+task.spawn(ImageCache.start) -- hält Figuren- und Item-Animationsbilder dauerhaft geladen
 PlatformClient.start()
 task.spawn(SoundFX.start)
 task.spawn(ItemAnimations.start)

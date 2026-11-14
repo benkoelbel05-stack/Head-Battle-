@@ -98,6 +98,7 @@ src/
     Fade.luau           Ein-/Ausblenden ohne CanvasGroup (CanvasGroups machen die Oberfläche unscharf)
     Settings.luau       Optionen des Spielers (get/set/changed), lädt und speichert über den Server
     StatsDisplay.luau   FPS- und Ping-Anzeige oben links (Option)
+    ImageCache.luau     hält Figuren- (Farben im Spiel) und Item-Animationsbilder dauerhaft geladen
     AssetPreloader.luau Lädt alle Bilder/Klänge vollständig: zeigt jedes Bild einmal in Anzeigegröße unter dem
                         Ladebildschirm, wartet auf IsLoaded, zweiter Versuch, meldet in Studio, was fehlt
     SoundFX.luau        Soundeffekte (IDs in src/shared/SoundIds.luau, Dateien in assets/sfx)

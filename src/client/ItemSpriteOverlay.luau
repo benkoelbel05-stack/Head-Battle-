@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
 local IDs = require(ReplicatedStorage.Shared.ItemSpriteIds)
+local ImageCache = require(script.Parent.ImageCache)
 local Constants = require(ReplicatedStorage.Shared.Constants)
 
 local ItemSpriteOverlay = {}
@@ -82,7 +83,10 @@ local function animate(part: BasePart, seq: string, size: number, update: ((Bill
 			return
 		end
 		local uri = "rbxassetid://" .. tostring(frames[index])
-		if image.Image ~= uri then image.Image = uri end
+		-- Nur auf ein fertig geladenes Bild wechseln, sonst das vorige stehen lassen (nie leer)
+		if image.Image ~= uri and (ImageCache.isLoaded(uri) or image.Image == "") then
+			image.Image = uri
+		end
 		if update then
 			update(gui, image)
 		end
