@@ -46,19 +46,61 @@ function BackgroundController.start()
 	image.ScaleType = Enum.ScaleType.Crop -- füllt die Fläche, ohne zu verzerren
 	image.Parent = gui
 
-	-- Die alte einfarbige Wand der Arena ausblenden, solange ein Bild da ist
-	local function refreshImage()
-		local key = roundState:GetAttribute("Background")
-		local id = if typeof(key) == "string" then ArenaAssets[key] else nil
-		id = id or ArenaAssets.day
-		image.Image = if id then `rbxassetid://{id}` else ""
+	-- Bild setzen. Die alte einfarbige Wand bleibt sichtbar, bis das Bild wirklich geladen ist.
+	-- Lädt es nicht (z. B. Decal- statt Image-ID), wird das Vorschaubild des Assets versucht.
+	local function setWall(hidden: boolean)
 		local wall = arena:FindFirstChild("Background")
 		if wall and wall:IsA("BasePart") then
-			wall.LocalTransparencyModifier = if image.Image ~= "" then 1 else 0
+			wall.LocalTransparencyModifier = if hidden then 1 else 0
 		end
 	end
+	local requestId = 0
+	local function refreshImage()
+		requestId += 1
+		local myRequest = requestId
+		local key = roundState:GetAttribute("Background")
+		local id = (if typeof(key) == "string" then ArenaAssets[key] else nil) or ArenaAssets.day
+		if not id then
+			image.Image = ""
+			setWall(false)
+			return
+		end
+		image.Image = `rbxassetid://{id}`
+		task.spawn(function()
+			local started = os.clock()
+			while os.clock() - started < 4 and myRequest == requestId do
+				if image.IsLoaded then
+					setWall(true)
+					return
+				end
+				task.wait(0.1)
+			end
+			if myRequest ~= requestId then
+				return
+			end
+			-- Ersatz: Vorschaubild über den Thumbnail-Dienst (klappt auch mit Decal-IDs)
+			warn(`[ClayBattle] Hintergrundbild {key} ({id}) lädt nicht, versuche Vorschaubild`)
+			image.Image = `rbxthumb://type=Asset&id={id}&w=768&h=432`
+			local retry = os.clock()
+			while os.clock() - retry < 4 and myRequest == requestId do
+				if image.IsLoaded then
+					setWall(true)
+					return
+				end
+				task.wait(0.1)
+			end
+			if myRequest == requestId then
+				warn(`[ClayBattle] Hintergrundbild {key} ({id}) lädt gar nicht: einfarbige Wand bleibt`)
+				setWall(false)
+			end
+		end)
+	end
 	roundState:GetAttributeChangedSignal("Background"):Connect(refreshImage)
-	arena.ChildAdded:Connect(refreshImage)
+	arena.ChildAdded:Connect(function(child)
+		if child.Name == "Background" then
+			setWall(image.IsLoaded and image.Image ~= "")
+		end
+	end)
 	refreshImage()
 
 	-- Nach der Kamera (Camera+1)
