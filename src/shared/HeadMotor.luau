@@ -32,6 +32,7 @@ export type Motor = {
 	accumulator: number,
 	velocity: Vector3,
 	facing: number,
+	speedScale: number, -- Laufgeschwindigkeit (1 = normal; Bots auf "Leicht" langsamer)
 
 	-- Kleben
 	attachedShape: PlatformShapes.Shape?,
@@ -64,6 +65,7 @@ function HeadMotor.new(position: Vector3): Motor
 		accumulator = 0,
 		velocity = Vector3.zero,
 		facing = 1,
+		speedScale = 1,
 		attachedShape = nil,
 		attachedU = 0,
 		alongSpeed = 0,
@@ -231,7 +233,7 @@ local function stepAttached(motor: Motor, dt: number, input: Vector3, now: numbe
 	end
 
 	-- Beschleunigen bzw. ohne Eingabe weich ausgleiten
-	local target = motor.crawlDirection * Constants.MOVE_SPEED
+	local target = motor.crawlDirection * Constants.MOVE_SPEED * motor.speedScale
 	local rate = if motor.crawlDirection ~= 0 then Constants.GROUND_ACCEL else Constants.GROUND_FRICTION
 	motor.alongSpeed = moveTowards(motor.alongSpeed, target, rate * dt)
 	local previousU = motor.attachedU
@@ -311,7 +313,7 @@ end
 
 local function stepAir(motor: Motor, dt: number, input: Vector3, now: number, shapes: { PlatformShapes.Shape }, others: { Vector3 })
 	local velocity = motor.velocity
-	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED, Constants.AIR_ACCEL * dt)
+	local vx = moveTowards(velocity.X, input.X * Constants.MOVE_SPEED * motor.speedScale, Constants.AIR_ACCEL * dt)
 	local vy = velocity.Y - Constants.GRAVITY * dt
 	if motor.jumpReleased and vy > 0 then
 		vy *= Constants.JUMP_CUT_MULTIPLIER -- früh loslassen = niedriger Sprung

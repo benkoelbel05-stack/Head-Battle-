@@ -162,7 +162,9 @@ local function steerBotMissile(missile: Missile, dt: number)
 		if participant ~= missile.owner and body then
 			local distance = (body.Position - position).Magnitude
 			if distance < best then
-				target, best = body.Position, distance
+				-- Vorhalten: dorthin, wo der Gegner bald ist
+				local timeToReach = distance / Constants.MISSILE_SPEED
+				target, best = body.Position + body.AssemblyLinearVelocity * math.min(timeToReach, 0.6) * 0.6, distance
 			end
 		end
 	end
@@ -250,6 +252,23 @@ function Missiles.init(remote: RemoteEvent, missileContext: Context)
 			Missiles.fire(player, direction :: Vector3, id :: string)
 		end
 	end)
+end
+
+-- Für die Bots: wo fliegen gerade Raketen hin?
+function Missiles.getActive(): { { id: string, owner: Participant, position: Vector3, direction: Vector3 } }
+	local list = {}
+	for _, missile in active do
+		if missile.part.Parent then
+			local direction = missile.part.CFrame.RightVector
+			table.insert(list, {
+				id = missile.id,
+				owner = missile.owner,
+				position = Vector3.new(missile.part.Position.X, missile.part.Position.Y, Constants.PLANE_Z),
+				direction = Vector3.new(direction.X, direction.Y, 0).Unit,
+			})
+		end
+	end
+	return list
 end
 
 function Missiles.isReady(participant: Participant): boolean

@@ -55,7 +55,10 @@ end
 local function participants(): { Participant }
 	local list: { Participant } = {}
 	for _, player in Players:GetPlayers() do
-		table.insert(list, player)
+		-- Spieler im Startmenü spielen noch nicht mit
+		if player:GetAttribute("InGame") == true then
+			table.insert(list, player)
+		end
 	end
 	for _, botId in context.getBots() do
 		table.insert(list, botId)

@@ -22,6 +22,8 @@ export type WearAt = "Top" | "Eyes" | "Bottom" | "Back"
 export type AbilityInfo = {
 	id: string,
 	itemName: string, -- Name des Kleidungsstücks (für Anzeige)
+	label: string, -- Name der Fähigkeit (Startmenü)
+	description: string, -- kurze Erklärung (Startmenü)
 	cooldown: number,
 	wearAt: WearAt,
 	shape: Enum.PartType,
@@ -41,6 +43,8 @@ Abilities.list = {
 	Dash = {
 		id = "Dash",
 		itemName = "Fliegerkappe",
+		label = "Dash",
+		description = "Schneller Sprung in Mausrichtung. Rettet dich auch beim Fallen.",
 		cooldown = Constants.DASH_COOLDOWN,
 		wearAt = "Top",
 		shape = Enum.PartType.Cylinder,
@@ -50,6 +54,8 @@ Abilities.list = {
 	Thruster = {
 		id = "Thruster",
 		itemName = "Schweißerbrille",
+		label = "Thruster",
+		description = "Klebt eine Düse an die Plattform unter dir, die sie wegschiebt.",
 		cooldown = Constants.THRUSTER_COOLDOWN,
 		wearAt = "Eyes",
 		shape = Enum.PartType.Block,
@@ -59,6 +65,8 @@ Abilities.list = {
 	Grenade = {
 		id = "Grenade",
 		itemName = "Granatengürtel",
+		label = "Granate",
+		description = "Halten zum Aufladen, loslassen zum Werfen. Explodiert am Kopf.",
 		cooldown = Constants.GRENADE_COOLDOWN,
 		chargeable = true,
 		wearAt = "Bottom",
@@ -69,6 +77,8 @@ Abilities.list = {
 	Sword = {
 		id = "Sword",
 		itemName = "Schwert",
+		label = "Schwert",
+		description = "Hieb im Bogen vor dir. Schlägt Granaten zurück.",
 		cooldown = Constants.SWORD_COOLDOWN,
 		wearAt = "Back",
 		shape = Enum.PartType.Block,
@@ -78,6 +88,8 @@ Abilities.list = {
 	Missile = {
 		id = "Missile",
 		itemName = "Raketenrucksack",
+		label = "Lenkrakete",
+		description = "Folgt deiner Maus. Nochmal drücken zündet sie.",
 		cooldown = Constants.MISSILE_COOLDOWN,
 		wearAt = "Back",
 		shape = Enum.PartType.Block,
@@ -89,7 +101,7 @@ Abilities.list = {
 -- Reihenfolge in der Ausrüstungs-Auswahl
 Abilities.ORDER = { "Dash", "Thruster", "Grenade", "Sword", "Missile" }
 
--- Bis es einen Auswahlbildschirm gibt, startet jeder mit dieser Ausrüstung
+-- Vorauswahl im Startmenü
 Abilities.DEFAULT_LOADOUT = { "Dash", "Thruster", "Grenade" }
 
 -- Name des Attributs am Kopf, das den Bereit-Zeitpunkt (Serverzeit) speichert

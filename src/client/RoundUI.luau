@@ -3,7 +3,6 @@
 --   * oben Mitte: Nachricht ("Runde 2", "Knetbert gewinnt die Runde!") und Countdown
 --   * oben links: Punkte aller Teilnehmer (ausgeschiedene grau)
 --   * unten rechts: Knöpfe "+ Bot" / "– Bot"
---   * unten links: Ausrüstung wählen (3 Fähigkeiten, Reihenfolge = Slot 1/2/3)
 -- Liest den Zustand aus ReplicatedStorage.RoundState (vom Server gesetzt).
 
 local Players = game:GetService("Players")
@@ -11,7 +10,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Constants = require(ReplicatedStorage.Shared.Constants)
-local Abilities = require(ReplicatedStorage.Shared.Abilities)
 
 local RoundUI = {}
 
@@ -102,91 +100,6 @@ function RoundUI.start()
 	removeBot.Activated:Connect(function()
 		changeBots:FireServer(-1)
 	end)
-
-	-- Ausrüstungs-Wahl: Klick-Reihenfolge bestimmt die Slots (Linke Maus / Mausrad / Rechte Maus)
-	local setLoadout = ReplicatedStorage:WaitForChild(Constants.REMOTES_FOLDER):WaitForChild("SetLoadout") :: RemoteEvent
-	local SLOT_NAMES = { "LM", "MR", "RM" }
-	local chosen: { string } = table.clone(Abilities.DEFAULT_LOADOUT)
-
-	local picker = Instance.new("Frame")
-	picker.Name = "LoadoutPicker"
-	picker.AnchorPoint = Vector2.new(0, 1)
-	picker.Position = UDim2.new(0, 16, 1, -16)
-	picker.Size = UDim2.fromOffset(190, 0)
-	picker.AutomaticSize = Enum.AutomaticSize.Y
-	picker.BackgroundColor3 = PANEL_COLOR
-	picker.BackgroundTransparency = 0.15
-	picker.Parent = gui
-	local pickerCorner = Instance.new("UICorner")
-	pickerCorner.CornerRadius = UDim.new(0, 14)
-	pickerCorner.Parent = picker
-	local pickerPadding = Instance.new("UIPadding")
-	pickerPadding.PaddingTop = UDim.new(0, 8)
-	pickerPadding.PaddingBottom = UDim.new(0, 8)
-	pickerPadding.PaddingLeft = UDim.new(0, 8)
-	pickerPadding.PaddingRight = UDim.new(0, 8)
-	pickerPadding.Parent = picker
-	local pickerList = Instance.new("UIListLayout")
-	pickerList.Padding = UDim.new(0, 6)
-	pickerList.SortOrder = Enum.SortOrder.LayoutOrder
-	pickerList.Parent = picker
-
-	local pickerTitle = makeLabel(picker, "Title", UDim2.new(1, 0, 0, 24), UDim2.new(), 20)
-	pickerTitle.Text = "Ausrüstung"
-	pickerTitle.LayoutOrder = 0
-
-	local pickerButtons: { [string]: TextButton } = {}
-	local function refreshPicker()
-		for id, button in pickerButtons do
-			local slot = table.find(chosen, id)
-			local info = Abilities.list[id]
-			button.Text = if slot then `{SLOT_NAMES[slot]}  {info.itemName}` else info.itemName
-			button.BackgroundColor3 = if slot then info.color:Lerp(PANEL_COLOR, 0.35) else PANEL_COLOR:Lerp(Color3.new(0, 0, 0), 0.25)
-			button.TextTransparency = if slot then 0 else 0.35
-		end
-	end
-
-	for index, id in Abilities.ORDER do
-		local button = Instance.new("TextButton")
-		button.Name = id
-		button.LayoutOrder = index
-		button.Size = UDim2.new(1, 0, 0, 32)
-		button.Font = FONT
-		button.TextSize = 18
-		button.TextColor3 = TEXT_COLOR
-		button.TextXAlignment = Enum.TextXAlignment.Left
-		button.AutoButtonColor = true
-		local buttonPadding = Instance.new("UIPadding")
-		buttonPadding.PaddingLeft = UDim.new(0, 10)
-		buttonPadding.Parent = button
-		local buttonCorner = Instance.new("UICorner")
-		buttonCorner.CornerRadius = UDim.new(0, 10)
-		buttonCorner.Parent = button
-		button.Parent = picker
-		pickerButtons[id] = button
-		button.Activated:Connect(function()
-			local slot = table.find(chosen, id)
-			if slot then
-				table.remove(chosen, slot)
-			elseif #chosen < Abilities.MAX_SLOTS then
-				table.insert(chosen, id)
-			else
-				-- Voll: das zuletzt gewählte ersetzen
-				chosen[#chosen] = id
-			end
-			refreshPicker()
-			-- Erst schicken, wenn alle 3 Slots belegt sind
-			if #chosen == Abilities.MAX_SLOTS then
-				setLoadout:FireServer(table.clone(chosen))
-			end
-		end)
-	end
-
-	local pickerHint = makeLabel(picker, "Hint", UDim2.new(1, 0, 0, 30), UDim2.new(), 13)
-	pickerHint.LayoutOrder = 100
-	pickerHint.TextWrapped = true
-	pickerHint.Text = "Klick = an/aus. Wirkt sofort in der Wartephase, sonst ab der nächsten Runde."
-	refreshPicker()
 
 	local function refreshScores()
 		for _, child in board:GetChildren() do

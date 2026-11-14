@@ -55,6 +55,8 @@ local changeBots = makeRemote("RemoteEvent", "ChangeBots") :: RemoteEvent -- Cli
 local swingSword = makeRemote("RemoteEvent", "SwingSword") :: RemoteEvent -- Client -> Server
 local fireMissile = makeRemote("RemoteEvent", "FireMissile") :: RemoteEvent -- Client -> Server
 local setLoadout = makeRemote("RemoteEvent", "SetLoadout") :: RemoteEvent -- Client -> Server
+local joinGame = makeRemote("RemoteEvent", "JoinGame") :: RemoteEvent -- Client -> Server (Startmenü "Spielen")
+local setDifficulty = makeRemote("RemoteEvent", "SetDifficulty") :: RemoteEvent -- Client -> Server (1-4)
 local platformEvents = makeRemote("RemoteEvent", "PlatformEvents") :: RemoteEvent -- Server -> Clients
 local platformSnapshot = makeRemote("UnreliableRemoteEvent", "PlatformSnapshot") :: UnreliableRemoteEvent
 remotes.Parent = ReplicatedStorage
@@ -149,6 +151,7 @@ BotController.init({
 	throwGrenade = Grenades.throw,
 	grenadeReady = Grenades.isReady,
 	activeGrenades = Grenades.getActive,
+	activeMissiles = Missiles.getActive,
 	placeThruster = Thrusters.place,
 	thrusterReady = Thrusters.isReady,
 	swingSword = Swords.swing,
@@ -159,10 +162,10 @@ BotController.init({
 	setLoadout = HeadSpawner.setLoadout,
 })
 
--- Ausrüstung wählen (bis zu 3 Fähigkeiten). Gilt ab dem nächsten Erscheinen; beim freien Spielen sofort.
-setLoadout.OnServerEvent:Connect(function(player: Player, list: unknown)
+-- Ausrüstung prüfen: bis zu 3 verschiedene, bekannte Fähigkeiten
+local function readLoadout(list: unknown): { string }?
 	if typeof(list) ~= "table" then
-		return
+		return nil
 	end
 	local ids = {}
 	for _, id in list :: { any } do
@@ -170,9 +173,43 @@ setLoadout.OnServerEvent:Connect(function(player: Player, list: unknown)
 			table.insert(ids, id)
 		end
 	end
+	return ids
+end
+
+-- Ausrüstung ändern (Menü im Spiel). Gilt ab dem nächsten Erscheinen; beim freien Spielen sofort.
+setLoadout.OnServerEvent:Connect(function(player: Player, list: unknown)
+	local ids = readLoadout(list)
+	if not ids then
+		return
+	end
 	HeadSpawner.setLoadout(player, ids)
 	if RoundManager.getPhase() == "Waiting" and HeadSpawner.getHead(player) then
 		HeadSpawner.spawn(player)
+	end
+end)
+
+-- Startmenü: "Spielen" gedrückt -> mit der gewählten Ausrüstung einsteigen
+joinGame.OnServerEvent:Connect(function(player: Player, list: unknown)
+	local ids = readLoadout(list)
+	if not ids then
+		return
+	end
+	HeadSpawner.setLoadout(player, ids)
+	if player:GetAttribute("InGame") ~= true then
+		player:SetAttribute("InGame", true)
+		RoundManager.addParticipant(player)
+	elseif RoundManager.getPhase() == "Waiting" and HeadSpawner.getHead(player) then
+		HeadSpawner.spawn(player)
+	end
+end)
+
+-- Bot-Schwierigkeit (für alle Bots, sichtbar im RoundState)
+local roundStateFolder = ReplicatedStorage:WaitForChild(Constants.ROUND_STATE)
+roundStateFolder:SetAttribute("BotDifficulty", BotController.getDifficulty())
+setDifficulty.OnServerEvent:Connect(function(_player: Player, level: unknown)
+	if typeof(level) == "number" and level == level then
+		BotController.setDifficulty(level)
+		roundStateFolder:SetAttribute("BotDifficulty", BotController.getDifficulty())
 	end
 end)
 
@@ -189,7 +226,7 @@ end)
 -- Spieler
 ---------------------------------------------------------------------------------------------------
 
-Players.PlayerAdded:Connect(RoundManager.addParticipant)
+-- Neue Spieler landen im Startmenü und steigen erst mit "Spielen" ein (JoinGame)
 Players.PlayerRemoving:Connect(function(player)
 	RoundManager.removeParticipant(player)
 	HeadSpawner.removeParticipant(player)
@@ -198,9 +235,6 @@ Players.PlayerRemoving:Connect(function(player)
 	Swords.removeParticipant(player)
 	Missiles.removeParticipant(player)
 end)
-for _, player in Players:GetPlayers() do
-	task.spawn(RoundManager.addParticipant, player)
-end
 
 ---------------------------------------------------------------------------------------------------
 -- Jeder Frame

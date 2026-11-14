@@ -10,7 +10,7 @@ Constants.PLANE_Z = 0
 Constants.HEAD_RADIUS = 1.5
 
 -- Bewegung (Studs pro Sekunde)
-Constants.MOVE_SPEED = 22
+Constants.MOVE_SPEED = 18
 Constants.GROUND_ACCEL = 140 -- wie schnell man auf einer Fläche die Zielgeschwindigkeit erreicht
 Constants.GROUND_FRICTION = 90 -- wie schnell man ohne Eingabe auf einer Fläche abbremst (gleiten)
 Constants.AIR_ACCEL = 90 -- weniger Kontrolle in der Luft
@@ -122,9 +122,26 @@ Constants.MATCH_END_TIME = 6 -- Pause nach einem Match
 
 -- Bots
 Constants.BOT_NAMES = { "Knetbert", "Plastilina", "Wurstl", "Klumpi", "Matschka", "Fladen" }
-Constants.BOT_THINK_INTERVAL = 0.15 -- so oft entscheidet ein Bot neu (Sekunden)
-Constants.BOT_THROW_CHANCE = 0.35 -- Chance pro Entscheidung, eine Granate zu werfen (wenn sinnvoll)
-Constants.BOT_AIM_ERROR = 2.5 -- wie ungenau Bots zielen (Studs Abweichung beim Ziel)
+-- Bot-Schwierigkeit (im Startmenü einstellbar). Werte pro Stufe:
+--   think        so oft entscheidet ein Bot neu (Sekunden) – kleiner = schnellere Reaktion
+--   speed        Laufgeschwindigkeit im Verhältnis zum Spieler
+--   aimError     Zielfehler beim Granatenwurf (Studs)
+--   lead         wie stark Bots vorhalten (0 = auf die aktuelle Position, 1 = voll vorausberechnet)
+--   throwChance  Chance pro Entscheidung, eine sinnvolle Granate zu werfen
+--   swordChance  Chance pro Entscheidung zuzuschlagen, wenn ein Gegner in Reichweite ist
+--   missileChance, thrusterChance  ebenso für Rakete und Thruster
+--   dodgeChance  Chance, einer Gefahr (Granate, Rakete, Schwert) überhaupt auszuweichen
+--   dodgeTime    so früh vor dem Einschlag wird ausgewichen (Sekunden)
+--   rescueChance Chance, sich beim Fallen per Dash zu retten
+--   deflect      schlägt Granaten mit dem Schwert zurück
+--   combo        Dash + Schwert, zündet Raketen neben dem Gegner, meidet Schwertkämpfer
+Constants.BOT_DIFFICULTIES = {
+	{ name = "Leicht", think = 0.32, speed = 0.75, aimError = 5, lead = 0, throwChance = 0.12, swordChance = 0.3, missileChance = 0.03, thrusterChance = 0.03, dodgeChance = 0.4, dodgeTime = 0.45, rescueChance = 0.4, deflect = false, combo = false },
+	{ name = "Normal", think = 0.18, speed = 0.9, aimError = 2.5, lead = 0.5, throwChance = 0.28, swordChance = 0.6, missileChance = 0.06, thrusterChance = 0.05, dodgeChance = 0.75, dodgeTime = 0.7, rescueChance = 0.8, deflect = false, combo = false },
+	{ name = "Schwer", think = 0.1, speed = 1, aimError = 1.2, lead = 0.85, throwChance = 0.45, swordChance = 0.85, missileChance = 0.1, thrusterChance = 0.06, dodgeChance = 0.9, dodgeTime = 0.9, rescueChance = 1, deflect = true, combo = true },
+	{ name = "Profi", think = 0.06, speed = 1, aimError = 0.4, lead = 1, throwChance = 0.6, swordChance = 1, missileChance = 0.14, thrusterChance = 0.07, dodgeChance = 1, dodgeTime = 1.05, rescueChance = 1, deflect = true, combo = true },
+}
+Constants.BOT_DEFAULT_DIFFICULTY = 2
 
 -- Knet-Look
 Constants.STOP_MOTION_FPS = 12
