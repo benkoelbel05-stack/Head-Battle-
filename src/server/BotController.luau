@@ -451,11 +451,13 @@ local function think(bot: Bot, motor: HeadMotor.Motor, now: number, shapes: { Pl
 		local chance = if sharedPlatform then level.thrusterChance * 4 else level.thrusterChance
 		if distance < 20 and random:NextNumber() < chance then
 			local contact = position - normal * R
+			-- Thruster-Koordinaten gelten relativ zur Wurzel der Plattform, nicht zur Form
+			local rootFrame = frame * shape.localFrame:Inverse()
 			context.placeThruster(
 				bot.id,
 				shape.model,
-				frame:PointToObjectSpace(contact),
-				frame:VectorToObjectSpace(normal),
+				rootFrame:PointToObjectSpace(contact),
+				rootFrame:VectorToObjectSpace(normal),
 				nextId(bot)
 			)
 		end

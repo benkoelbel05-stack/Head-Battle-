@@ -59,7 +59,10 @@ end
 
 -- Aktuelle Lage der Wurzel-Part einer Plattform
 function PlatformSim.cframeOf(state: PlatformState): CFrame
-	return CFrame.new(state.home.Position + state.offset) * state.home.Rotation * CFrame.Angles(0, 0, state.angle)
+	-- Drehung um die Bild-Achse der Welt (Z), NICHT um die eigene Z-Achse der Wurzel: bei Kreisen ist die
+	-- Wurzel der zur Kamera gedrehte Zylinder, dessen eigene Z-Achse zur Seite zeigt. Sonst kippt der
+	-- Kreis aus dem Bild heraus und wird zur flachen Ellipse (und die Köpfe darauf laufen falsch).
+	return CFrame.new(state.home.Position + state.offset) * CFrame.Angles(0, 0, state.angle) * state.home.Rotation
 end
 
 function PlatformSim.register(sim: Sim, model: Model): PlatformState?
@@ -364,7 +367,7 @@ function PlatformSim.renderFrameOf(sim: Sim, state: PlatformState): CFrame
 	local alpha = math.clamp(sim.accumulator / SIM_STEP, 0, 1)
 	local offset = state.prevOffset:Lerp(state.offset, alpha)
 	local angle = state.prevAngle + wrapAngle(state.angle - state.prevAngle) * alpha
-	return CFrame.new(state.home.Position + offset) * state.home.Rotation * CFrame.Angles(0, 0, angle)
+	return CFrame.new(state.home.Position + offset) * CFrame.Angles(0, 0, angle) * state.home.Rotation
 end
 
 -- Wurzel-Parts an die (weich gemischte) Lage setzen (nur Client, lokal)

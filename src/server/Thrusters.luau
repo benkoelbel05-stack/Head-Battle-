@@ -44,11 +44,18 @@ function Thrusters.place(participant: Participant, model: Model, localPosition: 
 		return false
 	end
 
-	local flatNormal = Vector3.new(localNormal.X, localNormal.Y, 0)
-	if flatNormal.Magnitude < 0.01 or localPosition.Magnitude > 200 then
+	-- In die Bild-Ebene der WELT legen (nicht in die der Wurzel): bei Kreisen ist die Wurzel ein zur
+	-- Kamera gedrehter Zylinder. Früher wurde in Wurzel-Koordinaten abgeschnitten, dadurch schob ein
+	-- seitlicher Thruster am Kreis auf dem Server senkrecht (und anders als beim Client).
+	local homeRotation = state.home.Rotation
+	local worldNormal = homeRotation:VectorToWorldSpace(localNormal)
+	local flatWorldNormal = Vector3.new(worldNormal.X, worldNormal.Y, 0)
+	if flatWorldNormal.Magnitude < 0.01 or localPosition.Magnitude > 200 then
 		return false
 	end
-	flatNormal = flatNormal.Unit
+	local flatNormal = homeRotation:VectorToObjectSpace(flatWorldNormal.Unit)
+	local worldOffset = homeRotation:VectorToWorldSpace(localPosition)
+	local flatPosition = homeRotation:VectorToObjectSpace(Vector3.new(worldOffset.X, worldOffset.Y, 0))
 
 	-- Reichweite prüfen (mit Spielraum für Netzwerk-Verzögerung)
 	local worldPoint = PlatformSim.cframeOf(state):PointToWorldSpace(localPosition)
@@ -63,7 +70,7 @@ function Thrusters.place(participant: Participant, model: Model, localPosition: 
 	end
 	local thruster: PlatformSim.Thruster = {
 		id = `{context.keyOf(participant)}-{id}`,
-		localPosition = Vector3.new(localPosition.X, localPosition.Y, 0),
+		localPosition = flatPosition,
 		localDirection = -flatNormal, -- Schub in die Plattform hinein, also weg vom Thruster
 		startTime = startTime,
 		endTime = startTime + Constants.THRUSTER_DURATION,

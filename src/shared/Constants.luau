@@ -121,7 +121,7 @@ Constants.SNAPSHOT_BLEND = 0.25 -- nur noch Rückfall ohne Zeitstempel; sonst gl
 
 -- Einfluss der Köpfe auf die Plattformen (siehe HeadWeight.luau)
 Constants.HEAD_WEIGHT_FORCE = 170 -- (früher 140, kurz 260; Plattformen sind jetzt leichter) Gewichtskraft eines Kopfes (zieht nach unten, am Ende: kippen)
-Constants.HEAD_LANDING_IMPULSE = 7 -- (früher 4) Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
+Constants.HEAD_LANDING_IMPULSE = 4.5 -- (früher 4, kurz 7: kleine Plattformen tauchten beim Landen ~12 Studs ab) Stoß pro Studs/s Aufprall-Geschwindigkeit beim Landen
 Constants.HEAD_WALK_FORCE = 5 -- (früher 4,2) Gegenschub pro Studs/s Laufgeschwindigkeit
 Constants.PLATFORM_CONTACT_DISTANCE = 0.25 -- so nah muss ein Kopf sein, damit er als "drauf" gilt
 -- (klein halten: sonst wird eine Plattform schon weggestoßen, bevor der Kopf sie berührt)
