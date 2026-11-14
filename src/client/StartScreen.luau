@@ -37,8 +37,24 @@ end
 -- Die Fähigkeiten-Abzeichen haben im Bild einen durchsichtigen Rand: so weit vergrößern, dass der
 -- runde Rand des Abzeichens genau auf dem Auswahlring sitzt
 local BADGE_FILL = 1.2
+-- Statt eines Rings wird das gerade gewählte bzw. angezeigte Abzeichen etwas größer
+local BADGE_GROW = 1.18
 
-type Icon = { button: TextButton, ring: UIStroke }
+-- Abzeichen weich auf Normal- oder Großformat bringen (nur wenn sich das Ziel ändert)
+local function growBadge(image: ImageLabel?, big: boolean)
+	if not image or image:GetAttribute("Big") == big then
+		return
+	end
+	image:SetAttribute("Big", big)
+	local size = if big then BADGE_FILL * BADGE_GROW else BADGE_FILL
+	TweenService:Create(
+		image,
+		TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = UDim2.fromScale(size, size) }
+	):Play()
+end
+
+type Icon = { button: TextButton, ring: UIStroke, image: ImageLabel? }
 type Slot = { button: TextButton, ring: UIStroke, icon: TextLabel, image: ImageLabel, left: TextButton, right: TextButton }
 
 -- Farben und Schrift
@@ -484,8 +500,14 @@ function StartScreen.start()
 
 		for id, icon in icons do
 			local slot = table.find(chosen, id)
-			icon.ring.Color = if slot == activeSlot then Color3.fromRGB(255, 235, 96) elseif slot then CREAM_RIM else NAVY
-			icon.ring.Thickness = if slot == activeSlot then 6 elseif slot then 4 else 3
+			if icon.image then
+				-- Mit Bild: kein Ring, das gezeigte Abzeichen (unter der Maus bzw. im gewählten Slot) wird größer
+				icon.ring.Enabled = false
+				growBadge(icon.image, id == (hovered or chosen[activeSlot]))
+			else
+				icon.ring.Color = if slot == activeSlot then Color3.fromRGB(255, 235, 96) elseif slot then CREAM_RIM else NAVY
+				icon.ring.Thickness = if slot == activeSlot then 6 elseif slot then 4 else 3
+			end
 		end
 		for index, slot in slots do
 			local info = Abilities.list[chosen[index]]
@@ -496,8 +518,10 @@ function StartScreen.start()
 			slot.button.BackgroundColor3 = info.color
 			slot.button.BackgroundTransparency = if hasImage then 1 else 0
 			local active = index == activeSlot
+			slot.ring.Enabled = not hasImage
 			slot.ring.Color = if active then CREAM_RIM else BROWN
 			slot.ring.Thickness = if active then 6 else 4
+			growBadge(slot.image, active)
 			slot.left.Visible = active
 			slot.right.Visible = active
 		end
@@ -557,7 +581,7 @@ function StartScreen.start()
 		button.TextStrokeColor3 = NAVY
 		button.TextStrokeTransparency = 0.65
 		button.Parent = iconHolder
-		icons[id] = { button = button, ring = ring }
+		icons[id] = { button = button, ring = ring, image = gridImage }
 		button.MouseEnter:Connect(function()
 			hovered = id
 			refresh()
