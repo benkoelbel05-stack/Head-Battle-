@@ -28,6 +28,7 @@ local PlatformTextures = require(ReplicatedStorage.Shared.PlatformTextures)
 local OceanAssets = require(ReplicatedStorage.Shared.OceanAssets)
 local SoundIds = require(ReplicatedStorage.Shared.SoundIds)
 local SpriteAssets = require(ReplicatedStorage.Shared.SpriteAssets)
+local ItemSpriteIds = require(ReplicatedStorage.Shared.ItemSpriteIds)
 
 local AssetPreloader = {}
 
@@ -135,10 +136,15 @@ local function collect(): { Section }
 		add(arena.images, `cloud_small_{index}`, id, "medium")
 	end
 
-	-- 4. Figuren
+	-- 4. Figuren und Item-Animationen (Dash, Granate, Explosion, Schwert, Rakete, Thruster)
 	local sprites: Section = { name = "Figuren", images = {}, sounds = {} }
 	for _, entry in SpriteAssets.allIds() do
 		add(sprites.images, `sprite_{entry.skin}_{entry.animation}_{entry.index}`, entry.id, "small")
+	end
+	for sequence, frames in ItemSpriteIds do
+		for index, id in frames do
+			add(sprites.images, `item_{sequence}_{index}`, id, "medium")
+		end
 	end
 
 	return { menu, ui, arena, sprites }

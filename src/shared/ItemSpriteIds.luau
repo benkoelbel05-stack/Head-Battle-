@@ -1,17 +1,13 @@
 --!strict
--- Clay Battle: echte Roblox IMAGE-IDs der PNG-Animationsframes.
+-- Clay Battle: echte Roblox IMAGE-IDs der PNG-Animationsframes (je 8 Bilder in Reihenfolge).
 -- 0 bedeutet NICHT hochgeladen oder nicht freigegeben. Keine IDs erfinden!
--- Die Datei wird durch EXPORT_ITEM_IDS_FUER_CLAUDE.bat nach Upload erzeugt.
--- Hochgeladen (14.11.) sind bisher nur DECAL-IDs: umwandeln mit tools/ConvertItemSprites.luau
--- (dort stehen sie). Bis dahin bleiben hier Nullen, dann laufen die gebauten Ersatz-Animationen.
-local function blank(): { number }
-  return { 0, 0, 0, 0, 0, 0, 0, 0 }
-end
+-- Hochgeladen werden Decal-IDs; umgewandelt am 14.11. mit tools/ConvertItemSprites.luau (Decal -> Image).
+-- Steht eine Folge auf Nullen, laufen in ItemAnimations.luau die gebauten Ersatz-Animationen.
 return {
-  grenade_spin = blank(),
-  grenade_explosion = blank(),
-  thruster_burst = blank(),
-  sword_swing = blank(),
-  missile_flight = blank(),
-  dash_burst = blank(),
+	grenade_spin = { 127648357898353, 134895081572525, 81465495264893, 96147116428959, 78089714140369, 80269399994609, 121490687301002, 102213956496669 },
+	grenade_explosion = { 87294653728653, 134281341871479, 134806149730275, 105076517059162, 84122616340195, 96303002872432, 134192913211844, 91919762934011 },
+	thruster_burst = { 123719506031719, 95591272669038, 129892120431748, 79863765087271, 140233355145571, 75830887921041, 87956811665007, 99666455225453 },
+	sword_swing = { 127724529658638, 124853603715096, 139084161038206, 130792538373541, 128103377673479, 118568878376214, 124984347190398, 71906822464138 },
+	missile_flight = { 97741300969622, 87648582114916, 74109538584804, 116471856577509, 105934658364156, 92923784206653, 134068825053112, 87419139209280 },
+	dash_burst = { 96282075370408, 116153180475265, 108014589696472, 117920217466402, 101226349929897, 71975093057971, 84788798970567, 92661198889435 },
 } :: { [string]: { number } }
