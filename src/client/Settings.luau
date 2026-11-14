@@ -41,7 +41,7 @@ end
 
 local function apply(name: string, value: any)
 	Players.LocalPlayer:SetAttribute(`ClayBattle_{name}`, value)
-	if name == "music" then
+	if name == "musicVolume" then
 		Settings.soundGroup("Music").Volume = value
 	elseif name == "sfx" then
 		Settings.soundGroup("SFX").Volume = value

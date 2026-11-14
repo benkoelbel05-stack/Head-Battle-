@@ -654,7 +654,7 @@ function MainMenu.start()
 	end
 
 	local ton = pages.Ton
-	sliderRow(ton, "Musik", "music", 1, UIAssets.icon_music)
+	sliderRow(ton, "Musik", "musicVolume", 1, UIAssets.icon_music)
 	sliderRow(ton, "Soundeffekte", "sfx", 2, UIAssets.icon_sound)
 	toggleRow(ton, "Musik im Spiel", "musicInGame", 3)
 	hint(ton, "Musik im Spiel: Die Menümusik läuft beim Spielen leise weiter.")

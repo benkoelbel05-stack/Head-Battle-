@@ -14,7 +14,8 @@ local SettingsSchema = {}
 
 SettingsSchema.FIELDS = {
 	-- Ton
-	music = { kind = "number", default = 0.6, min = 0, max = 1 },
+	-- Neuer Name (früher "music"): alte gespeicherte Werte (60-75 %) gelten nicht mehr, Start bei 25 %
+	musicVolume = { kind = "number", default = 0.25, min = 0, max = 1 },
 	sfx = { kind = "number", default = 0.85, min = 0, max = 1 },
 	musicInGame = { kind = "boolean", default = false }, -- Menümusik leise auch im Spiel
 	-- Grafik
