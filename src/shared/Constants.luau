@@ -64,8 +64,8 @@ Constants.PLATFORM_DENSITY = 1 -- Standard-Dichte (im Arena-Layout pro Plattform
 Constants.PLATFORM_SPRING = 6 -- wie stark die Plattform zum Startplatz zurückgezogen wird
 Constants.PLATFORM_DAMPING = 5 -- Bremse; ca. 2 * Wurzel(SPRING) = zurückfedern ohne Nachwackeln
 Constants.PLATFORM_MAX_OFFSET = 12 -- weiter als so viele Studs entfernt sich eine Plattform nie
-Constants.PLATFORM_ANGULAR_SPRING = 10
-Constants.PLATFORM_ANGULAR_DAMPING = 6.3
+Constants.PLATFORM_ANGULAR_SPRING = 16 -- wie stark eine gekippte Plattform zurückgedreht wird
+Constants.PLATFORM_ANGULAR_DAMPING = 8 -- ca. 2 * Wurzel(ANGULAR_SPRING) = ohne Nachwackeln
 Constants.PLATFORM_MAX_ANGLE = math.rad(60) -- stärker kippt eine Plattform nie
 Constants.PLATFORM_BOUNCE = 0.2 -- wie stark Plattformen voneinander abprallen (Knete: wenig)
 

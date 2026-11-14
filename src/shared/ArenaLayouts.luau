@@ -26,11 +26,11 @@ ArenaLayouts.Basteltisch = {
 	name = "Basteltisch",
 	platforms = {
 		{ position = Vector2.new(0, 0), size = Vector2.new(60, 4), color = MOOS }, -- Hauptboden
-		{ position = Vector2.new(-22, 14), size = Vector2.new(14, 2), color = SENF },
-		{ position = Vector2.new(22, 14), size = Vector2.new(14, 2), color = SENF },
-		{ position = Vector2.new(0, 26), size = Vector2.new(16, 2), color = PFLAUME, density = 0.7 }, -- leicht
-		{ position = Vector2.new(-40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 0.7 },
-		{ position = Vector2.new(40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 0.7 },
+		{ position = Vector2.new(-22, 14), size = Vector2.new(14, 2), color = SENF, density = 3 },
+		{ position = Vector2.new(22, 14), size = Vector2.new(14, 2), color = SENF, density = 3 },
+		{ position = Vector2.new(0, 26), size = Vector2.new(16, 2), color = PFLAUME, density = 2.5 },
+		{ position = Vector2.new(-40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5 },
+		{ position = Vector2.new(40, 7), size = Vector2.new(8, 2), color = PFLAUME, density = 2.5 },
 	},
 	spawns = {
 		Vector2.new(-20, 6),
