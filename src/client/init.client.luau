@@ -22,10 +22,12 @@ local AbilityBubbles = require(script.AbilityBubbles)
 local OceanScene = require(script.OceanScene)
 local LoadingScreen = require(script.LoadingScreen)
 local SoundFX = require(script.SoundFX)
+local ItemAnimations = require(script.ItemAnimations)
 
 task.spawn(LoadingScreen.start) -- Ladebildschirm zuerst: lädt einmal alle Bilder und Klänge vor
 PlatformClient.start()
 task.spawn(SoundFX.start)
+task.spawn(ItemAnimations.start)
 task.spawn(CameraController.start)
 task.spawn(BackgroundController.start)
 task.spawn(MapSelectUI.start)
